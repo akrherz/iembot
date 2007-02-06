@@ -1,4 +1,4 @@
-#!/mesonet/python/bin/python
+#!/usr/bin/env python
 # Twisted IEMBot! :)
 
 from twisted.words.protocols.jabber import client, jid, xmlstream
