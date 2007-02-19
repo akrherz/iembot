@@ -128,6 +128,17 @@ class JabberClient:
                 except:
                     print room, 'VERY VERY BAD'
 
+            #ping pong, sigh!
+            # If the message is x-delay, old message, no relay
+            bstring = xpath.queryForString('/message/body', elem)
+            if (x is None and len(bstring) >= 4 and bstring[:4] == "ping"):
+                message = domish.Element(('jabber:client','message'))
+                message['to'] = "%s@conference.%s" %(room,CHATSERVER)
+                message['type'] = "groupchat"
+                message.addElement('body',None,"%s: pong"%(res,))
+                self.xmlstream.send(message)
+
+
         elif (t == "chat" or t == ""):
             if (_from.userhost() == "iembot_ingest@%s" % (CHATSERVER,) ):
                 """ Go look for body to see routing info! """
