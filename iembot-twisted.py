@@ -62,12 +62,12 @@ class JabberClient:
 
         self.keepalive()
 
-        rooms = ['dmxschoolchat', 'bmxemachat', 'fwdemachat', 'botstalk', 'ABQ', 'AFC', 'AFG', 'AJK', 'AKQ', 'ALY', 'AMA', 'BGM', 'BMX', 'BOI', 'BOU', 'BOX', 'BRO', 'BTV', 'BUF', 'BYZ', 'CAE', 'CAR', 'CHS', 'CRP', 'CTP', 'CYS', 'EKA', 'EPZ', 'EWX', 'KEY', 'FFC', 'FGZ', 'FWD', 'GGW', 'GJT', 'GSP', 'GYX', 'HFO', 'HGX', 'HNX', 'HUN','ILM', 'JAN', 'JAX', 'JKL', 'LCH', 'LIX', 'LKN', 'LMK', 'LOX', 'LUB', 'LWX', 'LZK', 'MAF', 'MEG', 'MFL', 'MFR', 'MHX', 'MLB', 'MOB', 'MRX', 'MSO', 'MTR', 'OHX', 'OKX', 'OTX', 'OUN', 'PAH', 'PBZ', 'PDT', 'PHI', 'PIH', 'PQR', 'PSR', 'PUB', 'RAH', 'REV', 'RIW', 'RLX', 'RNK', 'SEW', 'SGX', 'SHV', 'SJT', 'SJU', 'SLC', 'STO', 'TAE', 'TBW', 'TFX', 'TSA', 'TWC', 'VEF', 'ABR', 'APX', 'ARX', 'BIS', 'CLE', 'DDC', 'DLH', 'DTX', 'DVN', 'EAX', 'FGF', 'FSD', 'GID', 'GLD', 'GRB', 'GRR', 'ICT', 'ILN', 'ILX', 'IND', 'IWX', 'LBF', 'LOT', 'LSX', 'MKX', 'MPX', 'MQT', 'OAX', 'SGF', 'TOP', 'UNR', 'DMX', 'XXX']
+        rooms = ['abc3340', 'dmxschoolchat', 'bmxemachat', 'fwdemachat', 'botstalk', 'ABQ', 'AFC', 'AFG', 'AJK', 'AKQ', 'ALY', 'AMA', 'BGM', 'BMX', 'BOI', 'BOU', 'BOX', 'BRO', 'BTV', 'BUF', 'BYZ', 'CAE', 'CAR', 'CHS', 'CRP', 'CTP', 'CYS', 'EKA', 'EPZ', 'EWX', 'KEY', 'FFC', 'FGZ', 'FWD', 'GGW', 'GJT', 'GSP', 'GYX', 'HFO', 'HGX', 'HNX', 'HUN','ILM', 'JAN', 'JAX', 'JKL', 'LCH', 'LIX', 'LKN', 'LMK', 'LOX', 'LUB', 'LWX', 'LZK', 'MAF', 'MEG', 'MFL', 'MFR', 'MHX', 'MLB', 'MOB', 'MRX', 'MSO', 'MTR', 'OHX', 'OKX', 'OTX', 'OUN', 'PAH', 'PBZ', 'PDT', 'PHI', 'PIH', 'PQR', 'PSR', 'PUB', 'RAH', 'REV', 'RIW', 'RLX', 'RNK', 'SEW', 'SGX', 'SHV', 'SJT', 'SJU', 'SLC', 'STO', 'TAE', 'TBW', 'TFX', 'TSA', 'TWC', 'VEF', 'ABR', 'APX', 'ARX', 'BIS', 'CLE', 'DDC', 'DLH', 'DTX', 'DVN', 'EAX', 'FGF', 'FSD', 'GID', 'GLD', 'GRB', 'GRR', 'ICT', 'ILN', 'ILX', 'IND', 'IWX', 'LBF', 'LOT', 'LSX', 'MKX', 'MPX', 'MQT', 'OAX', 'SGF', 'TOP', 'UNR', 'DMX', 'XXX']
         for rm in rooms:
             presence = domish.Element(('jabber:client','presence'))
-            presence['to'] = "%s@conference.%s/iembot" % (rm.lower(), _CHATSERVER)
+            presence['to'] = "%s@conference.%s/iembot" % (rm.lower(), CHATSERVER)
             if (len(rm) == 3):
-                presence['to'] = "%schat@conference.%s/iembot" % (rm.lower(), _CHATSERVER)
+                presence['to'] = "%schat@conference.%s/iembot" % (rm.lower(), CHATSERVER)
             xmlstream.send(presence)
 
 
@@ -76,6 +76,9 @@ class JabberClient:
         xmlstream.addObserver('/message',  self.processMessage)
         xmlstream.addObserver('/iq',  self.debug)
         xmlstream.addObserver('/presence',  self.debug)
+
+    def failure(self, f):
+        print f
 
     def debug(self, elem):
         print elem.toXml().encode('utf-8')
@@ -126,7 +129,7 @@ class JabberClient:
                     print room, 'VERY VERY BAD'
 
         elif (t == "chat" or t == ""):
-            if (_from.userhost() == "iembot_ingest@%s" % (_CHATSERVER,) ):
+            if (_from.userhost() == "iembot_ingest@%s" % (CHATSERVER,) ):
                 """ Go look for body to see routing info! """
                 wfo = None
                 # Get the body string
@@ -141,7 +144,7 @@ class JabberClient:
 
                 # Route message to botstalk room in tact
                 message = domish.Element(('jabber:client','message'))
-                message['to'] = "botstalk@conference.%s" % (_CHATSERVER,)
+                message['to'] = "botstalk@conference.%s" % (CHATSERVER,)
                 message['type'] = "groupchat"
                 message.addChild( elem.body )
                 if (elem.html):
@@ -150,7 +153,7 @@ class JabberClient:
 
                 # Send to chatroom, clip body
                 message = domish.Element(('jabber:client','message'))
-                message['to'] = "%schat@conference.%s" % (wfo.lower(), _CHATSERVER,)
+                message['to'] = "%schat@conference.%s" % (wfo.lower(), CHATSERVER,)
                 message['type'] = "groupchat"
                 message.addElement('body',None,bstring[4:])
                 if (elem.html):
@@ -158,24 +161,28 @@ class JabberClient:
 
                 self.xmlstream.send(message)
                 if (wfo.upper() == "BMX" or wfo.upper() == "FWD"):
-                    message['to'] = "%semachat@conference.%s" % (wfo.lower(), _CHATSERVER)
+                    message['to'] = "%semachat@conference.%s" % (wfo.lower(), CHATSERVER)
+                    self.xmlstream.send(message)
+                if (wfo.upper() == "BMX" or wfo.upper() == "HUN"):
+                    message['to'] = "abc3340@conference.%s" % ( CHATSERVER)
                     self.xmlstream.send(message)
                 if (wfo.upper() == "DMX"):
-                    message['to'] = "%sschoolchat@conference.%s" % (wfo.lower(), _CHATSERVER)
+                    message['to'] = "%sschoolchat@conference.%s" % (wfo.lower(), CHATSERVER)
                     self.xmlstream.send(message)
         
 
-myJid = jid.JID('iembot@%s/twisted_words' % (_CHATSERVER,) )
-factory = client.basicClientFactory(myJid, _IEMCHAT_PASS)
+myJid = jid.JID('iembot@%s/twisted_words' % (CHATSERVER,) )
+factory = client.basicClientFactory(myJid, IEMCHAT_PASS)
 
 jabber = JabberClient(myJid)
 
 factory.addBootstrap('//event/stream/authd',jabber.authd)
-factory.addBootstrap("//event/client/basicauth/invaliduser", jabber.debug)
-factory.addBootstrap("//event/client/basicauth/authfailed", jabber.debug)
-factory.addBootstrap("//event/stream/error", jabber.debug)
+factory.addBootstrap("//event/client/basicauth/invaliduser", jabber.failure)
+factory.addBootstrap("//event/client/basicauth/authfailed", jabber.failure)
+factory.addBootstrap("//event/stream/error", jabber.failure)
 
-reactor.connectTCP(_CHATSERVER,5222,factory)
+#reactor.connectTCP(CHATSERVER,5222,factory)
+reactor.connectTCP('jabber2',5222,factory)
 
 xmlrpc = IEMChatXMLRPC()
 reactor.listenTCP(8002, server.Site(xmlrpc))
