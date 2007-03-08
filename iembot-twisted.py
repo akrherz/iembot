@@ -8,7 +8,7 @@ from twisted.web import server, xmlrpc
 from twisted.internet import reactor
 from twisted.python import log
 
-import pdb, mx.DateTime
+import pdb, mx.DateTime, socket
 
 from secret import *
 #log.startLogging( open('twisted.log', 'w') )
@@ -41,23 +41,32 @@ class JabberClient:
         self.seqnum = 0
 
     def keepalive(self):
-        #iq = domish.Element(('', 'iq'))
-        #iq['type'] = "get"
-        #iq['id'] = "roster_l"
-        #q = domish.Element(('jabber:iq:roster', 'query'))
-        #iq.addChild(q)
-        #self.xmlstream.send(q)
         presence = domish.Element(('', 'presence'))
-        presence['show'] = "away"
-        presence['priority'] = "1"
-        presence['status'] = "I am iembot, hear me roar"
+        presence.addElement('show').addContent('away')
+        presence.addElement('status').addContent('Happy am I, iembot!')
         self.xmlstream.send(presence)
+
+        iq = client.IQ(self.xmlstream, "get")
+        iq.addElement(("http://jabber.org/protocol/disco#items", "query"))
+        iq.query['node'] = "sessions"
+        iq.send()
+
+        socket.setdefaulttimeout(60)
         reactor.callLater(6*60, self.keepalive)
+
+    def rawDataInFn(self, data):
+        print 'RECV', unicode(data,'utf-8','ignore').encode('ascii', 'replace')
+    def rawDataOutFn(self, data):
+        print 'SEND', unicode(data,'utf-8','ignore').encode('ascii', 'replace')
 
     def authd(self,xmlstream):
         print "Logged into Jabber Chat Server!"
         self.xmlstream = xmlstream
+        self.xmlstream.rawDataInFn = self.rawDataInFn
+        self.xmlstream.rawDataOutFn = self.rawDataOutFn
+
         presence = domish.Element(('jabber:client','presence'))
+        presence.addElement('status').addContent('Online')
         xmlstream.send(presence)
 
         self.keepalive()
@@ -72,10 +81,10 @@ class JabberClient:
 
 
 
-        xmlstream.addObserver('/message',  self.debug)
+        #xmlstream.addObserver('/message',  self.debug)
         xmlstream.addObserver('/message',  self.processMessage)
-        xmlstream.addObserver('/iq',  self.debug)
-        xmlstream.addObserver('/presence',  self.debug)
+        #xmlstream.addObserver('/iq',  self.debug)
+        #xmlstream.addObserver('/presence',  self.debug)
 
     def failure(self, f):
         print f
@@ -130,13 +139,16 @@ class JabberClient:
 
             #ping pong, sigh!
             # If the message is x-delay, old message, no relay
-            bstring = xpath.queryForString('/message/body', elem)
-            if (x is None and len(bstring) >= 4 and bstring[:4] == "ping"):
-                message = domish.Element(('jabber:client','message'))
-                message['to'] = "%s@conference.%s" %(room,CHATSERVER)
-                message['type'] = "groupchat"
-                message.addElement('body',None,"%s: pong"%(res,))
-                self.xmlstream.send(message)
+            try:
+                bstring = xpath.queryForString('/message/body', elem)
+                if (x is None and len(bstring) >= 4 and bstring[:4] == "ping"):
+                    message = domish.Element(('jabber:client','message'))
+                    message['to'] = "%s@conference.%s" %(room,CHATSERVER)
+                    message['type'] = "groupchat"
+                    message.addElement('body',None,"%s: pong"%(res,))
+                    self.xmlstream.send(message)
+            except:
+                pass
 
 
         elif (t == "chat" or t == ""):
@@ -188,12 +200,12 @@ factory = client.basicClientFactory(myJid, IEMCHAT_PASS)
 jabber = JabberClient(myJid)
 
 factory.addBootstrap('//event/stream/authd',jabber.authd)
-factory.addBootstrap("//event/client/basicauth/invaliduser", jabber.failure)
-factory.addBootstrap("//event/client/basicauth/authfailed", jabber.failure)
-factory.addBootstrap("//event/stream/error", jabber.failure)
+#factory.addBootstrap("//event/client/basicauth/invaliduser", jabber.failure)
+#factory.addBootstrap("//event/client/basicauth/authfailed", jabber.failure)
+#factory.addBootstrap("//event/stream/error", jabber.failure)
 
 #reactor.connectTCP(CHATSERVER,5222,factory)
-reactor.connectTCP('jabber2',5222,factory)
+reactor.connectTCP('localhost',5222,factory)
 
 xmlrpc = IEMChatXMLRPC()
 reactor.listenTCP(8002, server.Site(xmlrpc))
