@@ -8,7 +8,7 @@ from twisted.web import server, xmlrpc
 from twisted.internet import reactor
 from twisted.python import log
 
-import pdb, mx.DateTime, socket
+import pdb, mx.DateTime, socket, traceback
 
 from secret import *
 #log.startLogging( open('twisted.log', 'w') )
@@ -71,7 +71,7 @@ class JabberClient:
 
         self.keepalive()
 
-        rooms = ['abc3340', 'dmxschoolchat', 'bmxemachat', 'fwdemachat', 'botstalk', 'ABQ', 'AFC', 'AFG', 'AJK', 'AKQ', 'ALY', 'AMA', 'BGM', 'BMX', 'BOI', 'BOU', 'BOX', 'BRO', 'BTV', 'BUF', 'BYZ', 'CAE', 'CAR', 'CHS', 'CRP', 'CTP', 'CYS', 'EKA', 'EPZ', 'EWX', 'KEY', 'FFC', 'FGZ', 'FWD', 'GGW', 'GJT', 'GSP', 'GYX', 'HFO', 'HGX', 'HNX', 'HUN','ILM', 'JAN', 'JAX', 'JKL', 'LCH', 'LIX', 'LKN', 'LMK', 'LOX', 'LUB', 'LWX', 'LZK', 'MAF', 'MEG', 'MFL', 'MFR', 'MHX', 'MLB', 'MOB', 'MRX', 'MSO', 'MTR', 'OHX', 'OKX', 'OTX', 'OUN', 'PAH', 'PBZ', 'PDT', 'PHI', 'PIH', 'PQR', 'PSR', 'PUB', 'RAH', 'REV', 'RIW', 'RLX', 'RNK', 'SEW', 'SGX', 'SHV', 'SJT', 'SJU', 'SLC', 'STO', 'TAE', 'TBW', 'TFX', 'TSA', 'TWC', 'VEF', 'ABR', 'APX', 'ARX', 'BIS', 'CLE', 'DDC', 'DLH', 'DTX', 'DVN', 'EAX', 'FGF', 'FSD', 'GID', 'GLD', 'GRB', 'GRR', 'ICT', 'ILN', 'ILX', 'IND', 'IWX', 'LBF', 'LOT', 'LSX', 'MKX', 'MPX', 'MQT', 'OAX', 'SGF', 'TOP', 'UNR', 'DMX', 'XXX']
+        rooms = ['wxiaweather', 'kccichat', 'vipir6and7', 'abc3340', 'dmxschoolchat', 'bmxemachat', 'fwdemachat', 'botstalk', 'peopletalk', 'ABQ', 'AFC', 'AFG', 'AJK', 'AKQ', 'ALY', 'AMA', 'BGM', 'BMX', 'BOI', 'BOU', 'BOX', 'BRO', 'BTV', 'BUF', 'BYZ', 'CAE', 'CAR', 'CHS', 'CRP', 'CTP', 'CYS', 'EKA', 'EPZ', 'EWX', 'KEY', 'FFC', 'FGZ', 'FWD', 'GGW', 'GJT', 'GSP', 'GYX', 'HFO', 'HGX', 'HNX', 'HUN','ILM', 'JAN', 'JAX', 'JKL', 'LCH', 'LIX', 'LKN', 'LMK', 'LOX', 'LUB', 'LWX', 'LZK', 'MAF', 'MEG', 'MFL', 'MFR', 'MHX', 'MLB', 'MOB', 'MRX', 'MSO', 'MTR', 'OHX', 'OKX', 'OTX', 'OUN', 'PAH', 'PBZ', 'PDT', 'PHI', 'PIH', 'PQR', 'PSR', 'PUB', 'RAH', 'REV', 'RIW', 'RLX', 'RNK', 'SEW', 'SGX', 'SHV', 'SJT', 'SJU', 'SLC', 'STO', 'TAE', 'TBW', 'TFX', 'TSA', 'TWC', 'VEF', 'ABR', 'APX', 'ARX', 'BIS', 'CLE', 'DDC', 'DLH', 'DTX', 'DVN', 'EAX', 'FGF', 'FSD', 'GID', 'GLD', 'GRB', 'GRR', 'ICT', 'ILN', 'ILX', 'IND', 'IWX', 'LBF', 'LOT', 'LSX', 'MKX', 'MPX', 'MQT', 'OAX', 'SGF', 'TOP', 'UNR', 'DMX', 'XXX']
         for rm in rooms:
             presence = domish.Element(('jabber:client','presence'))
             presence['to'] = "%s@conference.%s/iembot" % (rm.lower(), CHATSERVER)
@@ -115,11 +115,13 @@ class JabberClient:
                                  'log': ['']*40, 'author': ['']*40}
             ticks = int(mx.DateTime.gmt().ticks() * 100)
             x = xpath.queryForNodes('/message/x', elem)
-            if (x is not None):
+            if (x is not None and x[0].hasAttribute("stamp") ):
                 xdelay = x[0]['stamp']
                 print "FOUND Xdelay", xdelay, ":"
                 delayts = mx.DateTime.strptime(xdelay, "%Y%m%dT%H:%M:%S")
                 ticks = int(delayts.ticks() * 100)
+            elif (x is not None):
+                print "What is this?", x[0].toXml()
 
             CHATLOG[room]['seqnum'] = CHATLOG[room]['seqnum'][1:] + [self.nextSeqnum(),]
             CHATLOG[room]['timestamps'] = CHATLOG[room]['timestamps'][1:] + [ticks,]
@@ -147,7 +149,14 @@ class JabberClient:
                     message['type'] = "groupchat"
                     message.addElement('body',None,"%s: pong"%(res,))
                     self.xmlstream.send(message)
+                if (x is None and res != "iembot"):
+                    message = domish.Element(('jabber:client','message'))
+                    message['to'] = "peopletalk@conference.%s" %(CHATSERVER,)
+                    message['type'] = "groupchat"
+                    message.addElement('body',None,"%s [%s] %s"%(res,room,bstring))
+                    self.xmlstream.send(message)
             except:
+                print traceback.print_exc()
                 pass
 
 
@@ -187,10 +196,18 @@ class JabberClient:
                     message['to'] = "%semachat@conference.%s" % (wfo.lower(), CHATSERVER)
                     self.xmlstream.send(message)
                 if (wfo.upper() == "BMX" or wfo.upper() == "HUN"):
-                    message['to'] = "abc3340@conference.%s" % ( CHATSERVER)
+                    message['to'] = "abc3340@conference.%s" % ( CHATSERVER,)
+                    self.xmlstream.send(message)
+                if (wfo.upper() == "MOB" or wfo.upper() == "TAE" or wfo.upper() == "BMX"):
+                    message['to'] = "vipir6and7@conference.%s" % ( CHATSERVER,)
+                    self.xmlstream.send(message)
+                if (wfo.upper() == "FFC"):
+                    message['to'] = "wxiaweather@conference.%s" % ( CHATSERVER,)
                     self.xmlstream.send(message)
                 if (wfo.upper() == "DMX"):
                     message['to'] = "%sschoolchat@conference.%s" % (wfo.lower(), CHATSERVER)
+                    self.xmlstream.send(message)
+                    message['to'] = "kccichat@conference.%s" % (CHATSERVER,)
                     self.xmlstream.send(message)
         
 
