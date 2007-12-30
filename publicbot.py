@@ -8,9 +8,9 @@ from twisted.python import log
 
 
 from twisted.enterprise import adbapi
-dbpool = adbapi.ConnectionPool("psycopg2", database='iem', host='10.10.10.20')
+dbpool = adbapi.ConnectionPool("psycopg2", database='iem', host='iem20')
 
-import pdb, mx.DateTime, datetime, re
+import pdb, mx.DateTime, datetime, re, random
 
 from secret import *
 #log.startLogging( open('twisted.log', 'w') )
@@ -19,7 +19,19 @@ import PyRSS2Gen
 
 CHATLOG = {}
 
-def add2chatlog(res, elem):
+o = open('startrek', 'r').read()
+fortunes = o.split("\n%\n")
+cnt_fortunes = len(fortunes)
+del o
+
+def getFortune():
+    try:
+        offset = int(cnt_fortunes * random.random())
+        return fortunes[offset]
+    except:
+        return ""
+
+def add2chatlog(iembot, res, elem):
     x = xpath.queryForNodes('/message/x', elem)
     bstring = xpath.queryForString('/message/body', elem)
     if (len(bstring) < 3):
@@ -45,12 +57,14 @@ def add2chatlog(res, elem):
     for rm in [myrm, "botstalk"]:
         if (not CHATLOG.has_key(rm)):
             CHATLOG[rm] = {'seqnum': [-1]*40, 'timestamps': [0]*40,
-              'txtlog': ['']*40, 'log': ['']*40, 'author': ['']*40}
+              'txtlog': ['']*40, 'log': ['']*40, 'author': ['']*40, 
+              'txtlog2': ['']*40 }
         CHATLOG[rm]['seqnum'] = CHATLOG[rm]['seqnum'][1:] + [iembot.nextSeqnum(),]
         CHATLOG[rm]['timestamps'] = CHATLOG[rm]['timestamps'][1:] + [ticks,]
         CHATLOG[rm]['author'] = CHATLOG[rm]['author'][1:] + [res,]
         CHATLOG[rm]['log'] = CHATLOG[rm]['log'][1:] + [logEntry,]
         CHATLOG[rm]['txtlog'] = CHATLOG[rm]['txtlog'][1:] + [body[4:],]
+        CHATLOG[rm]['txtlog2'] = CHATLOG[rm]['txtlog2'][1:] + [body,]
 
 class IEMJabberClient:
     xmlstream = None
@@ -58,6 +72,9 @@ class IEMJabberClient:
     def __init__(self, myJid):
         self.myJid = myJid
         self.seqnum = 0
+
+    def addAppriss(self, appriss):
+        self.appriss = appriss
 
     def nextSeqnum(self,):
         self.seqnum += 1
@@ -109,7 +126,7 @@ class IEMJabberClient:
             # If it is from some user!
             if (res != "iembot"): 
                 return
-            add2chatlog(res, elem)
+            add2chatlog(self, res, elem)
             # If the message is x-delay, old message, no relay
             x = xpath.queryForNodes('/message/x', elem)
             if (x is not None): return
@@ -155,15 +172,18 @@ class IEMJabberClient:
 
                 message['to'] = "abc3340skywatcher@muc.appriss.com"
                 message['type'] = "groupchat"
-                appriss.xmlstream.send(message)
+                self.appriss.xmlstream.send(message)
+                message['to'] = "bmxspotterchat@muc.appriss.com"
+                message['type'] = "groupchat"
+                self.appriss.xmlstream.send(message)
 
             message['to'] = "zz%schat@muc.appriss.com" % (wfo.lower(),)
             message['type'] = "groupchat"
-            appriss.xmlstream.send(message)
+            self.appriss.xmlstream.send(message)
 
             message['to'] = "wxdump@muc.appriss.com"
             message['type'] = "groupchat"
-            appriss.xmlstream.send(message)
+            self.appriss.xmlstream.send(message)
 
 class GMAILJabberClient:
     xmlstream = None
@@ -232,6 +252,8 @@ class APPRISSJabberClient:
         #xmlstream.send(presence)
         presence['to'] = "abc3340skywatcher@muc.appriss.com/iembot"
         xmlstream.send(presence)
+        presence['to'] = "bmxspotterchat@muc.appriss.com/iembot"
+        xmlstream.send(presence)
 
 
         xmlstream.addObserver('/iq',  self.debug)
@@ -264,7 +286,7 @@ class APPRISSJabberClient:
                 message = domish.Element(('jabber:client','message'))
                 message['to'] = "%s@muc.appriss.com" %(room,)
                 message['type'] = "groupchat"
-                message.addElement('body',None,"%s: pong"%(res,))
+                message.addElement('body',None,"%s: %s"%(res, getFortune() ))
                 self.xmlstream.send(message)
                 
             if (len(bstring) < 6 or bstring[:7] != "iembot:"):
@@ -277,30 +299,32 @@ class APPRISSJabberClient:
             if (tokens[0] == "METAR" and len(tokens) == 2):
                if (len(tokens[1]) == 4):
                   tokens[1] = tokens[1][1:]
-               getMETAR( tokens[1] ).addCallback(sendMETAR, room).addErrback(errHandler)
+               self.getMETAR( tokens[1] ).addCallback(self.sendMETAR, room).addErrback(self.errHandler)
 
 
     def debug(self, elem):
-        print elem.toXml().encode('utf-8')
-        print "="*20
+        try:
+            print elem.toXml().encode('utf-8')
+        except:
+            pass
 
 
-def errHandler(reason):
-    print reason
+    def errHandler(self, reason):
+        print reason
 
-def getMETAR(id):
-    return dbpool.runQuery("select raw from current WHERE station = '%s'" % (id,) )
+    def getMETAR(self, id):
+        return dbpool.runQuery("select raw from current WHERE station = '%s'" % (id,) )
 
-def sendMETAR(l, room):
-    if l:
-        print l[0][0], "years old"
-        message = domish.Element(('jabber:client','message'))
-        message['to'] = "%s@muc.appriss.com" %(room,)
-        message['type'] = "groupchat"
-        message.addElement('body',None, 'metar: '+ l[0][0])
-        appriss.xmlstream.send(message)
-    else:
-        print "No results returned"
+    def sendMETAR(self, l, room):
+        if l:
+            print l[0][0], "years old"
+            message = domish.Element(('jabber:client','message'))
+            message['to'] = "%s@muc.appriss.com" %(room,)
+            message['type'] = "groupchat"
+            message.addElement('body',None, 'metar: '+ l[0][0])
+            self.xmlstream.send(message)
+        else:
+            print "No results returned"
 
 
 class IEMChatXMLRPC(xmlrpc.XMLRPC):
@@ -343,11 +367,13 @@ def wfoRSS(rm):
       print 'Cached XML used',rm
       return xml_cache[rm]
 
-
+    rrm = "k"+ rm[:3]
+    if (rm == "botstalk"):
+      rrm = rm
     rss = PyRSS2Gen.RSS2(
            generator = "iembot",
            title = "IEMBOT Feed",
-           link = "http://mesonet.agron.iastate.edu/iembot-rss/wfo/"+ rm +".xml",
+           link = "http://mesonet.agron.iastate.edu/iembot-rss/wfo/"+ rrm +".xml",
            description = "To much fun!",
            lastBuildDate = datetime.datetime.utcnow() )
 
@@ -356,6 +382,8 @@ def wfoRSS(rm):
            continue
        ts = mx.DateTime.DateTimeFromTicks( CHATLOG[rm]['timestamps'][k] / 100.0)
        txt = CHATLOG[rm]['txtlog'][k]
+       if (rm == "botstalk"):
+         txt = CHATLOG[rm]['txtlog2'][k]
        urlpos = txt.find("http://")
        if (urlpos == -1):
            txt += "  "
@@ -379,17 +407,20 @@ class HomePage(resource.Resource):
 
     def render(self, request):
         #html = "<html><h4>"+ `dir(self.server)` + request.uri +"</h4></html>"
-        tokens = re.findall("/wfo/k(...).xml",request.uri.lower())
+        tokens = re.findall("/wfo/(k...|botstalk).xml",request.uri.lower())
         if (len(tokens) == 0):
            return "ERROR!"
         
-        rm = "%schat" % (tokens[0],)
+        if (len(tokens[0]) == 4):
+          rm = "%schat" % (tokens[0][1:],)
+        else:
+          rm = "botstalk"
         if (not CHATLOG.has_key(rm)):
             rss = PyRSS2Gen.RSS2(
             generator = "iembot",
             title = "IEMBOT Feed",
-            link = "http://mesonet.agron.iastate.edu/iembot-rss/wfo/"+ rm +".xml",
-            description = "To much fun!",
+            link = "http://mesonet.agron.iastate.edu/iembot-rss/wfo/"+ tokens[0] +".xml",
+            description = "Syndication of iembot messages.",
             lastBuildDate = datetime.datetime.utcnow() )
             rss.items.append( 
               PyRSS2Gen.RSSItem(
