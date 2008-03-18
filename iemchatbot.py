@@ -178,7 +178,7 @@ class JabberClient:
                 #message.addElement('body',None,"%s: %s"%(res, getFortune()))
                 message.addElement('body',None,"%s: %s"%(res, "pong"))
                 self.xmlstream.send(message)
-            if (x is None and res != "iembot" and room not in PRIVATE_ROOMS):
+            if (x is None and res != "iembot" and room not in PRIVATE_ROOMS+CWSU):
                 message = domish.Element(('jabber:client','message'))
                 message['to'] = "peopletalk@conference.%s" %(CHATSERVER,)
                 message['type'] = "groupchat"
