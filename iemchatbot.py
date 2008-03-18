@@ -12,9 +12,34 @@ from email.MIMEText import MIMEText
 
 
 from secret import *
-#log.startLogging( open('twisted.log', 'w') )
 
 CHATLOG = {}
+
+CWSU = ['ZAB','ZTL','ZBW','ZAU','ZOB','ZDV','ZFW','ZHU',
+        'ZID','ZKC','ZJX','ZLA','ZME','ZMA','ZMP','ZNY',
+        'ZOA','ZLC','ZSE','ZDC']
+
+PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
+                 'jaxemachat', 'bmxalert', 'mlbemchat', 'wxiaweather',
+                 'kccichat', 'vipir6and7', 'abc3340', 'dmxemchat',
+                 'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat']
+
+PUBLIC_ROOMS = ['botstalk', 'peopletalk']
+
+WFOS = ['ABQ', 'AFC', 'AFG', 'AJK', 'AKQ', 'ALY', 'AMA', 'BGM', 'BMX',
+        'BOI', 'BOU', 'BOX', 'BRO', 'BTV', 'BUF', 'BYZ', 'CAE', 'CAR',
+        'CHS', 'CRP', 'CTP', 'CYS', 'EKA', 'EPZ', 'EWX', 'KEY', 'FFC',
+        'FGZ', 'FWD', 'GGW', 'GJT', 'GSP', 'GYX', 'HFO', 'HGX', 'HNX',
+        'HUN', 'ILM', 'JAN', 'JAX', 'JKL', 'LCH', 'LIX', 'LKN', 'LMK',
+        'LOX', 'LUB', 'LWX', 'LZK', 'MAF', 'MEG', 'MFL', 'MFR', 'MHX',
+        'MLB', 'MOB', 'MRX', 'MSO', 'MTR', 'OHX', 'OKX', 'OTX', 'OUN',
+        'PAH', 'PBZ', 'PDT', 'PHI', 'PIH', 'PQR', 'PSR', 'PUB', 'RAH',
+        'REV', 'RIW', 'RLX', 'RNK', 'SEW', 'SGX', 'SHV', 'SJT', 'SJU',
+        'SLC', 'STO', 'TAE', 'TBW', 'TFX', 'TSA', 'TWC', 'VEF', 'ABR',
+        'APX', 'ARX', 'BIS', 'CLE', 'DDC', 'DLH', 'DTX', 'DVN', 'EAX',
+        'FGF', 'FSD', 'GID', 'GLD', 'GRB', 'GRR', 'ICT', 'ILN', 'ILX',
+        'IND', 'IWX', 'LBF', 'LOT', 'LSX', 'MKX', 'MPX', 'MQT', 'OAX',
+        'SGF', 'TOP', 'UNR', 'DMX', 'GUM']
 
 #o = open('startrek', 'r').read()
 #fortunes = o.split("\n%\n")
@@ -86,8 +111,7 @@ class JabberClient:
 
         self.keepalive()
 
-        rooms = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat', 'jaxemachat', 'bmxalert', 'mlbemchat', 'wxiaweather', 'kccichat', 'vipir6and7', 'abc3340', 'dmxemchat','janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat', 'botstalk', 'peopletalk', 'ABQ', 'AFC', 'AFG', 'AJK', 'AKQ', 'ALY', 'AMA', 'BGM', 'BMX', 'BOI', 'BOU', 'BOX', 'BRO', 'BTV', 'BUF', 'BYZ', 'CAE', 'CAR', 'CHS', 'CRP', 'CTP', 'CYS', 'EKA', 'EPZ', 'EWX', 'KEY', 'FFC', 'FGZ', 'FWD', 'GGW', 'GJT', 'GSP', 'GYX', 'HFO', 'HGX', 'HNX', 'HUN','ILM', 'JAN', 'JAX', 'JKL', 'LCH', 'LIX', 'LKN', 'LMK', 'LOX', 'LUB', 'LWX', 'LZK', 'MAF', 'MEG', 'MFL', 'MFR', 'MHX', 'MLB', 'MOB', 'MRX', 'MSO', 'MTR', 'OHX', 'OKX', 'OTX', 'OUN', 'PAH', 'PBZ', 'PDT', 'PHI', 'PIH', 'PQR', 'PSR', 'PUB', 'RAH', 'REV', 'RIW', 'RLX', 'RNK', 'SEW', 'SGX', 'SHV', 'SJT', 'SJU', 'SLC', 'STO', 'TAE', 'TBW', 'TFX', 'TSA', 'TWC', 'VEF', 'ABR', 'APX', 'ARX', 'BIS', 'CLE', 'DDC', 'DLH', 'DTX', 'DVN', 'EAX', 'FGF', 'FSD', 'GID', 'GLD', 'GRB', 'GRR', 'ICT', 'ILN', 'ILX', 'IND', 'IWX', 'LBF', 'LOT', 'LSX', 'MKX', 'MPX', 'MQT', 'OAX', 'SGF', 'TOP', 'UNR', 'DMX', 'GUM']
-        for rm in rooms:
+        for rm in CWSU + PRIVATE_ROOMS + PUBLIC_ROOMS + WFOS:
             presence = domish.Element(('jabber:client','presence'))
             presence['to'] = "%s@conference.%s/iembot" % (rm.lower(), CHATSERVER)
             if (len(rm) == 3):
@@ -155,7 +179,7 @@ class JabberClient:
                 #message.addElement('body',None,"%s: %s"%(res, getFortune()))
                 message.addElement('body',None,"%s: %s"%(res, "pong"))
                 self.xmlstream.send(message)
-            if (x is None and res != "iembot" and room not in ['bmxalert','wxiaweather', 'kccichat', 'vipir6and7', 'abc3340', 'dmxemchat', 'janhydrochat', 'bmxemachat', 'fwdemachat', 'botstalk', 'peopletalk','tbwemchat','mlbemchat','jaxemachat','abqemachat','wrhchat','broemchat','rgn3fwxchat']):
+            if (x is None and res != "iembot" and room not in PRIVATE_ROOMS):
                 message = domish.Element(('jabber:client','message'))
                 message['to'] = "peopletalk@conference.%s" %(CHATSERVER,)
                 message['type'] = "groupchat"
@@ -271,8 +295,6 @@ class JabberClient:
             self.xmlstream.send(message)
         if (wfo.upper() == "ABQ"):
             message['to'] = "abqemachat@conference.%s" % ( CHATSERVER,)
-            self.xmlstream.send(message)
-            message['to'] = "rgn3fwxchat@conference.%s" % ( CHATSERVER,)
             self.xmlstream.send(message)
         if (wfo.upper() == "SLC"):
             message['to'] = "wrhchat@conference.%s" % ( CHATSERVER,)
