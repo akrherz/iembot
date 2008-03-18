@@ -3,7 +3,6 @@ from twisted.words.protocols.jabber import client, jid, xmlstream
 from twisted.words.xish import domish, xpath
 from twisted.internet import reactor
 from twisted.web import server, xmlrpc
-from twisted.internet import reactor
 from twisted.python import log
 
 import pdb, mx.DateTime, socket, traceback, random
@@ -15,9 +14,9 @@ from secret import *
 
 CHATLOG = {}
 
-CWSU = ['ZAB','ZTL','ZBW','ZAU','ZOB','ZDV','ZFW','ZHU',
-        'ZID','ZKC','ZJX','ZLA','ZME','ZMA','ZMP','ZNY',
-        'ZOA','ZLC','ZSE','ZDC']
+CWSU = ['ZAB', 'ZTL', 'ZBW', 'ZAU', 'ZOB', 'ZDV', 'ZFW', 'ZHU',
+        'ZID', 'ZKC', 'ZJX', 'ZLA', 'ZME', 'ZMA', 'ZMP', 'ZNY',
+        'ZOA', 'ZLC', 'ZSE', 'ZDC']
 
 PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'jaxemachat', 'bmxalert', 'mlbemchat', 'wxiaweather',
@@ -187,7 +186,6 @@ class JabberClient:
                 self.xmlstream.send(message)
         except:
             print traceback.print_exc()
-            pass
 
     def processor(self, elem):
         try:
@@ -240,7 +238,6 @@ class JabberClient:
            return
 
         """ Go look for body to see routing info! """
-        wfo = None
         # Get the body string
         bstring = xpath.queryForString('/message/body', elem)
         htmlstr = xpath.queryForString('/message/html/body', elem)
