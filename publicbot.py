@@ -8,7 +8,7 @@ from twisted.python import log
 
 
 from twisted.enterprise import adbapi
-dbpool = adbapi.ConnectionPool("psycopg2", database='iem', host='iem20')
+dbpool = adbapi.ConnectionPool("psycopg2", database='iem', host='iemdb')
 
 import pdb, mx.DateTime, datetime, re, random
 
@@ -424,7 +424,7 @@ class HomePage(resource.Resource):
             lastBuildDate = datetime.datetime.utcnow() )
             rss.items.append( 
               PyRSS2Gen.RSSItem(
-               title = "IEMBOT resently restarted, no history yet",
+               title = "IEMBOT recently restarted, no history yet",
                link =  "http://mesonet.agron.iastate.edu/projects/iembot/",
                pubDate =  datetime.datetime.utcnow() ) )
             xml = rss.to_xml()
