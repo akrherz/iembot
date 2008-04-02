@@ -5,7 +5,7 @@ from twisted.internet import reactor
 from twisted.web import server, xmlrpc
 from twisted.python import log
 
-import pdb, mx.DateTime, socket, traceback, random
+import pdb, mx.DateTime, socket, traceback, random, re
 import StringIO, traceback, smtplib
 from email.MIMEText import MIMEText
 
@@ -49,6 +49,8 @@ WFOS = ['abqchat', 'afcchat', 'afgchat', 'ajkchat', 'akqchat', 'alychat',
         'mpxchat', 'mqtchat', 'oaxchat', 'sgfchat', 'topchat', 'unrchat',
         'dmxchat', 'gumchat']
 
+PHONE_RE = re.compile(r'(\d{3})\D*(\d{3})\D*(\d{4})\D*(\d*)')
+
 #o = open('startrek', 'r').read()
 #fortunes = o.split("\n%\n")
 #cnt_fortunes = len(fortunes)
@@ -88,20 +90,21 @@ class JabberClient:
         self.myJid = myJid
         self.seqnum = 0
 
-    def keepalive(self):
+        reactor.callLater(6*60, self.keepalive)
 
-        presence = domish.Element(('', 'presence'))
-        presence.addElement('show').addContent('away')
-        #presence.addElement('priority').addContent('1')
-        presence.addElement('status').addContent('Happy am I, iembot!')
+
+    def send_presence(self):
+        presence = domish.Element(('jabber:client','presence'))
+        presence.addElement('status').addContent('Online')
         self.xmlstream.send(presence)
 
         socket.setdefaulttimeout(60)
 
-        # XEP-0199
-        iq = client.IQ(self.xmlstream, "get")
-        iq.addElement(("urn:xmpp:ping", "ping"))
-        iq.send()
+    def keepalive(self):
+        if (self.xmlstream is not None):
+            iq = client.IQ(self.xmlstream, "get")
+            iq.addElement(("jabber:iq:version", "query"))
+            iq.send()
 
         reactor.callLater(6*60, self.keepalive)
 
@@ -116,25 +119,31 @@ class JabberClient:
         self.xmlstream.rawDataInFn = self.rawDataInFn
         self.xmlstream.rawDataOutFn = self.rawDataOutFn
 
-        presence = domish.Element(('jabber:client','presence'))
-        presence.addElement('status').addContent('Online')
-        xmlstream.send(presence)
+        self.xmlstream.addObserver('/message',  self.processor)
+        self.xmlstream.addObserver('/presence/x/item',  self.presence_processor)
 
-        self.keepalive()
 
+        self.send_presence()
+        self.join_chatrooms()
+
+    def join_chatrooms(self):
         for rm in CWSU + PRIVATE_ROOMS + PUBLIC_ROOMS + WFOS:
             ROSTER[rm] = {}
             presence = domish.Element(('jabber:client','presence'))
             presence['to'] = "%s@conference.%s/iembot" % (rm, CHATSERVER)
-            xmlstream.send(presence)
+            self.xmlstream.send(presence)
 
-        #xmlstream.addObserver('/message',  self.debug)
-        xmlstream.addObserver('/message',  self.processor)
-        #xmlstream.addObserver('/iq',  self.debug)
-        xmlstream.addObserver('/presence/x/item',  self.presence_processor)
 
-# <presence to="iembot@localhost/twisted_words" from="gumchat@conference.localhost/iembot"><x xmlns="http://jabber.org/protocol/muc#user"><item jid="iembot@localhost/twisted_words" affiliation="none" role="participant"/></x></presence>
     def presence_processor(self, elem):
+        """ Process presence items
+        <presence to="iembot@localhost/twisted_words" 
+                  from="gumchat@conference.localhost/iembot">
+         <x xmlns="http://jabber.org/protocol/muc#user">
+          <item jid="iembot@localhost/twisted_words" affiliation="none" 
+                role="participant"/>
+         </x>
+        </presence>
+        """
         _room = jid.JID( elem["from"] ).user
         _handle = jid.JID( elem["from"] ).resource
         items = xpath.queryForNodes('/presence/x/item', elem)
@@ -264,10 +273,29 @@ class JabberClient:
 
     def talkWithUser(self, elem):
         _from = jid.JID( elem["from"] )
+        bstring = xpath.queryForString('/message/body', elem)
+        if (bstring is None):
+            print "Empty conversation?", elem.toXml()
+            return 
+
+        bstring = bstring.lower()
+        if (bstring.find("set sms#") == 0):
+            ar = PHONE_RE.search(bstring)
+            if len(ar) < 4:
+                self.send_help_message( elem["from"] )
+                return
+            clean_number = "%s%s%s" % (ar[0], ar[1], sr[2])
+            print "Will set SMS here"
+
+        else:
+            self.send_help_message( elem["from"] )
+
+    def send_help_message(self, to):
         message = domish.Element(('jabber:client','message'))
-        message['to'] = elem['from']
+        message['to'] = to
         message['type'] = "chat"
-        message.addElement('body',None,"Sorry, I won't talk back to you yet!")
+        message.addElement('body',None,"Hi, I am iembot. Supported commands:\n\
+set sms# 555-555-5555")
         self.xmlstream.send(message)
 
     def processMessagePC(self, elem):
