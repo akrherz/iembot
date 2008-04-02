@@ -13,10 +13,12 @@ from email.MIMEText import MIMEText
 from secret import *
 
 CHATLOG = {}
+ROSTER = {}
 
-CWSU = ['ZAB', 'ZTL', 'ZBW', 'ZAU', 'ZOB', 'ZDV', 'ZFW', 'ZHU',
-        'ZID', 'ZKC', 'ZJX', 'ZLA', 'ZME', 'ZMA', 'ZMP', 'ZNY',
-        'ZOA', 'ZLC', 'ZSE', 'ZDC']
+CWSU = ['zabchat', 'ztlchat', 'zbwchat', 'zauchat', 'zobchat', 
+        'zdvchat', 'zfwchat', 'zhuchat', 'zidchat', 'zkcchat', 
+        'zjxchat', 'zlachat', 'zmechat', 'zmachat', 'zmpchat', 
+        'znychat', 'zoachat', 'zlcchat', 'zsechat', 'zdcchat']
 
 PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'jaxemachat', 'bmxalert', 'mlbemchat', 'wxiaweather',
@@ -25,20 +27,27 @@ PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
 
 PUBLIC_ROOMS = ['botstalk', 'peopletalk']
 
-WFOS = ['ABQ', 'AFC', 'AFG', 'AJK', 'AKQ', 'ALY', 'AMA', 'BGM', 'BMX',
-        'BOI', 'BOU', 'BOX', 'BRO', 'BTV', 'BUF', 'BYZ', 'CAE', 'CAR',
-        'CHS', 'CRP', 'CTP', 'CYS', 'EKA', 'EPZ', 'EWX', 'KEY', 'FFC',
-        'FGZ', 'FWD', 'GGW', 'GJT', 'GSP', 'GYX', 'HFO', 'HGX', 'HNX',
-        'HUN', 'ILM', 'JAN', 'JAX', 'JKL', 'LCH', 'LIX', 'LKN', 'LMK',
-        'LOX', 'LUB', 'LWX', 'LZK', 'MAF', 'MEG', 'MFL', 'MFR', 'MHX',
-        'MLB', 'MOB', 'MRX', 'MSO', 'MTR', 'OHX', 'OKX', 'OTX', 'OUN',
-        'PAH', 'PBZ', 'PDT', 'PHI', 'PIH', 'PQR', 'PSR', 'PUB', 'RAH',
-        'REV', 'RIW', 'RLX', 'RNK', 'SEW', 'SGX', 'SHV', 'SJT', 'SJU',
-        'SLC', 'STO', 'TAE', 'TBW', 'TFX', 'TSA', 'TWC', 'VEF', 'ABR',
-        'APX', 'ARX', 'BIS', 'CLE', 'DDC', 'DLH', 'DTX', 'DVN', 'EAX',
-        'FGF', 'FSD', 'GID', 'GLD', 'GRB', 'GRR', 'ICT', 'ILN', 'ILX',
-        'IND', 'IWX', 'LBF', 'LOT', 'LSX', 'MKX', 'MPX', 'MQT', 'OAX',
-        'SGF', 'TOP', 'UNR', 'DMX', 'GUM']
+WFOS = ['abqchat', 'afcchat', 'afgchat', 'ajkchat', 'akqchat', 'alychat',
+        'amachat', 'bgmchat', 'bmxchat', 'boichat', 'bouchat', 'boxchat',
+        'brochat', 'btvchat', 'bufchat', 'byzchat', 'caechat', 'carchat',
+        'chschat', 'crpchat', 'ctpchat', 'cyschat', 'ekachat', 'epzchat',
+        'ewxchat', 'keychat', 'ffcchat', 'fgzchat', 'fwdchat', 'ggwchat',
+        'gjtchat', 'gspchat', 'gyxchat', 'hfochat', 'hgxchat', 'hnxchat',
+        'hunchat', 'ilmchat', 'janchat', 'jaxchat', 'jklchat', 'lchchat',
+        'lixchat', 'lknchat', 'lmkchat', 'loxchat', 'lubchat', 'lwxchat',
+        'lzkchat', 'mafchat', 'megchat', 'mflchat', 'mfrchat', 'mhxchat',
+        'mlbchat', 'mobchat', 'mrxchat', 'msochat', 'mtrchat', 'ohxchat',
+        'okxchat', 'otxchat', 'ounchat', 'pahchat', 'pbzchat', 'pdtchat',
+        'phichat', 'pihchat', 'pqrchat', 'psrchat', 'pubchat', 'rahchat',
+        'revchat', 'riwchat', 'rlxchat', 'rnkchat', 'sewchat', 'sgxchat',
+        'shvchat', 'sjtchat', 'sjuchat', 'slcchat', 'stochat', 'taechat',
+        'tbwchat', 'tfxchat', 'tsachat', 'twcchat', 'vefchat', 'abrchat',
+        'apxchat', 'arxchat', 'bischat', 'clechat', 'ddcchat', 'dlhchat',
+        'dtxchat', 'dvnchat', 'eaxchat', 'fgfchat', 'fsdchat', 'gidchat',
+        'gldchat', 'grbchat', 'grrchat', 'ictchat', 'ilnchat', 'ilxchat',
+        'indchat', 'iwxchat', 'lbfchat', 'lotchat', 'lsxchat', 'mkxchat',
+        'mpxchat', 'mqtchat', 'oaxchat', 'sgfchat', 'topchat', 'unrchat',
+        'dmxchat', 'gumchat']
 
 #o = open('startrek', 'r').read()
 #fortunes = o.split("\n%\n")
@@ -80,17 +89,20 @@ class JabberClient:
         self.seqnum = 0
 
     def keepalive(self):
+
         presence = domish.Element(('', 'presence'))
         presence.addElement('show').addContent('away')
+        #presence.addElement('priority').addContent('1')
         presence.addElement('status').addContent('Happy am I, iembot!')
         self.xmlstream.send(presence)
 
+        socket.setdefaulttimeout(60)
+
+        # XEP-0199
         iq = client.IQ(self.xmlstream, "get")
-        iq.addElement(("http://jabber.org/protocol/disco#items", "query"))
-        iq.query['node'] = "sessions"
+        iq.addElement(("urn:xmpp:ping", "ping"))
         iq.send()
 
-        socket.setdefaulttimeout(60)
         reactor.callLater(6*60, self.keepalive)
 
     def rawDataInFn(self, data):
@@ -111,18 +123,31 @@ class JabberClient:
         self.keepalive()
 
         for rm in CWSU + PRIVATE_ROOMS + PUBLIC_ROOMS + WFOS:
+            ROSTER[rm] = {}
             presence = domish.Element(('jabber:client','presence'))
-            presence['to'] = "%s@conference.%s/iembot" % (rm.lower(), CHATSERVER)
-            if (len(rm) == 3):
-                presence['to'] = "%schat@conference.%s/iembot" % (rm.lower(), CHATSERVER)
+            presence['to'] = "%s@conference.%s/iembot" % (rm, CHATSERVER)
             xmlstream.send(presence)
-
-
 
         #xmlstream.addObserver('/message',  self.debug)
         xmlstream.addObserver('/message',  self.processor)
         #xmlstream.addObserver('/iq',  self.debug)
-        #xmlstream.addObserver('/presence',  self.debug)
+        xmlstream.addObserver('/presence/x/item',  self.presence_processor)
+
+# <presence to="iembot@localhost/twisted_words" from="gumchat@conference.localhost/iembot"><x xmlns="http://jabber.org/protocol/muc#user"><item jid="iembot@localhost/twisted_words" affiliation="none" role="participant"/></x></presence>
+    def presence_processor(self, elem):
+        _room = jid.JID( elem["from"] ).user
+        _handle = jid.JID( elem["from"] ).resource
+        items = xpath.queryForNodes('/presence/x/item', elem)
+        if (items is None):
+            return
+        for item in items:
+            if (item.attributes.has_key('jid') and
+                item.attributes.has_key('affiliation') and 
+                item.attributes.has_key('role') ):
+                ROSTER[ _room ][ _handle ] = {
+                      'jid': item.attributes['jid'],
+                      'affiliation': item.attributes['affiliation'],
+                      'role': item.attributes['role'] }
 
     def failure(self, f):
         print f
@@ -171,6 +196,17 @@ class JabberClient:
             # If the message is x-delay, old message, no relay
         try:
             bstring = xpath.queryForString('/message/body', elem)
+            if (x is None and len(bstring) >= 5 and bstring[:5] == "users"):
+                rmess = ""
+                for hndle in ROSTER[room].keys():
+                    rmess += "%s (%s), " % (hndle, ROSTER[room][hndle]['jid'],)
+                message = domish.Element(('jabber:client','message'))
+                message['to'] = "%s@conference.%s" %(room,CHATSERVER)
+                message['type'] = "groupchat"
+                #message.addElement('body',None,"%s: %s"%(res, getFortune()))
+                message.addElement('body',None,"JIDs in room: %s"% (rmess,) )
+                self.xmlstream.send(message)
+
             if (x is None and len(bstring) >= 4 and bstring[:4] == "ping"):
                 message = domish.Element(('jabber:client','message'))
                 message['to'] = "%s@conference.%s" %(room,CHATSERVER)
@@ -178,7 +214,7 @@ class JabberClient:
                 #message.addElement('body',None,"%s: %s"%(res, getFortune()))
                 message.addElement('body',None,"%s: %s"%(res, "pong"))
                 self.xmlstream.send(message)
-            if (x is None and res != "iembot" and room not in PRIVATE_ROOMS and room[:3].upper() not in CWSU):
+            if (x is None and res != "iembot" and room not in PRIVATE_ROOMS and room not in CWSU):
                 message = domish.Element(('jabber:client','message'))
                 message['to'] = "peopletalk@conference.%s" %(CHATSERVER,)
                 message['type'] = "groupchat"
@@ -186,6 +222,10 @@ class JabberClient:
                 self.xmlstream.send(message)
         except:
             print traceback.print_exc()
+
+    def process_sms(self, send_txt):
+        # Query for hmmm
+        return
 
     def processor(self, elem):
         try:
