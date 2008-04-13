@@ -8,46 +8,36 @@ import random
 
 # Local Import
 import publicbot
-from secret import *
+import secret
 
 application = service.Application("Public IEMBOT")
 serviceCollection = service.IServiceCollection(application)
 
 
-apprissJid = jid.JID('iembot@appriss.com/twisted_%s' % (random.random(),) )
-afactory = client.basicClientFactory(apprissJid, APPRISS_PASS)
+apprissJid = jid.JID('iembot@%s/twisted_%s' % (secret.APPRISS,random.random()))
+afactory = client.basicClientFactory(apprissJid, secret.APPRISS_PASS)
 appriss = publicbot.APPRISSJabberClient(apprissJid)
 afactory.addBootstrap('//event/stream/authd',appriss.authd)
 afactory.addBootstrap("//event/client/basicauth/invaliduser", appriss.debug)
 afactory.addBootstrap("//event/client/basicauth/authfailed", appriss.debug)
 afactory.addBootstrap("//event/stream/error", appriss.debug)
 
-a = internet.TCPClient('jabber.appriss.com',5222,afactory)
+a = internet.TCPClient(secret.APPRISS_SRV,5222,afactory)
 a.setServiceParent(serviceCollection)
 
-iemJid = jid.JID('iembot2@iemchat.com/twisted_%s' % (random.random(),) )
-ifactory = client.basicClientFactory(iemJid, IEMCHAT_PASS)
+
+iemJid = jid.JID('iembot2@%s/twisted_%s' % (secret.CHATSERVER, random.random()))
+ifactory = client.basicClientFactory(iemJid, secret.IEMCHAT_PASS)
 iembot = publicbot.IEMJabberClient(iemJid)
+iembot.addAppriss( appriss )
 ifactory.addBootstrap('//event/stream/authd',iembot.authd)
 ifactory.addBootstrap("//event/client/basicauth/invaliduser", iembot.debug)
 ifactory.addBootstrap("//event/client/basicauth/authfailed", iembot.debug)
 ifactory.addBootstrap("//event/stream/error", iembot.debug)
 
-i = internet.TCPClient('iemchat.com',5222,ifactory)
+i = internet.TCPClient(secret.CHATSERVER,5222,ifactory)
 i.setServiceParent(serviceCollection)
 
-
-"""
-gmailJid = jid.JID('iemchatbot@gmail.com/twisted_words')
-gfactory = client.basicClientFactory(gmailJid, GMAIL_PASS)
-gmail = GMAILJabberClient(gmailJid)
-gfactory.addBootstrap('//event/stream/authd',gmail.authd)
-gfactory.addBootstrap("//event/client/basicauth/invaliduser", gmail.debug)
-gfactory.addBootstrap("//event/client/basicauth/authfailed", gmail.debug)
-gfactory.addBootstrap("//event/stream/error", gmail.debug)
-cix = ssl.ClientContextFactory()
-reactor.connectSSL('talk.google.com',5223,gfactory, cix)
-"""
 
 xmlrpc = publicbot.IEMChatXMLRPC()
 x = internet.TCPServer(8003, server.Site(xmlrpc))

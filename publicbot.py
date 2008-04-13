@@ -5,14 +5,15 @@ from twisted.internet import reactor
 from twisted.web import server, xmlrpc, resource
 from twisted.internet import reactor
 from twisted.python import log
-
+from twisted.internet.task import LoopingCall
+from twisted.words.xish.xmlstream import STREAM_END_EVENT
 
 from twisted.enterprise import adbapi
 dbpool = adbapi.ConnectionPool("psycopg2", database='iem', host='iemdb')
 
-import pdb, mx.DateTime, datetime, re, random
+import pdb, mx.DateTime, datetime, re, random, pickle, os
 
-from secret import *
+import secret
 #log.startLogging( open('twisted.log', 'w') )
 
 import PyRSS2Gen
@@ -23,6 +24,21 @@ o = open('startrek', 'r').read()
 fortunes = o.split("\n%\n")
 cnt_fortunes = len(fortunes)
 del o
+
+SEQNUM0 = 0
+if (os.path.isfile('chatlog.pickle')):
+    CHATLOG = pickle.load( open('chatlog.pickle') )
+    for rm in CHATLOG.keys():
+        s = CHATLOG[rm]['seqnum'][-1]
+        if (s is not None and int(s) > SEQNUM0):
+            SEQNUM0 = int(s)
+ 
+def saveChatLog():
+    print 'SAVING CHATLOG'
+    pickle.dump( CHATLOG, open('chatlog.pickle','w'))
+
+lc2 = LoopingCall(saveChatLog)
+lc2.start(240)
 
 def getFortune():
     try:
@@ -69,9 +85,11 @@ def add2chatlog(iembot, res, elem):
 class IEMJabberClient:
     xmlstream = None
 
+
     def __init__(self, myJid):
         self.myJid = myJid
-        self.seqnum = 0
+        self.seqnum = SEQNUM0
+        print "iembot.seqnum init:", self.seqnum
 
     def addAppriss(self, appriss):
         self.appriss = appriss
@@ -81,32 +99,36 @@ class IEMJabberClient:
         return self.seqnum
 
     def keepalive(self):
-        presence = domish.Element(('', 'presence'))
-        presence['show'] = "away"
-        presence['priority'] = "1"
-        presence['status'] = "I am iembot, hear me roar"
-        self.xmlstream.send(presence)
-        reactor.callLater(6*60, self.keepalive)
+        self.xmlstream.send(' ')
 
     def authd(self,xmlstream):
         print "Logged into Jabber Chat Server!"
         self.xmlstream = xmlstream
-        presence = domish.Element(('jabber:client','presence'))
-        xmlstream.send(presence)
+        self.xmlstream.rawDataInFn = self.rawDataInFn
+        self.xmlstream.rawDataOutFn = self.rawDataOutFn
 
-        self.keepalive()
         presence = domish.Element(('jabber:client','presence'))
-        presence['to'] = "botstalk@conference.iemchat.com/appriss" 
-        xmlstream.send(presence)
+        self.xmlstream.send(presence)
 
-        xmlstream.addObserver('/message',  self.debug)
-        xmlstream.addObserver('/message',  self.processMessage)
-        xmlstream.addObserver('/iq',  self.debug)
-        xmlstream.addObserver('/presence',  self.debug)
+
+        presence = domish.Element(('jabber:client','presence'))
+        presence['to'] = "botstalk@conference.%s/appriss" % (secret.CHATSERVER,)
+        self.xmlstream.send(presence)
+
+        self.xmlstream.addObserver('/message',  self.processMessage)
+
+        lc = LoopingCall(self.keepalive)
+        lc.start(60)
+        self.xmlstream.addObserver(STREAM_END_EVENT, lambda _: lc.stop())
 
     def debug(self, elem):
         print elem.toXml().encode('utf-8')
         print "="*20
+    def rawDataInFn(self, data):
+        print 'RECV', unicode(data,'utf-8','ignore').encode('ascii', 'replace')
+    def rawDataOutFn(self, data):
+        if (data == ' '): return
+        print 'SEND', unicode(data,'utf-8','ignore').encode('ascii', 'replace')
 
 
     # Take messages in the room from iembot and send them over
@@ -119,7 +141,6 @@ class IEMJabberClient:
             print elem.toXml(), 'BOOOOOOO'
 
         if (t == "groupchat"):
-            #print elem.toXml(), '----', str(elem.children), '---'
             room = _from.user
             res = _from.resource
             if (res is None): return
@@ -170,52 +191,20 @@ class IEMJabberClient:
                 #message['type'] = "groupchat"
                 #appriss.xmlstream.send(message)
 
-                message['to'] = "abc3340skywatcher@muc.appriss.com"
+                message['to'] = "abc3340skywatcher@%s" % (secret.APPRISS_MUC,)
                 message['type'] = "groupchat"
                 self.appriss.xmlstream.send(message)
-                message['to'] = "bmxspotterchat@muc.appriss.com"
+                message['to'] = "bmxspotterchat@%s" % (secret.APPRISS_MUC,)
                 message['type'] = "groupchat"
                 self.appriss.xmlstream.send(message)
 
-            message['to'] = "zz%schat@muc.appriss.com" % (wfo.lower(),)
+            message['to'] = "zz%schat@%s" % (wfo.lower(), secret.APPRISS_MUC)
             message['type'] = "groupchat"
             self.appriss.xmlstream.send(message)
 
-            message['to'] = "wxdump@muc.appriss.com"
+            message['to'] = "wxdump@%s" % (secret.APPRISS_MUC, )
             message['type'] = "groupchat"
             self.appriss.xmlstream.send(message)
-
-class GMAILJabberClient:
-    xmlstream = None
-
-    def __init__(self, myJid):
-        self.myJid = myJid
-        self.seqnum = 0
-
-    def keepalive(self):
-        presence = domish.Element(('', 'presence'))
-        presence['show'] = "away"
-        presence['priority'] = "1"
-        presence['status'] = "I am iembot, hear me roar"
-        self.xmlstream.send(presence)
-        reactor.callLater(6*60, self.keepalive)
-
-    def authd(self,xmlstream):
-        print "Logged into Google Talk!"
-        self.xmlstream = xmlstream
-        presence = domish.Element(('jabber:client','presence'))
-        xmlstream.send(presence)
-
-        self.keepalive()
-
-
-        xmlstream.addObserver('/message',  self.debug)
-        xmlstream.addObserver('/iq',  self.debug)
-        xmlstream.addObserver('/presence',  self.debug)
-
-    def debug(self, elem):
-        print elem.toXml().encode('utf-8')
-        print "Google Talk ", "="*20
 
 class APPRISSJabberClient:
     xmlstream = None
@@ -225,40 +214,36 @@ class APPRISSJabberClient:
         self.seqnum = 0
 
     def keepalive(self):
-        presence = domish.Element(('', 'presence'))
-        presence['show'] = "away"
-        presence['priority'] = "1"
-        presence['status'] = "I am iembot, hear me roar"
-        self.xmlstream.send(presence)
-        reactor.callLater(6*60, self.keepalive)
+        self.xmlstream.send(' ')
 
     def authd(self,xmlstream):
         print "Logged into Jabber Chat Server!"
         self.xmlstream = xmlstream
+        self.xmlstream.rawDataInFn = self.rawDataInFn
+        self.xmlstream.rawDataOutFn = self.rawDataOutFn
+
         presence = domish.Element(('jabber:client','presence'))
         xmlstream.send(presence)
 
-        #self.keepalive()
 
         rooms = ['ABQ', 'AFC', 'AFG', 'AJK', 'AKQ', 'ALY', 'AMA', 'BGM', 'BMX', 'BOI', 'BOU', 'BOX', 'BRO', 'BTV', 'BUF', 'BYZ', 'CAE', 'CAR', 'CHS', 'CRP', 'CTP', 'CYS', 'EKA', 'EPZ', 'EWX', 'KEY', 'FFC', 'FGZ', 'FWD', 'GGW', 'GJT', 'GSP', 'GYX', 'HFO', 'HGX', 'HNX', 'HUN','ILM', 'JAN', 'JAX', 'JKL', 'LCH', 'LIX', 'LKN', 'LMK', 'LOX', 'LUB', 'LWX', 'LZK', 'MAF', 'MEG', 'MFL', 'MFR', 'MHX', 'MLB', 'MOB', 'MRX', 'MSO', 'MTR', 'OHX', 'OKX', 'OTX', 'OUN', 'PAH', 'PBZ', 'PDT', 'PHI', 'PIH', 'PQR', 'PSR', 'PUB', 'RAH', 'REV', 'RIW', 'RLX', 'RNK', 'SEW', 'SGX', 'SHV', 'SJT', 'SJU', 'SLC', 'STO', 'TAE', 'TBW', 'TFX', 'TSA', 'TWC', 'VEF', 'ABR', 'APX', 'ARX', 'BIS', 'CLE', 'DDC', 'DLH', 'DTX', 'DVN', 'EAX', 'FGF', 'FSD', 'GID', 'GLD', 'GRB', 'GRR', 'ICT', 'ILN', 'ILX', 'IND', 'IWX', 'LBF', 'LOT', 'LSX', 'MKX', 'MPX', 'MQT', 'OAX', 'SGF', 'TOP', 'UNR', 'DMX','GUM']
         for rm in rooms:
             presence = domish.Element(('jabber:client','presence'))
-            presence['to'] = "zz%schat@muc.appriss.com/iembot" % (rm.lower(),)
+            presence['to'] = "zz%schat@%s/iembot" % (rm.lower(),secret.APPRISS_MUC)
             xmlstream.send(presence)
         presence = domish.Element(('jabber:client','presence'))
-        presence['to'] = "wxdump@muc.appriss.com/iembot"
+        presence['to'] = "wxdump@%s/iembot" % (secret.APPRISS_MUC,)
         xmlstream.send(presence)
-        #presence['to'] = "abc3340conference@muc.appriss.com/iembot"
-        #xmlstream.send(presence)
-        presence['to'] = "abc3340skywatcher@muc.appriss.com/iembot"
+        presence['to'] = "abc3340skywatcher@%s/iembot" % (secret.APPRISS_MUC,)
         xmlstream.send(presence)
-        presence['to'] = "bmxspotterchat@muc.appriss.com/iembot"
+        presence['to'] = "bmxspotterchat@%s/iembot" % (secret.APPRISS_MUC,)
         xmlstream.send(presence)
 
+        self.xmlstream.addObserver('/message',  self.processMessage)
 
-        xmlstream.addObserver('/iq',  self.debug)
-        xmlstream.addObserver('/presence',  self.debug)
-        xmlstream.addObserver('/message',  self.processMessage)
+        lc = LoopingCall(self.keepalive)
+        lc.start(60)
+        self.xmlstream.addObserver(STREAM_END_EVENT, lambda _: lc.stop())
 
     def processMessage(self, elem):
         _from = jid.JID( elem["from"] )
@@ -284,7 +269,7 @@ class APPRISSJabberClient:
             #print "I FIND bstring: %s room: %s res: %s" % (unicode(bstring,'utf-8','ignore').encode('ascii', 'replace'), room, res)
             if (len(bstring) >= 4 and bstring[:4] == "ping"):
                 message = domish.Element(('jabber:client','message'))
-                message['to'] = "%s@muc.appriss.com" %(room,)
+                message['to'] = "%s@%s" %(room,secret.APPRISS_MUC)
                 message['type'] = "groupchat"
                 message.addElement('body',None,"%s: %s"%(res, getFortune() ))
                 self.xmlstream.send(message)
@@ -307,6 +292,12 @@ class APPRISSJabberClient:
             print elem.toXml().encode('utf-8')
         except:
             pass
+    def rawDataInFn(self, data):
+        print 'RECV', unicode(data,'utf-8','ignore').encode('ascii', 'replace')
+    def rawDataOutFn(self, data):
+        if (data == ' '): return
+        print 'SEND', unicode(data,'utf-8','ignore').encode('ascii', 'replace')
+
 
 
     def errHandler(self, reason):
@@ -319,7 +310,7 @@ class APPRISSJabberClient:
         if l:
             print l[0][0], "years old"
             message = domish.Element(('jabber:client','message'))
-            message['to'] = "%s@muc.appriss.com" %(room,)
+            message['to'] = "%s@%s" %(room, secret.APPRISS_MUC)
             message['type'] = "groupchat"
             message.addElement('body',None, 'metar: '+ l[0][0])
             self.xmlstream.send(message)
