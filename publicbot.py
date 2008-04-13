@@ -102,7 +102,7 @@ class IEMJabberClient:
         self.xmlstream.send(' ')
 
     def authd(self,xmlstream):
-        print "Logged into Jabber Chat Server!"
+        print "Logged into APPRISS Chat Server!"
         self.xmlstream = xmlstream
         self.xmlstream.rawDataInFn = self.rawDataInFn
         self.xmlstream.rawDataOutFn = self.rawDataOutFn
