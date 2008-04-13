@@ -2,11 +2,14 @@
 from twisted.words.protocols.jabber import client, jid, xmlstream
 from twisted.words.xish import domish, xpath
 from twisted.internet import reactor
-from twisted.web import server, xmlrpc
+from twisted.web import server, xmlrpc, client
 from twisted.python import log
+from twisted.enterprise import adbapi
+from twisted.words.xish.xmlstream import STREAM_END_EVENT
+from twisted.internet.task import LoopingCall
 
 import pdb, mx.DateTime, socket, traceback, random, re
-import StringIO, traceback, smtplib
+import StringIO, traceback, smtplib, base64, urllib
 from email.MIMEText import MIMEText
 
 
@@ -51,19 +54,7 @@ WFOS = ['abqchat', 'afcchat', 'afgchat', 'ajkchat', 'akqchat', 'alychat',
 
 PHONE_RE = re.compile(r'(\d{3})\D*(\d{3})\D*(\d{4})\D*(\d*)')
 
-#o = open('startrek', 'r').read()
-#fortunes = o.split("\n%\n")
-#cnt_fortunes = len(fortunes)
-#del o
-
-def getFortune():
-    try:
-        offset = int(cnt_fortunes * random.random())
-        return fortunes[offset]
-    except:
-        return ""
-
-
+DBPOOL = adbapi.ConnectionPool("psycopg2",  database="openfire")
 
 class IEMChatXMLRPC(xmlrpc.XMLRPC):
 
@@ -90,7 +81,6 @@ class JabberClient:
         self.myJid = myJid
         self.seqnum = 0
 
-        reactor.callLater(6*60, self.keepalive)
 
 
     def send_presence(self):
@@ -102,15 +92,13 @@ class JabberClient:
 
     def keepalive(self):
         if (self.xmlstream is not None):
-            iq = client.IQ(self.xmlstream, "get")
-            iq.addElement(("jabber:iq:version", "query"))
-            iq.send()
+            self.xmlstream.send(' ')
 
-        reactor.callLater(6*60, self.keepalive)
 
     def rawDataInFn(self, data):
         print 'RECV', unicode(data,'utf-8','ignore').encode('ascii', 'replace')
     def rawDataOutFn(self, data):
+        if (data == ' '): return
         print 'SEND', unicode(data,'utf-8','ignore').encode('ascii', 'replace')
 
     def authd(self,xmlstream):
@@ -125,6 +113,9 @@ class JabberClient:
 
         self.send_presence()
         self.join_chatrooms()
+        lc = LoopingCall(self.keepalive)
+        lc.start(60)
+        self.xmlstream.addObserver(STREAM_END_EVENT, lambda _: lc.stop())
 
     def join_chatrooms(self):
         for rm in CWSU + PRIVATE_ROOMS + PUBLIC_ROOMS + WFOS:
@@ -201,11 +192,15 @@ class JabberClient:
             except:
                 print room, 'VERY VERY BAD'
 
-            #ping pong, sigh!
-            # If the message is x-delay, old message, no relay
+        # If the message is x-delay, old message, no relay
+        if (x is not None):
+            return
         try:
             bstring = xpath.queryForString('/message/body', elem)
-            if (x is None and len(bstring) >= 5 and bstring[:5] == "users"):
+            if (len(bstring) >= 5 and bstring[:3] == "sms"):
+                self.process_sms(room, bstring[4:])
+
+            if (len(bstring) >= 5 and bstring[:5] == "users"):
                 rmess = ""
                 for hndle in ROSTER[room].keys():
                     rmess += "%s (%s), " % (hndle, ROSTER[room][hndle]['jid'],)
@@ -216,14 +211,14 @@ class JabberClient:
                 message.addElement('body',None,"JIDs in room: %s"% (rmess,) )
                 self.xmlstream.send(message)
 
-            if (x is None and len(bstring) >= 4 and bstring[:4] == "ping"):
+            if (len(bstring) >= 4 and bstring[:4] == "ping"):
                 message = domish.Element(('jabber:client','message'))
                 message['to'] = "%s@conference.%s" %(room,CHATSERVER)
                 message['type'] = "groupchat"
-                #message.addElement('body',None,"%s: %s"%(res, getFortune()))
                 message.addElement('body',None,"%s: %s"%(res, "pong"))
                 self.xmlstream.send(message)
-            if (x is None and res != "iembot" and room not in PRIVATE_ROOMS and room not in CWSU):
+
+            if (res != "iembot" and room not in PRIVATE_ROOMS and room not in CWSU):
                 message = domish.Element(('jabber:client','message'))
                 message['to'] = "peopletalk@conference.%s" %(CHATSERVER,)
                 message['type'] = "groupchat"
@@ -232,9 +227,50 @@ class JabberClient:
         except:
             print traceback.print_exc()
 
-    def process_sms(self, send_txt):
-        # Query for hmmm
-        return
+    def process_sms(self, room, send_txt):
+        # Query for users in chatgroup
+        sql = "select i.propvalue as num, i.username as username from \
+         iemchat_userprop i, jivegroupuser j WHERE \
+         i.username = j.username and \
+         j.groupname = '%sgroup'" % (room[:3].lower(),)
+        DBPOOL.runQuery(sql).addCallback(self.sendSMS, room, send_txt)
+
+    def sendSMS(self, l, rm, send_txt):
+        """ https://mobile.wrh.noaa.gov/mobile_secure/quios_relay.php 
+         numbers - string, a comma delimited list of 10 digit
+                   phone numbers
+         message - string, the message you want to send
+        """
+        if l:
+            numbers = []
+            for i in range(len(l)):
+                numbers.append( l[i][0] )
+                username = l[i][1]
+            print "Am sending to numbers::: %s" % (",".join(numbers),)
+            url = "https://mobile.wrh.noaa.gov/mobile_secure/quios_relay.php"
+            basicAuth = base64.encodestring("%s:%s" % (QUIOS_USER, QUIOS_PASS))
+            authHeader = "Basic " + basicAuth.strip()
+            payload = urllib.urlencode({'numbers': ",".join(numbers),\
+                                          'message': send_txt})
+            client.getPage(url, postdata=payload, method="POST",\
+              headers={"Authorization": authHeader,\
+                       "Content-type":"application/x-www-form-urlencoded"}\
+              ).addCallback(\
+              self.sms_success, rm).addErrback(self.sms_failure, rm)
+
+    def sms_failure(self, res, rm):
+        message = domish.Element(('jabber:client','message'))
+        message['to'] = "%s@conference.%s" %(rm, CHATSERVER)
+        message['type'] = "groupchat"
+        message.addElement('body',None,"SMS Send Failure, Sorry")
+        self.xmlstream.send(message)
+
+    def sms_success(self, res, rm):
+        message = domish.Element(('jabber:client','message'))
+        message['to'] = "%s@conference.%s" %(rm, CHATSERVER)
+        message['type'] = "groupchat"
+        message.addElement('body',None,"Sent SMS")
+        self.xmlstream.send(message)
 
     def processor(self, elem):
         try:
@@ -280,12 +316,24 @@ class JabberClient:
 
         bstring = bstring.lower()
         if (bstring.find("set sms#") == 0):
-            ar = PHONE_RE.search(bstring)
+            ar = PHONE_RE.search(bstring).groups()
             if len(ar) < 4:
                 self.send_help_message( elem["from"] )
                 return
-            clean_number = "%s%s%s" % (ar[0], ar[1], sr[2])
-            print "Will set SMS here"
+            clean_number = "%s%s%s" % (ar[0], ar[1], ar[2])
+            clean_number2 = "%s-%s-%s" % (ar[0], ar[1], ar[2])
+            sql = "DELETE from iemchat_userprop WHERE username = '%s' and \
+                   name = 'sms#'" % (_from.user, )
+            DBPOOL.runOperation( sql )
+            sql = "INSERT into iemchat_userprop(username, name, propvalue)\
+                   VALUES ('%s','%s','%s')" % \
+                   (_from.user, 'sms#', clean_number)
+            DBPOOL.runOperation( sql )
+            message = domish.Element(('jabber:client','message'))
+            message['to'] = elem["from"]
+            message['type'] = "chat"
+            message.addElement('body',None,"Thanks, sms updated to: %s" % (clean_number2,))
+            self.xmlstream.send(message)
 
         else:
             self.send_help_message( elem["from"] )
@@ -298,8 +346,27 @@ class JabberClient:
 set sms# 555-555-5555")
         self.xmlstream.send(message)
 
+    def send_private_request(self, myjid):
+        # Got a private message via MUC, send error and then private message
+        _handle = myjid.resource
+        _room = myjid.user
+        realjid = ROSTER[_room][_handle]["jid"]
+
+        self.send_help_message( realjid )
+
+        message = domish.Element(('jabber:client','message'))
+        message['to'] = myjid.full()
+        message['type'] = "chat"
+        message.addElement('body',None,"I can't help you here, please chat \
+with me outside of a groupchat.  I have initated such a chat for you.")
+        self.xmlstream.send(message)
+
     def processMessagePC(self, elem):
         _from = jid.JID( elem["from"] )
+        # Intercept private messages via a chatroom, can't do that :)
+        if (_from.host == "conference.%s" % (CHATSERVER,)):
+           self.send_private_request( _from )
+           return
 
         if (_from.userhost() != "iembot_ingest@%s" % (CHATSERVER,) ):
            self.talkWithUser(elem)
