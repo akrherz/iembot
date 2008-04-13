@@ -144,7 +144,11 @@ class JabberClient:
             if (item.attributes.has_key('jid') and
                 item.attributes.has_key('affiliation') and 
                 item.attributes.has_key('role') ):
-                ROSTER[ _room ][ _handle ] = {
+                if (item.attributes['role'] == "none"):
+                    if ( ROSTER[_room].has_key(_handle) ):
+                        del( ROSTER[_room][_handle] )
+                else:
+                    ROSTER[ _room ][ _handle ] = {
                       'jid': item.attributes['jid'],
                       'affiliation': item.attributes['affiliation'],
                       'role': item.attributes['role'] }
@@ -198,7 +202,18 @@ class JabberClient:
         try:
             bstring = xpath.queryForString('/message/body', elem)
             if (len(bstring) >= 5 and bstring[:3] == "sms"):
-                self.process_sms(room, bstring[4:])
+                # Make sure the user is an owner or admin, I think
+                aff = None
+                if (ROSTER[room].has_key(res)):
+                    aff = ROSTER[room][res]['affiliation']
+                if (aff in ['owner','admin']):
+                    self.process_sms(room, bstring[4:])
+                else:
+                    message = domish.Element(('jabber:client','message'))
+                    message['to'] = "%s@conference.%s" %(room,CHATSERVER)
+                    message['type'] = "groupchat"
+                    message.addElement('body',None,"%s: Sorry, you must be a room admin to send a SMS"% (res,) )
+                    self.xmlstream.send(message)
 
             if (len(bstring) >= 5 and bstring[:5] == "users"):
                 rmess = ""
@@ -207,7 +222,6 @@ class JabberClient:
                 message = domish.Element(('jabber:client','message'))
                 message['to'] = "%s@conference.%s" %(room,CHATSERVER)
                 message['type'] = "groupchat"
-                #message.addElement('body',None,"%s: %s"%(res, getFortune()))
                 message.addElement('body',None,"JIDs in room: %s"% (rmess,) )
                 self.xmlstream.send(message)
 
@@ -350,6 +364,8 @@ set sms# 555-555-5555")
         # Got a private message via MUC, send error and then private message
         _handle = myjid.resource
         _room = myjid.user
+        if (not ROSTER[_room].has_key(_handle)):
+            return
         realjid = ROSTER[_room][_handle]["jid"]
 
         self.send_help_message( realjid )
