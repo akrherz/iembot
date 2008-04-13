@@ -3,7 +3,7 @@
 import urllib2, mx.DateTime
 import elementtree.ElementTree as ET
 from twisted.words.xish import domish
-import logging
+import logging, secret
 from twisted.words.protocols.jabber import client, jid, xmlstream
 from twisted.words.xish import domish
 from twisted.internet import reactor
