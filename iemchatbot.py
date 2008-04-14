@@ -199,31 +199,28 @@ class JabberClient:
         # If the message is x-delay, old message, no relay
         if (x is not None):
             return
-        try:
-            bstring = xpath.queryForString('/message/body', elem)
-            if (len(bstring) >= 5 and bstring[:3] == "sms"):
-                # Make sure the user is an owner or admin, I think
-                aff = None
-                if (ROSTER[room].has_key(res)):
-                    aff = ROSTER[room][res]['affiliation']
-                if (aff in ['owner','admin']):
-                    self.process_sms(room, bstring[4:], ROSTER[room][res]['jid'])
-                else:
-                    self.send_groupchat(room, "%s: Sorry, you must be a room admin to send a SMS"% (res,))
+        bstring = xpath.queryForString('/message/body', elem)
+        if (len(bstring) >= 5 and bstring[:3] == "sms"):
+            # Make sure the user is an owner or admin, I think
+            aff = None
+            if (ROSTER[room].has_key(res)):
+                aff = ROSTER[room][res]['affiliation']
+            if (aff in ['owner','admin']):
+                self.process_sms(room, bstring[4:], ROSTER[room][res]['jid'])
+            else:
+                self.send_groupchat(room, "%s: Sorry, you must be a room admin to send a SMS"% (res,))
 
-            if (len(bstring) >= 5 and bstring[:5] == "users"):
-                rmess = ""
-                for hndle in ROSTER[room].keys():
-                    rmess += "%s (%s), " % (hndle, ROSTER[room][hndle]['jid'],)
-                self.send_groupchat(room, "JIDs in room: %s" % (rmess,))
+        if (len(bstring) >= 5 and bstring[:5] == "users"):
+            rmess = ""
+            for hndle in ROSTER[room].keys():
+                rmess += "%s (%s), " % (hndle, ROSTER[room][hndle]['jid'],)
+            self.send_groupchat(room, "JIDs in room: %s" % (rmess,))
 
-            if (len(bstring) >= 4 and bstring[:4] == "ping"):
-                self.send_groupchat(room, "%s: %s"%(res, "pong"))
+        if (len(bstring) >= 4 and bstring[:4] == "ping"):
+            self.send_groupchat(room, "%s: %s"%(res, "pong"))
 
-            if (res != "iembot" and room not in PRIVATE_ROOMS and room not in CWSU):
-                self.send_groupchat("peopletalk", "[%s] %s: %s"%(room,res,bstring))
-        except:
-            print traceback.print_exc()
+        if (res != "iembot" and room not in PRIVATE_ROOMS and room not in CWSU):
+            self.send_groupchat("peopletalk", "[%s] %s: %s"%(room,res,bstring))
 
     def process_sms(self, room, send_txt, sender):
         # Query for users in chatgroup
