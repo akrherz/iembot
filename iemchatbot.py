@@ -209,35 +209,19 @@ class JabberClient:
                 if (aff in ['owner','admin']):
                     self.process_sms(room, bstring[4:])
                 else:
-                    message = domish.Element(('jabber:client','message'))
-                    message['to'] = "%s@conference.%s" %(room,CHATSERVER)
-                    message['type'] = "groupchat"
-                    message.addElement('body',None,"%s: Sorry, you must be a room admin to send a SMS"% (res,) )
-                    self.xmlstream.send(message)
+                    self.send_groupchat(room, "%s: Sorry, you must be a room admin to send a SMS"% (res,))
 
             if (len(bstring) >= 5 and bstring[:5] == "users"):
                 rmess = ""
                 for hndle in ROSTER[room].keys():
                     rmess += "%s (%s), " % (hndle, ROSTER[room][hndle]['jid'],)
-                message = domish.Element(('jabber:client','message'))
-                message['to'] = "%s@conference.%s" %(room,CHATSERVER)
-                message['type'] = "groupchat"
-                message.addElement('body',None,"JIDs in room: %s"% (rmess,) )
-                self.xmlstream.send(message)
+                self.send_groupchat(room, "JIDs in room: %s" % (rmess,))
 
             if (len(bstring) >= 4 and bstring[:4] == "ping"):
-                message = domish.Element(('jabber:client','message'))
-                message['to'] = "%s@conference.%s" %(room,CHATSERVER)
-                message['type'] = "groupchat"
-                message.addElement('body',None,"%s: %s"%(res, "pong"))
-                self.xmlstream.send(message)
+                self.send_groupchat(room, "%s: %s"%(res, "pong"))
 
             if (res != "iembot" and room not in PRIVATE_ROOMS and room not in CWSU):
-                message = domish.Element(('jabber:client','message'))
-                message['to'] = "peopletalk@conference.%s" %(CHATSERVER,)
-                message['type'] = "groupchat"
-                message.addElement('body',None,"[%s] %s: %s"%(room,res,bstring))
-                self.xmlstream.send(message)
+                self.send_groupchat("peopletalk", "[%s] %s: %s"%(room,res,bstring))
         except:
             print traceback.print_exc()
 
@@ -273,6 +257,7 @@ class JabberClient:
               self.sms_success, rm).addErrback(self.sms_failure, rm)
 
     def sms_failure(self, res, rm):
+        print res
         message = domish.Element(('jabber:client','message'))
         message['to'] = "%s@conference.%s" %(rm, CHATSERVER)
         message['type'] = "groupchat"
@@ -358,6 +343,13 @@ class JabberClient:
         message['type'] = "chat"
         message.addElement('body',None,"Hi, I am iembot. Supported commands:\n\
 set sms# 555-555-5555")
+        self.xmlstream.send(message)
+
+    def send_groupchat(self, room, mess):
+        message = domish.Element(('jabber:client','message'))
+        message['to'] = "%s@conference.%s" %(room, CHATSERVER)
+        message['type'] = "groupchat"
+        message.addElement('body',None, mess)
         self.xmlstream.send(message)
 
     def send_private_request(self, myjid):
