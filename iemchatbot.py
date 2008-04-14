@@ -56,6 +56,8 @@ PHONE_RE = re.compile(r'(\d{3})\D*(\d{3})\D*(\d{4})\D*(\d*)')
 
 DBPOOL = adbapi.ConnectionPool("psycopg2",  database="openfire")
 
+MAIL_COUNT = 10
+
 class IEMChatXMLRPC(xmlrpc.XMLRPC):
 
     def xmlrpc_getUpdate(self, room, seqnum):
@@ -200,27 +202,55 @@ class JabberClient:
         if (x is not None):
             return
         bstring = xpath.queryForString('/message/body', elem)
-        if (len(bstring) >= 5 and bstring[:3] == "sms"):
+
+        # Send a copy of the message to the peopletalk room
+        # TODO: support sending the HTML variant
+        if (res != "iembot" and room in WFOS):
+            self.send_groupchat("peopletalk", "[%s] %s: %s"%(room,res,bstring))
+
+        # Look for bot commands
+        if (res != "iembot") and re.match(r"^iembot:", bstring):
+            self.process_groupchat_cmd(room, res, bstring[7:].strip())
+
+        # Look for legacy ping
+        if (res != "iembot") and re.match(r"^ping", bstring):
+            self.process_groupchat_cmd(room, res, "ping")
+
+    def process_groupchat_cmd(self, room, res, cmd):
+        """ I actually process the groupchat commands and do stuff """
+
+        # Look for sms request
+        if re.match(r"^sms", cmd):
             # Make sure the user is an owner or admin, I think
             aff = None
             if (ROSTER[room].has_key(res)):
                 aff = ROSTER[room][res]['affiliation']
             if (aff in ['owner','admin']):
-                self.process_sms(room, bstring[4:], ROSTER[room][res]['jid'])
+                self.process_sms(room, cmd[3:], ROSTER[room][res]['jid'])
             else:
-                self.send_groupchat(room, "%s: Sorry, you must be a room admin to send a SMS"% (res,))
+                err = "%s: Sorry, you must be a room admin to send a SMS" \
+                       % (res,)
+                self.send_groupchat(room, err)
 
-        if (len(bstring) >= 5 and bstring[:5] == "users"):
+        # Look for users request
+        elif re.match(r"^users", cmd):
             rmess = ""
             for hndle in ROSTER[room].keys():
                 rmess += "%s (%s), " % (hndle, ROSTER[room][hndle]['jid'],)
             self.send_groupchat(room, "JIDs in room: %s" % (rmess,))
 
-        if (len(bstring) >= 4 and bstring[:4] == "ping"):
+        # Look for users request
+        elif re.match(r"^ping", cmd):
             self.send_groupchat(room, "%s: %s"%(res, "pong"))
 
-        if (res != "iembot" and room not in PRIVATE_ROOMS and room not in CWSU):
-            self.send_groupchat("peopletalk", "[%s] %s: %s"%(room,res,bstring))
+        # Else send error message about what iembot support
+        else:
+            err = """Unsupported command: '%s'
+Current Supported Commands:
+  iembot: sms My SMS Message to send  ### Send SMS Message to this Group
+  iembot: ping          ### Test connectivity with a 'pong' response
+  iembot: users         ### Generates list of users in room""" % (cmd,)
+            self.send_groupchat(room, err)
 
     def process_sms(self, room, send_txt, sender):
         # Query for users in chatgroup
@@ -274,6 +304,10 @@ class JabberClient:
         try:
             self.processMessage(elem)
         except:
+            MAIL_COUNT -= 1
+            if MAIL_COUNT < 0:
+                print "LIMIT MAIL_COUNT"
+                return
             io = StringIO.StringIO()
             traceback.print_exc(file=io)
             print io.getvalue() 
