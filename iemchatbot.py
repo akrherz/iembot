@@ -8,7 +8,7 @@ from twisted.enterprise import adbapi
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
 from twisted.internet.task import LoopingCall
 
-import pdb, mx.DateTime, socket, traceback, random, re
+import pdb, mx.DateTime, socket, random, re
 import StringIO, traceback, smtplib, base64, urllib
 from email.MIMEText import MIMEText
 
@@ -284,6 +284,8 @@ Current Supported Commands:
                        "Content-type":"application/x-www-form-urlencoded"}\
               ).addCallback(\
               self.sms_success, rm).addErrback(self.sms_failure, rm)
+        else:
+            self.send_groupchat(rm, "No SMS numbers found for chatgroup.")
 
     def sms_failure(self, res, rm):
         print res
@@ -347,35 +349,57 @@ Current Supported Commands:
             return 
 
         bstring = bstring.lower()
-        if (bstring.find("set sms#") == 0):
-            ar = PHONE_RE.search(bstring).groups()
-            if len(ar) < 4:
-                self.send_help_message( elem["from"] )
-                return
-            clean_number = "%s%s%s" % (ar[0], ar[1], ar[2])
-            clean_number2 = "%s-%s-%s" % (ar[0], ar[1], ar[2])
-            sql = "DELETE from iemchat_userprop WHERE username = '%s' and \
-                   name = 'sms#'" % (_from.user, )
-            DBPOOL.runOperation( sql )
-            sql = "INSERT into iemchat_userprop(username, name, propvalue)\
-                   VALUES ('%s','%s','%s')" % \
-                   (_from.user, 'sms#', clean_number)
-            DBPOOL.runOperation( sql )
-            message = domish.Element(('jabber:client','message'))
-            message['to'] = elem["from"]
-            message['type'] = "chat"
-            message.addElement('body',None,"Thanks, sms updated to: %s" % (clean_number2,))
-            self.xmlstream.send(message)
-
+        if re.match(r"^set sms#", bstring):
+            self.handle_sms_request( elem, bstring)
         else:
             self.send_help_message( elem["from"] )
 
+    def handle_sms_request(self, elem, bstring):
+        _from = jid.JID( elem["from"] )
+        cmd = bstring.replace("set sms#", "").strip()
+
+        # They can opt out, if they wish
+        if (cmd == "0" or cmd == ""):
+            sql = "DELETE from iemchat_userprop WHERE username = '%s' and \
+               name = 'sms#'" % (_from.user, )
+            DBPOOL.runOperation( sql )
+            msg = "Thanks, SMS service disabled for your account"
+            self.send_privatechat(elem["from"], msg)
+            return
+        ttt = PHONE_RE.search(cmd)
+        if ttt is None:
+            self.send_help_message( elem["from"] )
+            return
+        ar = ttt.groups()
+        if len(ar) < 4:
+            self.send_help_message( elem["from"] )
+            return
+        clean_number = "%s%s%s" % (ar[0], ar[1], ar[2])
+        clean_number2 = "%s-%s-%s" % (ar[0], ar[1], ar[2])
+        sql = "DELETE from iemchat_userprop WHERE username = '%s' and \
+               name = 'sms#'" % (_from.user, )
+        DBPOOL.runOperation( sql )
+        sql = "INSERT into iemchat_userprop(username, name, propvalue)\
+               VALUES ('%s','%s','%s')" % \
+               (_from.user, 'sms#', clean_number)
+        DBPOOL.runOperation( sql )
+        msg = """Thanks, SMS updated to: %s
+Please note: This service is provided without warranty and standard text messaging rates apply.""" % (clean_number2,)
+        self.send_privatechat(elem["from"], msg)
+
+
     def send_help_message(self, to):
+        msg = """Hi, I am iembot.  You can try talking directly with me.
+Currently supported commands are:
+  set sms# 555-555-5555  (command will set your SMS number)
+  set sms# 0             (disables SMS messages from iemchat)"""
+        self.send_privatechat(to, msg)
+
+    def send_privatechat(self, to, mess):
         message = domish.Element(('jabber:client','message'))
         message['to'] = to
         message['type'] = "chat"
-        message.addElement('body',None,"Hi, I am iembot. Supported commands:\n\
-set sms# 555-555-5555")
+        message.addElement('body',None, mess)
         self.xmlstream.send(message)
 
     def send_groupchat(self, room, mess):
@@ -406,14 +430,14 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         _from = jid.JID( elem["from"] )
         # Intercept private messages via a chatroom, can't do that :)
         if (_from.host == "conference.%s" % (CHATSERVER,)):
-           self.send_private_request( _from )
-           return
+            self.send_private_request( _from )
+            return
 
         if (_from.userhost() != "iembot_ingest@%s" % (CHATSERVER,) ):
-           self.talkWithUser(elem)
-           return
+            self.talkWithUser(elem)
+            return
 
-        """ Go look for body to see routing info! """
+        # Go look for body to see routing info! 
         # Get the body string
         bstring = xpath.queryForString('/message/body', elem)
         htmlstr = xpath.queryForString('/message/html/body', elem)
