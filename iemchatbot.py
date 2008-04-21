@@ -1,19 +1,36 @@
+# Copyright (c) 2005 Iowa State University
+# http://mesonet.agron.iastate.edu/ -- mailto:akrherz@iastate.edu
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+""" Chat bot implementation for iemchat """
 
-from twisted.words.protocols.jabber import client, jid, xmlstream
+__revision__ = '$Id: iemchatbot.py 3160 2008-04-09 23:31:06Z akrherz $'
+
+
+from twisted.words.protocols.jabber import client, jid
 from twisted.words.xish import domish, xpath
-from twisted.internet import reactor
-from twisted.web import server, xmlrpc, client
+from twisted.web import xmlrpc, client
 from twisted.python import log
 from twisted.enterprise import adbapi
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
 from twisted.internet.task import LoopingCall
 
-import pdb, mx.DateTime, socket, random, re
+import mx.DateTime, socket, re
 import StringIO, traceback, smtplib, base64, urllib
 from email.MIMEText import MIMEText
 
-
-from secret import *
+import secret
 
 CHATLOG = {}
 ROSTER = {}
@@ -26,7 +43,8 @@ CWSU = ['zabchat', 'ztlchat', 'zbwchat', 'zauchat', 'zobchat',
 PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'jaxemachat', 'bmxalert', 'mlbemchat', 'wxiaweather',
                  'kccichat', 'vipir6and7', 'abc3340', 'dmxemchat',
-                 'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat']
+                 'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat',
+                 'tbwnetchat']
 
 PUBLIC_ROOMS = ['botstalk', 'peopletalk']
 
@@ -70,8 +88,12 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
             return r
         for k in range(len(CHATLOG[room]['seqnum'])):
             if (CHATLOG[room]['seqnum'][k] > seqnum):
-                ts = mx.DateTime.DateTimeFromTicks( CHATLOG[room]['timestamps'][k] / 100.0)
-                r.append( [ CHATLOG[room]['seqnum'][k] , ts.strftime("%Y%m%d%H%M%S"), CHATLOG[room]['author'][k], CHATLOG[room]['log'][k] ] )
+                ts = mx.DateTime.DateTimeFromTicks( 
+                     CHATLOG[room]['timestamps'][k] / 100.0)
+                r.append( [ CHATLOG[room]['seqnum'][k] , 
+                            ts.strftime("%Y%m%d%H%M%S"), 
+                            CHATLOG[room]['author'][k], 
+                            CHATLOG[room]['log'][k] ] )
         #print r
         return r
 
@@ -100,10 +122,11 @@ class JabberClient:
     def rawDataInFn(self, data):
         print 'RECV', unicode(data,'utf-8','ignore').encode('ascii', 'replace')
     def rawDataOutFn(self, data):
-        if (data == ' '): return
+        if (data == ' '):
+            return
         print 'SEND', unicode(data,'utf-8','ignore').encode('ascii', 'replace')
 
-    def authd(self,xmlstream):
+    def authd(self, xmlstream):
         print "Logged into Jabber Chat Server!"
         self.xmlstream = xmlstream
         self.xmlstream.rawDataInFn = self.rawDataInFn
@@ -123,7 +146,7 @@ class JabberClient:
         for rm in CWSU + PRIVATE_ROOMS + PUBLIC_ROOMS + WFOS:
             ROSTER[rm] = {}
             presence = domish.Element(('jabber:client','presence'))
-            presence['to'] = "%s@conference.%s/iembot" % (rm, CHATSERVER)
+            presence['to'] = "%s@conference.%s/iembot" % (rm, secret.CHATSERVER)
             self.xmlstream.send(presence)
 
 
@@ -270,10 +293,10 @@ Current Supported Commands:
             numbers = []
             for i in range(len(l)):
                 numbers.append( l[i][0] )
-                username = l[i][1]
-            print "Am sending to numbers::: %s" % (",".join(numbers),)
+                #username = l[i][1]
             url = "https://mobile.wrh.noaa.gov/mobile_secure/quios_relay.php"
-            basicAuth = base64.encodestring("%s:%s" % (QUIOS_USER, QUIOS_PASS))
+            basicAuth = base64.encodestring("%s:%s" % (secret.QUIOS_USER, 
+                                            secret.QUIOS_PASS) )
             authHeader = "Basic " + basicAuth.strip()
             print 'Sender is', sender
             payload = urllib.urlencode({'numbers': ",".join(numbers),\
@@ -290,14 +313,14 @@ Current Supported Commands:
     def sms_failure(self, res, rm):
         print res
         message = domish.Element(('jabber:client','message'))
-        message['to'] = "%s@conference.%s" %(rm, CHATSERVER)
+        message['to'] = "%s@conference.%s" %(rm, secret.CHATSERVER)
         message['type'] = "groupchat"
         message.addElement('body',None,"SMS Send Failure, Sorry")
         self.xmlstream.send(message)
 
     def sms_success(self, res, rm):
         message = domish.Element(('jabber:client','message'))
-        message['to'] = "%s@conference.%s" %(rm, CHATSERVER)
+        message['to'] = "%s@conference.%s" %(rm, secret.CHATSERVER)
         message['type'] = "groupchat"
         message.addElement('body',None,"Sent SMS")
         self.xmlstream.send(message)
@@ -404,7 +427,7 @@ Currently supported commands are:
 
     def send_groupchat(self, room, mess):
         message = domish.Element(('jabber:client','message'))
-        message['to'] = "%s@conference.%s" %(room, CHATSERVER)
+        message['to'] = "%s@conference.%s" %(room, secret.CHATSERVER)
         message['type'] = "groupchat"
         message.addElement('body',None, mess)
         self.xmlstream.send(message)
@@ -429,11 +452,11 @@ with me outside of a groupchat.  I have initated such a chat for you.")
     def processMessagePC(self, elem):
         _from = jid.JID( elem["from"] )
         # Intercept private messages via a chatroom, can't do that :)
-        if (_from.host == "conference.%s" % (CHATSERVER,)):
+        if (_from.host == "conference.%s" % (secret.CHATSERVER,)):
             self.send_private_request( _from )
             return
 
-        if (_from.userhost() != "iembot_ingest@%s" % (CHATSERVER,) ):
+        if (_from.userhost() != "iembot_ingest@%s" % (secret.CHATSERVER,) ):
             self.talkWithUser(elem)
             return
 
@@ -450,7 +473,7 @@ with me outside of a groupchat.  I have initated such a chat for you.")
 
         # Route message to botstalk room in tact
         message = domish.Element(('jabber:client','message'))
-        message['to'] = "botstalk@conference.%s" % (CHATSERVER,)
+        message['to'] = "botstalk@conference.%s" % (secret.CHATSERVER,)
         message['type'] = "groupchat"
         message.addChild( elem.body )
         if (elem.html):
@@ -459,50 +482,53 @@ with me outside of a groupchat.  I have initated such a chat for you.")
 
         # Send to chatroom, clip body
         message = domish.Element(('jabber:client','message'))
-        message['to'] = "%schat@conference.%s" % (wfo.lower(), CHATSERVER,)
+        message['to'] = "%schat@conference.%s" % (wfo.lower(), secret.CHATSERVER,)
         message['type'] = "groupchat"
         message.addElement('body',None,bstring[4:])
         if (elem.html):
             message.addChild(elem.html)
 
         self.xmlstream.send(message)
+        if (wfo.upper() == "TBW"):
+            message['to'] = "%snetchat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
+            self.xmlstream.send(message)
         if (wfo.upper() == "TBW" or wfo.upper() == "MLB"):
-            message['to'] = "%semchat@conference.%s" % (wfo.lower(), CHATSERVER)
+            message['to'] = "%semchat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
             self.xmlstream.send(message)
         if (wfo.upper() == "BMX" or wfo.upper() == "FWD"):
-            message['to'] = "%semachat@conference.%s" % (wfo.lower(), CHATSERVER)
+            message['to'] = "%semachat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
             self.xmlstream.send(message)
         if (wfo.upper() == "BMX" or wfo.upper() == "HUN"):
-            message['to'] = "abc3340@conference.%s" % ( CHATSERVER,)
+            message['to'] = "abc3340@conference.%s" % ( secret.CHATSERVER,)
             self.xmlstream.send(message)
         if (wfo.upper() == "BMX"):
-            message['to'] = "bmxalert@conference.%s" % ( CHATSERVER,)
+            message['to'] = "bmxalert@conference.%s" % ( secret.CHATSERVER,)
             self.xmlstream.send(message)
         if (wfo.upper() == "MOB" or wfo.upper() == "TAE" or wfo.upper() == "BMX"):
-            message['to'] = "vipir6and7@conference.%s" % ( CHATSERVER,)
+            message['to'] = "vipir6and7@conference.%s" % ( secret.CHATSERVER,)
             self.xmlstream.send(message)
         if (wfo.upper() == "FFC"):
-            message['to'] = "wxiaweather@conference.%s" % ( CHATSERVER,)
+            message['to'] = "wxiaweather@conference.%s" % ( secret.CHATSERVER,)
             self.xmlstream.send(message)
         if (wfo.upper() == "JAN"):
-            message['to'] = "janhydrochat@conference.%s" % ( CHATSERVER,)
+            message['to'] = "janhydrochat@conference.%s" % ( secret.CHATSERVER,)
             self.xmlstream.send(message)
         if (wfo.upper() == "JAX"):
-            message['to'] = "jaxemachat@conference.%s" % ( CHATSERVER,)
+            message['to'] = "jaxemachat@conference.%s" % (secret.CHATSERVER,)
             self.xmlstream.send(message)
         if (wfo.upper() == "ABQ"):
-            message['to'] = "abqemachat@conference.%s" % ( CHATSERVER,)
+            message['to'] = "abqemachat@conference.%s" % ( secret.CHATSERVER,)
             self.xmlstream.send(message)
         if (wfo.upper() == "SLC"):
-            message['to'] = "wrhchat@conference.%s" % ( CHATSERVER,)
+            message['to'] = "wrhchat@conference.%s" % ( secret.CHATSERVER,)
             self.xmlstream.send(message)
         if (wfo.upper() == "BRO"):
-            message['to'] = "broemchat@conference.%s" % ( CHATSERVER,)
+            message['to'] = "broemchat@conference.%s" % ( secret.CHATSERVER,)
             self.xmlstream.send(message)
         if (wfo.upper() == "DMX"):
-            message['to'] = "%semchat@conference.%s" % (wfo.lower(), CHATSERVER)
+            message['to'] = "%semchat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
             self.xmlstream.send(message)
-            message['to'] = "kccichat@conference.%s" % (CHATSERVER,)
+            message['to'] = "kccichat@conference.%s" % (secret.CHATSERVER,)
             self.xmlstream.send(message)
         
 
