@@ -26,7 +26,7 @@ from twisted.enterprise import adbapi
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
 from twisted.internet.task import LoopingCall
 
-import mx.DateTime, socket, re
+import mx.DateTime, socket, re, md5
 import StringIO, traceback, smtplib, base64, urllib
 from email.MIMEText import MIMEText
 
@@ -78,8 +78,11 @@ MAIL_COUNT = 10
 
 class IEMChatXMLRPC(xmlrpc.XMLRPC):
 
-    def xmlrpc_getUpdate(self, room, seqnum):
+    def xmlrpc_getUpdate(self, jabberid, xmlkey, room, seqnum):
         """ Return most recent messages since timestamp (ticks...) """
+        if (md5.new("%s%s"%(secret.xmlrpc_key, jabberid)).hexdigest() != xmlkey):
+            print "Auth error for jabberid: ", jabberid, xmlkey, md5.new("%s%s"%(secret.xmlrpc_key, jabberid)).hexdigest()
+            return
         #fts = float(timestamp) / 10
      
         #print "XMLRPC-request", room, seqnum, CHATLOG[room]['seqnum']
