@@ -22,7 +22,7 @@ i = internet.TCPClient('localhost',5222,factory)
 i.setServiceParent(serviceCollection)
 
 xmlrpc = iemchatbot.IEMChatXMLRPC()
-x = internet.TCPServer(8002, server.Site(xmlrpc))
+x = internet.TCPServer(8002, server.Site(xmlrpc, logPath="web.log"))
 x.setServiceParent(serviceCollection)
 
 # END
