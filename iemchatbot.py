@@ -299,36 +299,32 @@ Current Supported Commands:
             for i in range(len(l)):
                 numbers.append( l[i][0] )
                 #username = l[i][1]
-            url = "https://mobile.wrh.noaa.gov/mobile_secure/quios_relay.php"
-            basicAuth = base64.encodestring("%s:%s" % (secret.QUIOS_USER, 
-                                            secret.QUIOS_PASS) )
-            authHeader = "Basic " + basicAuth.strip()
-            print 'Sender is', sender
-            payload = urllib.urlencode({'numbers': ",".join(numbers),\
-                                        'sender': sender,\
-                                          'message': send_txt})
-            client.getPage(url, postdata=payload, method="POST",\
-              headers={"Authorization": authHeader,\
-                       "Content-type":"application/x-www-form-urlencoded"}\
-              ).addCallback(\
-              self.sms_success, rm).addErrback(self.sms_failure, rm)
+            str_numbers =  ",".join(numbers)
+            self.sms_really_send(rm, str_numbers, sender, send_txt)
         else:
             self.send_groupchat(rm, "No SMS numbers found for chatgroup.")
 
+    def sms_really_send(self, rm, str_numbers, sender, send_txt):
+        url = "https://mobile.wrh.noaa.gov/mobile_secure/quios_relay.php"
+        basicAuth = base64.encodestring("%s:%s" % (secret.QUIOS_USER, 
+                                        secret.QUIOS_PASS) )
+        authHeader = "Basic " + basicAuth.strip()
+        print 'Sender is', sender
+        payload = urllib.urlencode({'numbers': str_numbers,\
+                                     'sender': sender,\
+                                      'message': send_txt})
+        client.getPage(url, postdata=payload, method="POST",\
+          headers={"Authorization": authHeader,\
+                   "Content-type":"application/x-www-form-urlencoded"}\
+          ).addCallback(\
+          self.sms_success, rm).addErrback(self.sms_failure, rm)
+
     def sms_failure(self, res, rm):
         print res
-        message = domish.Element(('jabber:client','message'))
-        message['to'] = "%s@conference.%s" %(rm, secret.CHATSERVER)
-        message['type'] = "groupchat"
-        message.addElement('body',None,"SMS Send Failure, Sorry")
-        self.xmlstream.send(message)
+        self.send_groupchat(rm, "SMS Send Failure, Sorry")
 
     def sms_success(self, res, rm):
-        message = domish.Element(('jabber:client','message'))
-        message['to'] = "%s@conference.%s" %(rm, secret.CHATSERVER)
-        message['type'] = "groupchat"
-        message.addElement('body',None,"Sent SMS")
-        self.xmlstream.send(message)
+        self.send_groupchat(rm, "Sent SMS")
 
     def processor(self, elem):
         try:
