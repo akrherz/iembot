@@ -15,7 +15,7 @@
 # 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 """ Chat bot implementation for iemchat """
 
-__revision__ = '$Id:$'
+__revision__ = '$Id$'
 
 
 from twisted.words.protocols.jabber import client, jid
@@ -77,10 +77,17 @@ DBPOOL = adbapi.ConnectionPool("psycopg2",  database="openfire")
 
 class IEMChatXMLRPC(xmlrpc.XMLRPC):
 
+    def xmlrpc_getAllRoomCount(self):
+        r = []
+        for rm in ROSTER.keys():
+            r.append( [ rm, len(ROSTER[rm]) ] )
+        return r
+
     def xmlrpc_getUpdate(self, jabberid, xmlkey, room, seqnum):
         """ Return most recent messages since timestamp (ticks...) """
         if (md5.new("%s%s"%(secret.xmlrpc_key, jabberid)).hexdigest() != xmlkey):
-            print "Auth error for jabberid: ", jabberid, xmlkey, md5.new("%s%s"%(secret.xmlrpc_key, jabberid)).hexdigest()
+            print "Auth error for jabberid: ", jabberid, xmlkey, \
+                   md5.new("%s%s"%(secret.xmlrpc_key, jabberid)).hexdigest()
             return
      
         #print "XMLRPC-request", room, seqnum, CHATLOG[room]['seqnum']
