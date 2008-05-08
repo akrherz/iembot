@@ -15,7 +15,7 @@
 # 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 """ Chat bot implementation for iemchat """
 
-__revision__ = '$Id$'
+__revision__ = '$Id:$'
 
 
 from twisted.words.protocols.jabber import client, jid
