@@ -83,11 +83,13 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
         if (md5.new("%s%s"%(secret.xmlrpc_key, jabberid)).hexdigest() != xmlkey):
             print "Auth error for jabberid: ", jabberid, xmlkey, md5.new("%s%s"%(secret.xmlrpc_key, jabberid)).hexdigest()
             return
-        #fts = float(timestamp) / 10
      
         #print "XMLRPC-request", room, seqnum, CHATLOG[room]['seqnum']
         r = []
         if (not CHATLOG.has_key(room)):
+            return r
+        # Optimization
+        if (CHATLOG[room]['seqnum'][-1] == seqnum and seqnum > 0):
             return r
         for k in range(len(CHATLOG[room]['seqnum'])):
             if (CHATLOG[room]['seqnum'][k] > seqnum):
