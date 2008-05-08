@@ -74,7 +74,6 @@ PHONE_RE = re.compile(r'(\d{3})\D*(\d{3})\D*(\d{4})\D*(\d*)')
 
 DBPOOL = adbapi.ConnectionPool("psycopg2",  database="openfire")
 
-MAIL_COUNT = 10
 
 class IEMChatXMLRPC(xmlrpc.XMLRPC):
 
@@ -105,6 +104,7 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
 
 class JabberClient:
     xmlstream = None
+    MAIL_COUNT = 10
 
     def __init__(self, myJid):
         self.myJid = myJid
@@ -317,21 +317,44 @@ Current Supported Commands:
           headers={"Authorization": authHeader,\
                    "Content-type":"application/x-www-form-urlencoded"}\
           ).addCallback(\
-          self.sms_success, rm).addErrback(self.sms_failure, rm)
+          self.sms_success_gc, rm).addErrback(self.sms_failure_gc, rm)
 
-    def sms_failure(self, res, rm):
+    def sms_failure_gc(self, res, rm):
         print res
         self.send_groupchat(rm, "SMS Send Failure, Sorry")
 
-    def sms_success(self, res, rm):
+    def sms_success_gc(self, res, rm):
         self.send_groupchat(rm, "Sent SMS")
+
+    # Private Chat Variant.....
+    def sms_really_send_pc(self, jid, str_numbers, send_txt, resTxt):
+        url = "https://mobile.wrh.noaa.gov/mobile_secure/quios_relay.php"
+        basicAuth = base64.encodestring("%s:%s" % (secret.QUIOS_USER, 
+                                        secret.QUIOS_PASS) )
+        authHeader = "Basic " + basicAuth.strip()
+        payload = urllib.urlencode({'numbers': str_numbers,\
+                                     'sender': "iembot",\
+                                      'message': send_txt})
+        client.getPage(url, postdata=payload, method="POST",\
+          headers={"Authorization": authHeader,\
+                   "Content-type":"application/x-www-form-urlencoded"}\
+          ).addCallback(\
+          self.sms_success_pc, jid, resTxt).addErrback(self.sms_failure_pc, jid)
+
+    def sms_failure_pc(self, res, jid):
+        print res
+        self.send_privatechat(jid, "SMS Send Confirmation Failure, Sorry")
+
+    def sms_success_pc(self, res, jid, resTxt):
+        self.send_privatechat(jid, resTxt)
+
 
     def processor(self, elem):
         try:
             self.processMessage(elem)
         except:
-            MAIL_COUNT -= 1
-            if MAIL_COUNT < 0:
+            self.MAIL_COUNT -= 1
+            if self.MAIL_COUNT < 0:
                 print "LIMIT MAIL_COUNT"
                 return
             io = StringIO.StringIO()
@@ -375,8 +398,37 @@ Current Supported Commands:
         bstring = bstring.lower()
         if re.match(r"^set sms#", bstring):
             self.handle_sms_request( elem, bstring)
+        elif re.match(r"^cs[0-9]+", bstring):
+            self.confirm_sms( elem, bstring)
         else:
             self.send_help_message( elem["from"] )
+
+    def confirm_sms(self, elem, bstring):
+        print "confirm_sms step1"
+        _from = jid.JID( elem["from"] )
+        cs = bstring.strip()
+        sql = "select * from iemchat_userprop WHERE \
+         username = '%s' and name = 'sms_confirm' and propvalue = '%s'"\
+         % (_from.user, cs)
+        print sql
+        DBPOOL.runQuery(sql).addCallback(self.confirm_sms2, elem['from'])
+
+    def confirm_sms2(self, l, jabberid):
+        print "confirm_sms2 step2"
+        _from = jid.JID( jabberid )
+        if not l:
+            self.send_privatechat(jabberid, "SMS Confirmation Failed")
+            return
+        sql = "UPDATE iemchat_userprop SET name = 'sms#' WHERE \
+               username = '%s' and name = 'unconfirm_sms#'" % \
+              (_from.user,) 
+        DBPOOL.runOperation( sql )
+        sql = "DELETE from iemchat_userprop WHERE name = 'sms_confirm' and \
+               username = '%s'" % \
+              (_from.user,) 
+        DBPOOL.runOperation( sql )
+        self.send_privatechat(jabberid, "SMS Confirmed, thank you!")
+   
 
     def handle_sms_request(self, elem, bstring):
         _from = jid.JID( elem["from"] )
@@ -401,15 +453,25 @@ Current Supported Commands:
         clean_number = "%s%s%s" % (ar[0], ar[1], ar[2])
         clean_number2 = "%s-%s-%s" % (ar[0], ar[1], ar[2])
         sql = "DELETE from iemchat_userprop WHERE username = '%s' and \
-               name = 'sms#'" % (_from.user, )
+           name IN ('sms#', 'unconfirm_sms#', 'sms_confirm')" % (_from.user, )
         DBPOOL.runOperation( sql )
         sql = "INSERT into iemchat_userprop(username, name, propvalue)\
                VALUES ('%s','%s','%s')" % \
-               (_from.user, 'sms#', clean_number)
+               (_from.user, 'unconfirm_sms#', clean_number)
         DBPOOL.runOperation( sql )
-        msg = """Thanks, SMS updated to: %s
-Please note: This service is provided without warranty and standard text messaging rates apply.""" % (clean_number2,)
+        msg = """Thanks, your SMS number is updated to: %s ... We will now send you a confirmation text message to verify this number. Please note: This service is provided without warranty and standard text messaging rates apply.""" % (clean_number2,)
         self.send_privatechat(elem["from"], msg)
+
+        cdnum = "cs%i" % (mx.DateTime.now().second * 1000,)
+        pv = "IEMCHAT sms confirmation code is %s" % (cdnum, )
+        resTxt = "Sent SMS Confirmation.  Please check your text messages. \
+Please respond in this chat with the code number I just sent you."
+        self.sms_really_send_pc( elem["from"], clean_number, pv, resTxt)
+
+        sql = "INSERT into iemchat_userprop(username, name, propvalue)\
+               VALUES ('%s','%s','%s')" % \
+               (_from.user, 'sms_confirm', cdnum)
+        DBPOOL.runOperation( sql )
 
 
     def send_help_message(self, to):
