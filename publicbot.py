@@ -92,6 +92,7 @@ class IEMJabberClient:
     def __init__(self, myJid):
         self.myJid = myJid
         self.seqnum = SEQNUM0
+        self.appriss = None
         print "iembot.seqnum init:", self.seqnum
 
     def addAppriss(self, appriss):
@@ -196,19 +197,21 @@ class IEMJabberClient:
 
                 message['to'] = "abc3340skywatcher@%s" % (secret.APPRISS_MUC,)
                 message['type'] = "groupchat"
-                self.appriss.xmlstream.send(message)
+                if (self.appriss is not None):
+                    self.appriss.xmlstream.send(message)
                 message['to'] = "bmxspotterchat@%s" % (secret.APPRISS_MUC,)
                 message['type'] = "groupchat"
-                self.appriss.xmlstream.send(message)
+                if (self.appriss is not None):
+                    self.appriss.xmlstream.send(message)
 
             message['to'] = "zz%schat@%s" % (wfo.lower(), secret.APPRISS_MUC)
             message['type'] = "groupchat"
-            if (self.appriss):
+            if (self.appriss is not None):
                 self.appriss.xmlstream.send(message)
 
             message['to'] = "wxdump@%s" % (secret.APPRISS_MUC, )
             message['type'] = "groupchat"
-            if (self.appriss):
+            if (self.appriss is not None):
                 self.appriss.xmlstream.send(message)
 
 class APPRISSJabberClient:
