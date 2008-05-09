@@ -34,6 +34,9 @@ if (os.path.isfile('chatlog.pickle')):
             SEQNUM0 = int(s)
  
 def saveChatLog():
+    reactor.callInThread(really_save_chat_log)
+
+def really_save_chat_log():
     print 'SAVING CHATLOG'
     pickle.dump( CHATLOG, open('chatlog.pickle','w'))
 
