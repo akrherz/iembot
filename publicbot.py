@@ -203,11 +203,13 @@ class IEMJabberClient:
 
             message['to'] = "zz%schat@%s" % (wfo.lower(), secret.APPRISS_MUC)
             message['type'] = "groupchat"
-            self.appriss.xmlstream.send(message)
+            if (self.appriss):
+                self.appriss.xmlstream.send(message)
 
             message['to'] = "wxdump@%s" % (secret.APPRISS_MUC, )
             message['type'] = "groupchat"
-            self.appriss.xmlstream.send(message)
+            if (self.appriss):
+                self.appriss.xmlstream.send(message)
 
 class APPRISSJabberClient:
     xmlstream = None
