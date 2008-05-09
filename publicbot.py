@@ -197,21 +197,21 @@ class IEMJabberClient:
 
                 message['to'] = "abc3340skywatcher@%s" % (secret.APPRISS_MUC,)
                 message['type'] = "groupchat"
-                if (self.appriss is not None):
+                if (self.appriss.xmlstream is not None):
                     self.appriss.xmlstream.send(message)
                 message['to'] = "bmxspotterchat@%s" % (secret.APPRISS_MUC,)
                 message['type'] = "groupchat"
-                if (self.appriss is not None):
+                if (self.appriss.xmlstream is not None):
                     self.appriss.xmlstream.send(message)
 
             message['to'] = "zz%schat@%s" % (wfo.lower(), secret.APPRISS_MUC)
             message['type'] = "groupchat"
-            if (self.appriss is not None):
+            if (self.appriss.xmlstream is not None):
                 self.appriss.xmlstream.send(message)
 
             message['to'] = "wxdump@%s" % (secret.APPRISS_MUC, )
             message['type'] = "groupchat"
-            if (self.appriss is not None):
+            if (self.appriss.xmlstream is not None):
                 self.appriss.xmlstream.send(message)
 
 class APPRISSJabberClient:
