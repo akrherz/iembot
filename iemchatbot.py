@@ -28,7 +28,7 @@ from twisted.words.xish.xmlstream import STREAM_END_EVENT
 from twisted.internet.task import LoopingCall
 
 import mx.DateTime, socket, re, md5
-import StringIO, traceback, smtplib, base64, urllib
+import StringIO, traceback, base64, urllib
 from email.MIMEText import MIMEText
 
 import secret
@@ -422,10 +422,7 @@ Current Supported Commands:
             msg['From'] = "ldm@mesonet.agron.iastate.edu"
             msg['To'] = "akrherz@iastate.edu"
 
-            s = smtplib.SMTP()
-            s.connect()
-            s.sendmail(msg["From"], msg["To"], msg.as_string())
-            s.close()
+            smtp.sendmail("mailhub.iastate.edu", msg["From"], msg["To"], msg)
 
 
     def processMessage(self, elem):
