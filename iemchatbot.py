@@ -21,6 +21,7 @@ __revision__ = '$Id$'
 from twisted.words.protocols.jabber import client, jid
 from twisted.words.xish import domish, xpath
 from twisted.web import xmlrpc, client
+from twisted.mail import smtp
 from twisted.python import log
 from twisted.enterprise import adbapi
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
@@ -251,15 +252,53 @@ class JabberClient:
         if (res != "iembot") and re.match(r"^ping", bstring):
             self.process_groupchat_cmd(room, res, "ping")
 
+    def send_group_email(self, room, msgtxt, sender):
+        """ Send the chatgroup an email, why don't we """
+        # Query for a listing of emails 
+        sql = "select email from jiveuser u, jivegroupuser g \
+               WHERE u.username = g.username and \
+               g.groupname = '%sgroup'" % (room.replace("chat","").lower(),)
+        DBPOOL.runQuery(sql).addCallback(self.really_send_group_email, room, \
+                                         msgtxt, sender)
+
+    def really_send_group_email(self, l, room, msgtxt, sender):
+        if not l:
+            return
+        msg = MIMEText("""The following message has been sent to you from
+IEMChat room "%s" by user "%s"
+________________________________________________________
+
+%s
+
+________________________________________________________
+
+Please reply to this email if you think you are receiving this in error.
+
+Thank you!""" % (room, sender, msgtxt) )
+        msg['subject'] = 'IEMCHAT Message from %s' % (room,)
+        msg['From'] = "akrherz@iastate.edu"
+
+        for i in range(len(l)):
+            msg['To'] = l[i][0]
+            smtp.sendmail("mailhub.iastate.edu", msg['From'], \
+                     msg['To'], msg)
+
+        # Always send daryl a copy
+        smtp.sendmail("mailhub.iastate.edu", msg['From'], msg['From'], msg)
+
+        err = "Sent email to %s users" % (len(l), )
+        self.send_groupchat(room, err)
+
     def process_groupchat_cmd(self, room, res, cmd):
         """ I actually process the groupchat commands and do stuff """
+        if (not ROSTER[room].has_key(res)):
+            self.send_groupchat(room, "%s: I don't know who are!"%(res,))
+            return
+        aff = ROSTER[room][res]['affiliation']
 
         # Look for sms request
-        if re.match(r"^sms", cmd):
+        if re.match(r"^sms", cmd.lower()):
             # Make sure the user is an owner or admin, I think
-            aff = None
-            if (ROSTER[room].has_key(res)):
-                aff = ROSTER[room][res]['affiliation']
             if (aff in ['owner','admin']):
                 self.process_sms(room, cmd[3:], ROSTER[room][res]['jid'])
             else:
@@ -267,22 +306,33 @@ class JabberClient:
                        % (res,)
                 self.send_groupchat(room, err)
 
+        elif re.match(r"^email", cmd.lower()):
+            # Make sure the user is an owner or admin, I think
+            if (aff in ['owner','admin']):
+                self.send_group_email(room, cmd[5:], ROSTER[room][res]['jid'])
+            else:
+                err = "%s: Sorry, you must be a room admin to send an email" \
+                       % (res,)
+                self.send_groupchat(room, err)
+
+
         # Look for users request
-        elif re.match(r"^users", cmd):
+        elif re.match(r"^users", cmd.lower()):
             rmess = ""
             for hndle in ROSTER[room].keys():
                 rmess += "%s (%s), " % (hndle, ROSTER[room][hndle]['jid'],)
             self.send_groupchat(room, "JIDs in room: %s" % (rmess,))
 
         # Look for users request
-        elif re.match(r"^ping", cmd):
+        elif re.match(r"^ping", cmd.lower()):
             self.send_groupchat(room, "%s: %s"%(res, "pong"))
 
         # Else send error message about what iembot support
         else:
             err = """Unsupported command: '%s'
 Current Supported Commands:
-  iembot: sms My SMS Message to send  ### Send SMS Message to this Group
+  iembot: sms My SMS message to send     ### Send SMS Message to this Group
+  iembot: email My email message to send ### Send Email to this Group
   iembot: ping          ### Test connectivity with a 'pong' response
   iembot: users         ### Generates list of users in room""" % (cmd,)
             self.send_groupchat(room, err)
