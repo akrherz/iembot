@@ -255,7 +255,7 @@ class JabberClient:
     def send_group_email(self, room, msgtxt, sender):
         """ Send the chatgroup an email, why don't we """
         # Query for a listing of emails 
-        sql = "select email from jiveuser u, jivegroupuser g \
+        sql = "select distinct email from jiveuser u, jivegroupuser g \
                WHERE u.username = g.username and \
                g.groupname = '%sgroup'" % (room.replace("chat","").lower(),)
         DBPOOL.runQuery(sql).addCallback(self.really_send_group_email, room, \
