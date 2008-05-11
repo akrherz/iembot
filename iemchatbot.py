@@ -122,7 +122,7 @@ class JabberClient:
 
     def send_presence(self):
         presence = domish.Element(('jabber:client','presence'))
-        presence.addElement('status').addContent('Online')
+        presence.addElement('status').addContent('At your service...')
         self.xmlstream.send(presence)
 
         socket.setdefaulttimeout(60)
