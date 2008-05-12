@@ -335,7 +335,9 @@ Current Supported Commands:
   iembot: email My email message to send ### Send Email to this Group
   iembot: ping          ### Test connectivity with a 'pong' response
   iembot: users         ### Generates list of users in room""" % (cmd,)
-            self.send_groupchat(room, err)
+            htmlerr = err.replace("\n", "<br />").replace("Supported Commands"\
+      ,"<a href=\"https://iemchat.com/iembot.phtml\">Supported Commands</a>")
+            self.send_groupchat(room, err, htmlerr)
 
     def process_sms(self, room, send_txt, sender):
         # Query for users in chatgroup
@@ -533,20 +535,26 @@ Please respond in this chat with the code number I just sent you."
 Currently supported commands are:
   set sms# 555-555-5555  (command will set your SMS number)
   set sms# 0             (disables SMS messages from iemchat)"""
-        self.send_privatechat(to, msg)
+        htmlmsg = msg.replace("\n","<br />").replace("iembot", \
+                 "<a href=\"https://iemchat.com/iembot.phtml\">iembot</a>")
+        self.send_privatechat(to, msg, htmlmsg)
 
-    def send_privatechat(self, to, mess):
+    def send_privatechat(self, to, mess, html=None):
         message = domish.Element(('jabber:client','message'))
         message['to'] = to
         message['type'] = "chat"
         message.addElement('body',None, mess)
+        if (html is not None):
+            message.addRawXml("<html xmlns='http://jabber.org/protocol/xhtml-im'><body xmlns='http://www.w3.org/1999/xhtml'>"+ html +"</body></html>")
         self.xmlstream.send(message)
 
-    def send_groupchat(self, room, mess):
+    def send_groupchat(self, room, mess, html=None):
         message = domish.Element(('jabber:client','message'))
         message['to'] = "%s@conference.%s" %(room, secret.CHATSERVER)
         message['type'] = "groupchat"
         message.addElement('body',None, mess)
+        if (html is not None):
+            message.addRawXml("<html xmlns='http://jabber.org/protocol/xhtml-im'><body xmlns='http://www.w3.org/1999/xhtml'>"+ html +"</body></html>")
         self.xmlstream.send(message)
 
     def send_private_request(self, myjid):
