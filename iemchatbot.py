@@ -45,7 +45,7 @@ PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'jaxemachat', 'bmxalert', 'mlbemchat', 'wxiaweather',
                  'kccichat', 'vipir6and7', 'abc3340', 'dmxemchat',
                  'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat',
-                 'tbwnetchat', 'apxfwxchat', 'apxemachat']
+                 'tbwnetchat', 'apxfwxchat', 'apxemachat', 'xxxchat']
 
 PUBLIC_ROOMS = ['botstalk', 'peopletalk']
 
@@ -78,11 +78,22 @@ DBPOOL = adbapi.ConnectionPool("psycopg2",  database="openfire")
 
 class IEMChatXMLRPC(xmlrpc.XMLRPC):
 
+    jabber = None
+
     def xmlrpc_getAllRoomCount(self):
         r = []
         for rm in ROSTER.keys():
             r.append( [ rm, len(ROSTER[rm]) ] )
         return r
+
+    def xmlrpc_submitSpotternetwork(self, apikey, ts, lon, lat, source, report):
+        """ Allow submissions of Spotternet reports """
+        if (apikey != secret.snkey):
+            return "apikey did not match, sorry"
+        jstr = "XXX: ts=%s lon=%s lat=%s source=%s report=%s" % (ts, lon, lat, \
+            source, report)
+        self.jabber.send_groupchat('xxxchat', jstr)
+        return "THANK YOU"
 
     def xmlrpc_getUpdate(self, jabberid, xmlkey, room, seqnum):
         """ Return most recent messages since timestamp (ticks...) """
