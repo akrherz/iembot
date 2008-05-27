@@ -90,9 +90,13 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
         """ Allow submissions of Spotternet reports """
         if (apikey != secret.snkey):
             return "apikey did not match, sorry"
-        jstr = "XXX: ts=%s lon=%s lat=%s source=%s report=%s" % (ts, lon, lat, \
-            source, report)
-        self.jabber.send_groupchat('xxxchat', jstr)
+        if (report is None or len(report) < 10):
+            return "report is too short!"
+        #jstr = "XXX: ts=%s lon=%s lat=%s source=%s report=%s" % (ts, lon, lat, \
+        #    source, report)
+        rm = "%schat" % (report[:3].lower(), )
+        self.jabber.send_groupchat(rm, report)
+        self.jabber.send_groupchat('xxxchat', report)
         return "THANK YOU"
 
     def xmlrpc_getUpdate(self, jabberid, xmlkey, room, seqnum):
