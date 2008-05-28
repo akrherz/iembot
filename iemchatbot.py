@@ -26,6 +26,7 @@ from twisted.python import log
 from twisted.enterprise import adbapi
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
 from twisted.internet.task import LoopingCall
+from twisted.internet import reactor
 
 import mx.DateTime, socket, re, md5
 import StringIO, traceback, base64, urllib
@@ -97,6 +98,7 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
         rm = "%schat" % (report[:3].lower(), )
         self.jabber.send_groupchat(rm, report)
         self.jabber.send_groupchat('xxxchat', report)
+        self.jabber.send_groupchat('botstalk', report)
         return "THANK YOU"
 
     def xmlrpc_getUpdate(self, jabberid, xmlkey, room, seqnum):
@@ -171,12 +173,13 @@ class JabberClient:
         self.xmlstream.addObserver(STREAM_END_EVENT, lambda _: lc.stop())
 
     def join_chatrooms(self):
+        cnt = 0
         for rm in CWSU + PRIVATE_ROOMS + PUBLIC_ROOMS + WFOS:
             ROSTER[rm] = {}
             presence = domish.Element(('jabber:client','presence'))
             presence['to'] = "%s@conference.%s/iembot" % (rm, secret.CHATSERVER)
-            self.xmlstream.send(presence)
-
+            reactor.callLater(cnt % 20, self.xmlstream.send, presence)
+            cnt += 1
 
     def presence_processor(self, elem):
         """ Process presence items
