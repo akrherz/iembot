@@ -376,7 +376,7 @@ def wfoRSS(rm):
            description = "To much fun!",
            lastBuildDate = datetime.datetime.utcnow() )
 
-    for k in range(len(CHATLOG[rm]['seqnum'])-1,-1,-1 ):
+    for k in range(len(CHATLOG[rm]['seqnum'])-1,0,-1 ):
        if CHATLOG[rm]['seqnum'][k] < 0:
            continue
        ts = mx.DateTime.DateTimeFromTicks( CHATLOG[rm]['timestamps'][k] / 100.0)
