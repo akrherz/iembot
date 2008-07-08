@@ -75,6 +75,8 @@ def doit():
     title = elem.findtext('title')
     ts = elem.findtext('pubDate')
     #Wed, 05 Sep 2007 23:27:20 -0400
+    if (ts == "Tue, 08 Jul 2008 24:12:56 -0400"):
+      ts = "Tue, 08 Jul 2008 00:12:56 -0400"
     post_ts = mx.DateTime.strptime( ts[5:25], "%d %b %Y %H:%M:%S")
     if (post_ts > oldts):
       # Fire alert!
