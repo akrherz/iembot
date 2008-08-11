@@ -133,6 +133,7 @@ class JabberClient:
 
     def __init__(self, myJid):
         self.myJid = myJid
+        self.handle = myJid.user
         self.seqnum = 0
 
 
@@ -180,7 +181,7 @@ class JabberClient:
         for rm in CWSU + PRIVATE_ROOMS + PUBLIC_ROOMS + WFOS:
             ROSTER[rm] = {}
             presence = domish.Element(('jabber:client','presence'))
-            presence['to'] = "%s@conference.%s/iembot" % (rm, secret.CHATSERVER)
+            presence['to'] = "%s@conference.%s/%s" % (rm, secret.CHATSERVER, self.handle)
             reactor.callLater(cnt % 20, self.xmlstream.send, presence)
             cnt += 1
 
@@ -274,15 +275,15 @@ class JabberClient:
 
         # Send a copy of the message to the peopletalk room
         # TODO: support sending the HTML variant
-        if (res != "iembot" and room in WFOS):
+        if (res != self.handle and room in WFOS):
             self.send_groupchat("peopletalk", "[%s] %s: %s"%(room,res,bstring))
 
         # Look for bot commands
-        if (res != "iembot") and re.match(r"^iembot:", bstring):
+        if (res != self.handle) and re.match(r"^%s:" % (self.handle,), bstring):
             self.process_groupchat_cmd(room, res, bstring[7:].strip())
 
         # Look for legacy ping
-        if (res != "iembot") and re.match(r"^ping", bstring):
+        if (res != self.handle) and re.match(r"^ping", bstring):
             self.process_groupchat_cmd(room, res, "ping")
 
     def send_group_email(self, room, msgtxt, sender):
@@ -364,10 +365,11 @@ Thank you!""" % (room, sender, msgtxt) )
         else:
             err = """Unsupported command: '%s'
 Current Supported Commands:
-  iembot: sms My SMS message to send     ### Send SMS Message to this Group
-  iembot: email My email message to send ### Send Email to this Group
-  iembot: ping          ### Test connectivity with a 'pong' response
-  iembot: users         ### Generates list of users in room""" % (cmd,)
+  %s: sms My SMS message to send     ### Send SMS Message to this Group
+  %s: email My email message to send ### Send Email to this Group
+  %s: ping          ### Test connectivity with a 'pong' response
+  %s: users         ### Generates list of users in room""" % (cmd, 
+            self.handle, self.handle, self.handle, self.handle)
             htmlerr = err.replace("\n", "<br />").replace("Supported Commands"\
       ,"<a href=\"https://iemchat.com/iembot.phtml\">Supported Commands</a>")
             self.send_groupchat(room, err, htmlerr)
@@ -425,7 +427,7 @@ Current Supported Commands:
                                         secret.QUIOS_PASS) )
         authHeader = "Basic " + basicAuth.strip()
         payload = urllib.urlencode({'numbers': str_numbers,\
-                                     'sender': "iembot",\
+                                     'sender': self.handle,\
                                       'message': send_txt})
         client.getPage(url, postdata=payload, method="POST",\
           headers={"Authorization": authHeader,\
@@ -453,11 +455,11 @@ Current Supported Commands:
             traceback.print_exc(file=io)
             print io.getvalue() 
             msg = MIMEText("%s\n\n%s\n\n"%(elem.toXml(), io.getvalue() ))
-            msg['subject'] = 'iembot Traceback'
-            msg['From'] = "ldm@mesonet.agron.iastate.edu"
+            msg['subject'] = '%s Traceback' % (self.handle,)
+            msg['From'] = "ldm@%s" % (secret.CHATSERVER,)
             msg['To'] = "akrherz@iastate.edu"
 
-            smtp.sendmail("mailhub.iastate.edu", msg["From"], msg["To"], msg)
+            smtp.sendmail("localhost", msg["From"], msg["To"], msg)
 
 
     def processMessage(self, elem):
@@ -564,11 +566,11 @@ Please respond in this chat with the code number I just sent you."
 
 
     def send_help_message(self, to):
-        msg = """Hi, I am iembot.  You can try talking directly with me.
+        msg = """Hi, I am %s.  You can try talking directly with me.
 Currently supported commands are:
   set sms# 555-555-5555  (command will set your SMS number)
-  set sms# 0             (disables SMS messages from iemchat)"""
-        htmlmsg = msg.replace("\n","<br />").replace("iembot", \
+  set sms# 0             (disables SMS messages from iemchat)""" % (self.handle,)
+        htmlmsg = msg.replace("\n","<br />").replace(self.handle, \
                  "<a href=\"https://iemchat.com/iembot.phtml\">iembot</a>")
         self.send_privatechat(to, msg, htmlmsg)
 
@@ -614,7 +616,7 @@ with me outside of a groupchat.  I have initated such a chat for you.")
             self.send_private_request( _from )
             return
 
-        if (_from.userhost() != "iembot_ingest@%s" % (secret.CHATSERVER,) ):
+        if (_from.userhost() != "%s_ingest@%s" % (self.handle, secret.CHATSERVER)):
             self.talkWithUser(elem)
             return
 
