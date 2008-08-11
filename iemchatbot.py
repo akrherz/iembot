@@ -145,6 +145,9 @@ class JabberClient:
         socket.setdefaulttimeout(60)
 
     def keepalive(self):
+        """ Whitespace ping for now... Openfire < 3.6.0 does not 
+            support XMPP-Ping
+        """
         if (self.xmlstream is not None):
             self.xmlstream.send(' ')
 
@@ -180,6 +183,18 @@ class JabberClient:
             presence['to'] = "%s@conference.%s/iembot" % (rm, secret.CHATSERVER)
             reactor.callLater(cnt % 20, self.xmlstream.send, presence)
             cnt += 1
+
+    def daily_timestamp(self):
+        """  Send the timestamp into each room, each GMT day... """
+        # Make sure we are a bit into the future!
+        ts = mx.DateTime.gmt() + mx.DateTime.RelativeDateTime(hours=1)
+        mess = "------ %s [GMT] ------" % (ts.strftime("%b %d, %Y"),)
+        for rm in CWSU + PRIVATE_ROOMS + PUBLIC_ROOMS + WFOS:
+            self.send_groupchat(rm, mess)
+
+        tnext = ts + mx.DateTime.RelativeDateTime(hour=0,days=1,minute=0,second=0)
+        print 'Calling daily_timestamp in %s seconds' % ((tnext - mx.DateTime.gmt()).seconds, )
+        reactor.callLater( (tnext - mx.DateTime.gmt()).seconds, self.daily_timestamp)
 
     def presence_processor(self, elem):
         """ Process presence items
