@@ -87,6 +87,16 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
             r.append( [ rm, len(ROSTER[rm]) ] )
         return r
 
+    def xmlrpc_addMUCMember(self, apikey, room, user):
+        if (apikey != 'apikey'):
+            return "apikey did not match, sorry"
+        iq = domish.Element((None,'iq'))
+        iq['to'] = "%s@conference.%s" %(room, secret.CHATSERVER)
+        iq['type'] = "set"
+        iq.addRawXml("<query xmlns='http://jabber.org/protocol/muc#admin'><item affiliation='member' jid='%s@%s'/></query>" % (user, secret.CHATSERVER) )
+        self.jabber.xmlstream.send(iq)
+        return "OK"
+
     def xmlrpc_submitSpotternetwork(self, apikey, ts, lon, lat, source, report):
         """ Allow submissions of Spotternet reports """
         if (apikey != secret.snkey):
