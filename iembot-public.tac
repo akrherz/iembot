@@ -40,10 +40,10 @@ i.setServiceParent(serviceCollection)
 
 
 xmlrpc = publicbot.IEMChatXMLRPC()
-x = internet.TCPServer(8003, server.Site(xmlrpc))
+x = internet.TCPServer(8003, server.Site(xmlrpc, logPath="xmlrpc.log"))
 x.setServiceParent(serviceCollection)
 
-rss = server.Site( publicbot.RootResource() )
+rss = server.Site( publicbot.RootResource(), logPath="rss.log" )
 r = internet.TCPServer(8004, rss)
 r.setServiceParent(serviceCollection)
 
