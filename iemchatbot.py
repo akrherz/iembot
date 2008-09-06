@@ -299,7 +299,7 @@ class JabberClient:
     def send_group_email(self, room, msgtxt, sender):
         """ Send the chatgroup an email, why don't we """
         # Query for a listing of emails 
-        sql = "select distinct email from jiveuser u, jivegroupuser g \
+        sql = "select distinct email from ofuser u, ofgroupuser g \
                WHERE u.username = g.username and \
                g.groupname = '%sgroup'" % (room.replace("chat","").lower(),)
         DBPOOL.runQuery(sql).addCallback(self.really_send_group_email, room, \
@@ -387,7 +387,7 @@ Current Supported Commands:
     def process_sms(self, room, send_txt, sender):
         # Query for users in chatgroup
         sql = "select i.propvalue as num, i.username as username from \
-         iemchat_userprop i, jivegroupuser j WHERE \
+         iemchat_userprop i, ofgroupuser j WHERE \
          i.username = j.username and \
          j.groupname = '%sgroup'" % (room[:3].lower(),)
         DBPOOL.runQuery(sql).addCallback(self.sendSMS, room, send_txt, sender)
