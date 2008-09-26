@@ -87,13 +87,13 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
             r.append( [ rm, len(ROSTER[rm]) ] )
         return r
 
-    def xmlrpc_addMUCMember(self, apikey, room, user):
+    def xmlrpc_addMUCMember(self, apikey, room, user, affiliation):
         if (apikey != 'apikey'):
             return "apikey did not match, sorry"
         iq = domish.Element((None,'iq'))
         iq['to'] = "%s@conference.%s" %(room, secret.CHATSERVER)
         iq['type'] = "set"
-        iq.addRawXml("<query xmlns='http://jabber.org/protocol/muc#admin'><item affiliation='member' jid='%s@%s'/></query>" % (user, secret.CHATSERVER) )
+        iq.addRawXml("<query xmlns='http://jabber.org/protocol/muc#admin'><item affiliation='%s' jid='%s@%s'/></query>" % (affiliation, user, secret.CHATSERVER) )
         self.jabber.xmlstream.send(iq)
         return "OK"
 
