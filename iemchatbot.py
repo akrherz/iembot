@@ -93,6 +93,7 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
         iq = domish.Element((None,'iq'))
         iq['to'] = "%s@conference.%s" %(room.lower(), secret.CHATSERVER)
         iq['type'] = "set"
+        iq['id'] = "admin1"
         iq.addRawXml("<query xmlns='http://jabber.org/protocol/muc#admin'><item affiliation='%s' jid='%s@%s'/></query>" % (affiliation, user, secret.CHATSERVER) )
         self.jabber.xmlstream.send(iq)
         return "OK"
@@ -621,6 +622,9 @@ with me outside of a groupchat.  I have initated such a chat for you.")
 
     def processMessagePC(self, elem):
         _from = jid.JID( elem["from"] )
+        if (elem["from"] == secret.CHATSERVER):
+            print "MESSAGE FROM SERVER?"
+            return
         # Intercept private messages via a chatroom, can't do that :)
         if (_from.host == "conference.%s" % (secret.CHATSERVER,)):
             self.send_private_request( _from )
