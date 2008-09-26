@@ -94,7 +94,7 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
         iq['to'] = "%s@conference.%s" %(room.lower(), secret.CHATSERVER)
         iq['type'] = "set"
         iq['id'] = "admin1"
-        iq['from'] = self.jabber.myJid
+        iq['from'] = self.jabber.myJid.full()
         iq.addRawXml("<query xmlns='http://jabber.org/protocol/muc#admin'><item affiliation='%s' jid='%s@%s'/></query>" % (affiliation, user, secret.CHATSERVER) )
         self.jabber.xmlstream.send(iq)
         return "OK"
