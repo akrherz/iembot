@@ -369,7 +369,12 @@ Thank you!""" % (room, sender, msgtxt) )
             rmess = ""
             for hndle in ROSTER[room].keys():
                 rmess += "%s (%s), " % (hndle, ROSTER[room][hndle]['jid'],)
-            self.send_groupchat(room, "JIDs in room: %s" % (rmess,))
+            if (aff in ['owner','admin']):
+                self.send_privatechat(ROSTER[room][res]['jid'], "JIDs in room: %s" % (rmess,))
+            else:
+                err = "%s: Sorry, you must be a room admin to query users" \
+                       % (res,)
+                self.send_groupchat(room, err)
 
         # Look for users request
         elif re.match(r"^ping", cmd.lower()):
