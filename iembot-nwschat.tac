@@ -20,6 +20,7 @@ serviceCollection = service.IServiceCollection(application)
 myJid = jid.JID('nwsbot@%s/twisted_words' % (CHATSERVER,) )
 factory = client.basicClientFactory(myJid, IEMCHAT_PASS)
 jabber = iemchatbot.JabberClient(myJid)
+jabber.myname = "nwsbot"
 factory.addBootstrap('//event/stream/authd',jabber.authd)
 
 # Setup daily caller
