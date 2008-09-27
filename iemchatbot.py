@@ -95,6 +95,7 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
         iq['type'] = "set"
         iq['id'] = "admin1"
         iq['from'] = self.jabber.myJid.full()
+        # Note, this is because openfire supports older NS  JM-391
         iq.addRawXml("<query xmlns='http://jabber.org/protocol/muc#owner'><item affiliation='%s' jid='%s@%s'/></query>" % (affiliation, user, secret.CHATSERVER) )
         self.jabber.xmlstream.send(iq)
         return "OK"
@@ -142,6 +143,7 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
 class JabberClient:
     xmlstream = None
     MAIL_COUNT = 10
+    myname = "iembot"
 
     def __init__(self, myJid):
         self.myJid = myJid
@@ -373,7 +375,7 @@ Thank you!""" % (room, sender, msgtxt) )
         elif re.match(r"^ping", cmd.lower()):
             self.send_groupchat(room, "%s: %s"%(res, "pong"))
 
-        # Else send error message about what iembot support
+        # Else send error message about what I support
         else:
             err = """Unsupported command: '%s'
 Current Supported Commands:
@@ -383,7 +385,8 @@ Current Supported Commands:
   %s: users         ### Generates list of users in room""" % (cmd, 
             self.handle, self.handle, self.handle, self.handle)
             htmlerr = err.replace("\n", "<br />").replace("Supported Commands"\
-      ,"<a href=\"https://iemchat.com/iembot.phtml\">Supported Commands</a>")
+      ,"<a href=\"https://%s/%s.phtml\">Supported Commands</a>" % \
+            (secret.CHATSERVER, self.myname) )
             self.send_groupchat(room, err, htmlerr)
 
     def process_sms(self, room, send_txt, sender):
@@ -583,7 +586,8 @@ Currently supported commands are:
   set sms# 555-555-5555  (command will set your SMS number)
   set sms# 0             (disables SMS messages from iemchat)""" % (self.handle,)
         htmlmsg = msg.replace("\n","<br />").replace(self.handle, \
-                 "<a href=\"https://iemchat.com/iembot.phtml\">iembot</a>")
+                 "<a href=\"https://%s/%s.phtml\">%s</a>" % \
+                 (secret.CHATSERVER, self.myname, self.myname) )
         self.send_privatechat(to, msg, htmlmsg)
 
     def send_privatechat(self, to, mess, html=None):
