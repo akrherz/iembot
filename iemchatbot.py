@@ -46,7 +46,8 @@ PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'jaxemachat', 'bmxalert', 'mlbemchat', 'wxiaweather',
                  'kccichat', 'vipir6and7', 'abc3340', 'dmxemchat',
                  'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat',
-                 'tbwnetchat', 'apxfwxchat', 'apxemachat', 'xxxchat']
+                 'tbwnetchat', 'apxfwxchat', 'apxemachat', 'xxxchat',
+                 'tbwhamchat', 'lsxemachat']
 
 PUBLIC_ROOMS = ['botstalk', 'peopletalk']
 
@@ -676,6 +677,8 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         if (wfo.upper() == "TBW"):
             message['to'] = "%snetchat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
             self.xmlstream.send(message)
+            message['to'] = "%shamchat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
+            self.xmlstream.send(message)
         if (wfo.upper() == "TBW" or wfo.upper() == "MLB"):
             message['to'] = "%semchat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
             self.xmlstream.send(message)
@@ -699,6 +702,9 @@ with me outside of a groupchat.  I have initated such a chat for you.")
             self.xmlstream.send(message)
         if (wfo.upper() == "JAX"):
             message['to'] = "jaxemachat@conference.%s" % (secret.CHATSERVER,)
+            self.xmlstream.send(message)
+        if (wfo.upper() == "LSX"):
+            message['to'] = "lsxemachat@conference.%s" % (secret.CHATSERVER,)
             self.xmlstream.send(message)
         if (wfo.upper() == "ABQ"):
             message['to'] = "abqemachat@conference.%s" % ( secret.CHATSERVER,)
