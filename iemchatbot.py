@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program; if not, write to the Free Software Foundation, Inc.,
 # 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-""" Chat bot implementation for iemchat """
+""" Chat bot implementation for NWSChat """
 
 __revision__ = '$Id$'
 
@@ -398,7 +398,7 @@ Current Supported Commands:
     def process_sms(self, room, send_txt, sender):
         # Query for users in chatgroup
         sql = "select i.propvalue as num, i.username as username from \
-         iemchat_userprop i, ofgroupuser j WHERE \
+         nwschat_userprop i, ofgroupuser j WHERE \
          i.username = j.username and \
          j.groupname = '%sgroup'" % (room[:3].lower(),)
         DBPOOL.runQuery(sql).addCallback(self.sendSMS, room, send_txt, sender)
@@ -519,7 +519,7 @@ Current Supported Commands:
         print "confirm_sms step1"
         _from = jid.JID( elem["from"] )
         cs = bstring.strip()
-        sql = "select * from iemchat_userprop WHERE \
+        sql = "select * from nwschat_userprop WHERE \
          username = '%s' and name = 'sms_confirm' and propvalue = '%s'"\
          % (_from.user, cs)
         print sql
@@ -531,11 +531,11 @@ Current Supported Commands:
         if not l:
             self.send_privatechat(jabberid, "SMS Confirmation Failed")
             return
-        sql = "UPDATE iemchat_userprop SET name = 'sms#' WHERE \
+        sql = "UPDATE nwschat_userprop SET name = 'sms#' WHERE \
                username = '%s' and name = 'unconfirm_sms#'" % \
               (_from.user,) 
         DBPOOL.runOperation( sql )
-        sql = "DELETE from iemchat_userprop WHERE name = 'sms_confirm' and \
+        sql = "DELETE from nwschat_userprop WHERE name = 'sms_confirm' and \
                username = '%s'" % \
               (_from.user,) 
         DBPOOL.runOperation( sql )
@@ -548,7 +548,7 @@ Current Supported Commands:
 
         # They can opt out, if they wish
         if (cmd == "0" or cmd == ""):
-            sql = "DELETE from iemchat_userprop WHERE username = '%s' and \
+            sql = "DELETE from nwschat_userprop WHERE username = '%s' and \
                name = 'sms#'" % (_from.user, )
             DBPOOL.runOperation( sql )
             msg = "Thanks, SMS service disabled for your account"
@@ -564,10 +564,10 @@ Current Supported Commands:
             return
         clean_number = "%s%s%s" % (ar[0], ar[1], ar[2])
         clean_number2 = "%s-%s-%s" % (ar[0], ar[1], ar[2])
-        sql = "DELETE from iemchat_userprop WHERE username = '%s' and \
+        sql = "DELETE from nwschat_userprop WHERE username = '%s' and \
            name IN ('sms#', 'unconfirm_sms#', 'sms_confirm')" % (_from.user, )
         DBPOOL.runOperation( sql )
-        sql = "INSERT into iemchat_userprop(username, name, propvalue)\
+        sql = "INSERT into nwschat_userprop(username, name, propvalue)\
                VALUES ('%s','%s','%s')" % \
                (_from.user, 'unconfirm_sms#', clean_number)
         DBPOOL.runOperation( sql )
@@ -580,7 +580,7 @@ Current Supported Commands:
 Please respond in this chat with the code number I just sent you."
         self.sms_really_send_pc( elem["from"], clean_number, pv, resTxt)
 
-        sql = "INSERT into iemchat_userprop(username, name, propvalue)\
+        sql = "INSERT into nwschat_userprop(username, name, propvalue)\
                VALUES ('%s','%s','%s')" % \
                (_from.user, 'sms_confirm', cdnum)
         DBPOOL.runOperation( sql )
@@ -590,7 +590,7 @@ Please respond in this chat with the code number I just sent you."
         msg = """Hi, I am %s.  You can try talking directly with me.
 Currently supported commands are:
   set sms# 555-555-5555  (command will set your SMS number)
-  set sms# 0             (disables SMS messages from iemchat)""" % (self.handle,)
+  set sms# 0             (disables SMS messages from NWSChat)""" % (self.handle,)
         htmlmsg = msg.replace("\n","<br />").replace(self.handle, \
                  "<a href=\"https://%s/%s.phtml\">%s</a>" % \
                  (secret.CHATSERVER, self.myname, self.myname) )
