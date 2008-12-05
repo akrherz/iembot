@@ -47,7 +47,7 @@ PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'kccichat', 'vipir6and7', 'abc3340', 'dmxemachat',
                  'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat',
                  'tbwnetchat', 'apxfwxchat', 'apxemachat', 'xxxchat',
-                 'tbwhamchat', 'lsxemachat', 'spaceflightmet']
+                 'tbwhamchat', 'lsxemachat', 'spaceflightmet','ekaemachat']
 
 PUBLIC_ROOMS = ['botstalk', 'peopletalk']
 
@@ -721,5 +721,8 @@ with me outside of a groupchat.  I have initated such a chat for you.")
             message['to'] = "apxfwxchat@conference.%s" % ( secret.CHATSERVER,)
             self.xmlstream.send(message)
         if (wfo.upper() == "DMX"):
+            message['to'] = "%semachat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
+            self.xmlstream.send(message)
+        if (wfo.upper() == "EKA"):
             message['to'] = "%semachat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
             self.xmlstream.send(message)
