@@ -44,7 +44,7 @@ CWSU = ['zabchat', 'ztlchat', 'zbwchat', 'zauchat', 'zobchat',
 
 PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'jaxemachat', 'bmxalert', 'mlbemchat', 'wxiaweather',
-                 'kccichat', 'vipir6and7', 'abc3340', 'dmxemchat',
+                 'kccichat', 'vipir6and7', 'abc3340', 'dmxemachat',
                  'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat',
                  'tbwnetchat', 'apxfwxchat', 'apxemachat', 'xxxchat',
                  'tbwhamchat', 'lsxemachat']
@@ -721,9 +721,5 @@ with me outside of a groupchat.  I have initated such a chat for you.")
             message['to'] = "apxfwxchat@conference.%s" % ( secret.CHATSERVER,)
             self.xmlstream.send(message)
         if (wfo.upper() == "DMX"):
-            message['to'] = "%semchat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
+            message['to'] = "%semachat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
             self.xmlstream.send(message)
-            message['to'] = "kccichat@conference.%s" % (secret.CHATSERVER,)
-            self.xmlstream.send(message)
-        
-
