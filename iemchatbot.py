@@ -45,6 +45,7 @@ CWSU = ['zabchat', 'ztlchat', 'zbwchat', 'zauchat', 'zobchat',
 PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'jaxemachat', 'bmxalert', 'mlbemchat', 'wxiaweather',
                  'kccichat', 'vipir6and7', 'abc3340', 'dmxemachat',
+                 'pspcchat',
                  'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat',
                  'tbwnetchat', 'apxfwxchat', 'apxemachat', 'xxxchat',
                  'tbwhamchat', 'lsxemachat', 'spaceflightmet','ekaemachat']
@@ -121,7 +122,8 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
             print "Auth error for jabberid: ", jabberid, xmlkey, \
                    md5.new("%s%s"%(secret.xmlrpc_key, jabberid)).hexdigest()
             return
-     
+        # If seqnum is zero, we have a new monitor person :)
+
         #print "XMLRPC-request", room, seqnum, CHATLOG[room]['seqnum']
         r = []
         if (not CHATLOG.has_key(room)):
