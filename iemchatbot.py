@@ -45,7 +45,7 @@ CWSU = ['zabchat', 'ztlchat', 'zbwchat', 'zauchat', 'zobchat',
 PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'jaxemachat', 'bmxalert', 'mlbemchat', 'wxiaweather',
                  'kccichat', 'vipir6and7', 'abc3340', 'dmxemachat',
-                 'pspcchat',
+                 'pspcchat', 'iaseocchat',
                  'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat',
                  'tbwnetchat', 'apxfwxchat', 'apxemachat', 'xxxchat',
                  'tbwhamchat', 'lsxemachat', 'spaceflightmet','ekaemachat']
