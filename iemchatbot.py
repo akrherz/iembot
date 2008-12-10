@@ -46,6 +46,7 @@ PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'jaxemachat', 'bmxalert', 'mlbemchat', 'wxiaweather',
                  'kccichat', 'vipir6and7', 'abc3340', 'dmxemachat',
                  'pspcchat', 'iaseocchat', 'ounemchat','pubemachat',
+                 'dvnemachat',
                  'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat',
                  'tbwnetchat', 'apxfwxchat', 'apxemachat', 'xxxchat',
                  'tbwhamchat', 'lsxemachat', 'spaceflightmet','ekaemachat']
@@ -732,5 +733,8 @@ with me outside of a groupchat.  I have initated such a chat for you.")
             message['to'] = "%semachat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
             self.xmlstream.send(message)
         if (wfo.upper() == "PUB"):
+            message['to'] = "%semachat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
+            self.xmlstream.send(message)
+        if (wfo.upper() == "DVN"):
             message['to'] = "%semachat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
             self.xmlstream.send(message)
