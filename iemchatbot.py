@@ -423,7 +423,8 @@ Current Supported Commands:
             self.send_groupchat(rm, "No SMS numbers found for chatgroup.")
 
     def sms_really_send(self, rm, str_numbers, sender, send_txt):
-        url = "https://mobile.wrh.noaa.gov/mobile_secure/quios_relay.php"
+        #url = "https://mobile.wrh.noaa.gov/mobile_secure/quios_relay.php"
+        url = "https://192.168.10.199:4749/mobile_secure/quios_relay.php"
         basicAuth = base64.encodestring("%s:%s" % (secret.QUIOS_USER, 
                                         secret.QUIOS_PASS) )
         authHeader = "Basic " + basicAuth.strip()
