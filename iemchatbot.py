@@ -447,7 +447,8 @@ Current Supported Commands:
 
     # Private Chat Variant.....
     def sms_really_send_pc(self, jid, str_numbers, send_txt, resTxt):
-        url = "https://mobile.wrh.noaa.gov/mobile_secure/quios_relay.php"
+        #url = "https://mobile.wrh.noaa.gov/mobile_secure/quios_relay.php"
+        url = "https://192.168.10.199:4749/mobile_secure/quios_relay.php"
         basicAuth = base64.encodestring("%s:%s" % (secret.QUIOS_USER, 
                                         secret.QUIOS_PASS) )
         authHeader = "Basic " + basicAuth.strip()
