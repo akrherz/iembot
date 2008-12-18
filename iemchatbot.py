@@ -42,6 +42,11 @@ CWSU = ['zabchat', 'ztlchat', 'zbwchat', 'zauchat', 'zobchat',
         'zjxchat', 'zlachat', 'zmechat', 'zmachat', 'zmpchat', 
         'znychat', 'zoachat', 'zlcchat', 'zsechat', 'zdcchat']
 
+RFC_ROOMS = ['abrfcchat', 'aprfcchat', 'cnrfcchat', 'cbrfcchat',
+             'marfcchat', 'mbrfcchat', 'lmrfcchat ', 'ncrfcchat',
+             'nerfcchat', 'nwrfcchat', 'ohrfcchat', 'serfcchat',
+             'wgrfcchat']
+
 PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'jaxemachat', 'bmxalert', 'mlbemchat', 'wxiaweather',
                  'kccichat', 'vipir6and7', 'abc3340', 'dmxemachat',
@@ -196,7 +201,7 @@ class JabberClient:
 
     def join_chatrooms(self):
         cnt = 0
-        for rm in CWSU + PRIVATE_ROOMS + PUBLIC_ROOMS + WFOS:
+        for rm in CWSU + PRIVATE_ROOMS + PUBLIC_ROOMS + WFOS + RFC_ROOMS:
             ROSTER[rm] = {}
             presence = domish.Element(('jabber:client','presence'))
             presence['to'] = "%s@conference.%s/%s" % (rm, secret.CHATSERVER, self.handle)
@@ -208,7 +213,7 @@ class JabberClient:
         # Make sure we are a bit into the future!
         ts = mx.DateTime.gmt() + mx.DateTime.RelativeDateTime(hours=1)
         mess = "------ %s [GMT] ------" % (ts.strftime("%b %d, %Y"),)
-        for rm in CWSU + PRIVATE_ROOMS + PUBLIC_ROOMS + WFOS:
+        for rm in CWSU + PRIVATE_ROOMS + PUBLIC_ROOMS + WFOS + RFC_ROOMS:
             self.send_groupchat(rm, mess)
 
         tnext = ts + mx.DateTime.RelativeDateTime(hour=0,days=1,minute=0,second=0)
