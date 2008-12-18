@@ -43,7 +43,7 @@ CWSU = ['zabchat', 'ztlchat', 'zbwchat', 'zauchat', 'zobchat',
         'znychat', 'zoachat', 'zlcchat', 'zsechat', 'zdcchat']
 
 RFC_ROOMS = ['abrfcchat', 'aprfcchat', 'cnrfcchat', 'cbrfcchat',
-             'marfcchat', 'mbrfcchat', 'lmrfcchat ', 'ncrfcchat',
+             'marfcchat', 'mbrfcchat', 'lmrfcchat', 'ncrfcchat',
              'nerfcchat', 'nwrfcchat', 'ohrfcchat', 'serfcchat',
              'wgrfcchat']
 
