@@ -80,6 +80,26 @@ WFOS = ['abqchat', 'afcchat', 'afgchat', 'ajkchat', 'akqchat', 'alychat',
         'mpxchat', 'mqtchat', 'oaxchat', 'sgfchat', 'topchat', 'unrchat',
         'dmxchat', 'gumchat']
 
+ROUTES = {
+  'TBW': ['tbwnetchat', 'tbwhamchat', 'tbwemchat'],
+  'MLB': ['mlbemchat'],
+  'BMX': ['bmxemachat', 'bmxalert'],
+  'FWD': ['fwdemachat'],
+  'JAN': ['janhydrochat'],
+  'JAX': ['jaxemachat'],
+  'LSX': ['lsxemachat'],
+  'ABQ': ['abqemachat'],
+  'OUN': ['ounemchat'],
+  'BRO': ['broemchat'],
+  'DMX': ['dmxemachat'],
+  'APX': ['apxemachat', 'apxfwxchat'],
+  'EKA': ['ekaemachat'],
+  'PUB': ['pubemachat'],
+  'DVN': ['dvnemachat'],
+  'ILX': ['ilxhamchat'],
+  'MSR': ['ncrfcchat'],
+}
+
 PHONE_RE = re.compile(r'(\d{3})\D*(\d{3})\D*(\d{4})\D*(\d*)')
 
 DBPOOL = adbapi.ConnectionPool("psycopg2",  database="openfire")
@@ -659,10 +679,11 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         # Get the body string
         bstring = xpath.queryForString('/message/body', elem)
         htmlstr = xpath.queryForString('/message/html/body', elem)
-        if (len(bstring) < 3):
-            print "BAD!!!"
+        if (bstring and bstring.find(":") == -1):
+            print "Nothing found in body?", bstring
             return
-        wfo = bstring[:3]
+        # The body string contains 
+        wfo = bstring.split(":")[0]
         # Look for HTML
         html = xpath.queryForNodes('/message/html', elem)
 
@@ -679,72 +700,14 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         message = domish.Element(('jabber:client','message'))
         message['to'] = "%schat@conference.%s" % (wfo.lower(), secret.CHATSERVER,)
         message['type'] = "groupchat"
-        message.addElement('body',None,bstring[4:])
+        message.addElement('body', None, bstring.split(":",1)[1])
         if (elem.html):
             message.addChild(elem.html)
 
         self.xmlstream.send(message)
-        if (wfo.upper() == "TBW"):
-            message['to'] = "%snetchat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
-            self.xmlstream.send(message)
-            message['to'] = "%shamchat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "TBW" or wfo.upper() == "MLB"):
-            message['to'] = "%semchat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "BMX" or wfo.upper() == "FWD"):
-            message['to'] = "%semachat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "BMX" or wfo.upper() == "HUN"):
-            message['to'] = "abc3340@conference.%s" % ( secret.CHATSERVER,)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "BMX"):
-            message['to'] = "bmxalert@conference.%s" % ( secret.CHATSERVER,)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "MOB" or wfo.upper() == "TAE" or wfo.upper() == "BMX"):
-            message['to'] = "vipir6and7@conference.%s" % ( secret.CHATSERVER,)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "FFC"):
-            message['to'] = "wxiaweather@conference.%s" % ( secret.CHATSERVER,)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "JAN"):
-            message['to'] = "janhydrochat@conference.%s" % ( secret.CHATSERVER,)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "JAX"):
-            message['to'] = "jaxemachat@conference.%s" % (secret.CHATSERVER,)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "LSX"):
-            message['to'] = "lsxemachat@conference.%s" % (secret.CHATSERVER,)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "ABQ"):
-            message['to'] = "abqemachat@conference.%s" % ( secret.CHATSERVER,)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "OUN"):
-            message['to'] = "ounemchat@conference.%s" % ( secret.CHATSERVER,)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "SLC"):
-            message['to'] = "wrhchat@conference.%s" % ( secret.CHATSERVER,)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "BRO"):
-            message['to'] = "broemchat@conference.%s" % ( secret.CHATSERVER,)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "APX"):
-            message['to'] = "apxemachat@conference.%s" % ( secret.CHATSERVER,)
-            self.xmlstream.send(message)
-            message['to'] = "apxfwxchat@conference.%s" % ( secret.CHATSERVER,)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "DMX"):
-            message['to'] = "%semachat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "EKA"):
-            message['to'] = "%semachat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "PUB"):
-            message['to'] = "%semachat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "DVN"):
-            message['to'] = "%semachat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
-            self.xmlstream.send(message)
-        if (wfo.upper() == "ILX"):
-            message['to'] = "%shamchat@conference.%s" % (wfo.lower(), secret.CHATSERVER)
-            self.xmlstream.send(message)
+
+        # Special Routing!
+        if ROUTES.has_key( wfo.upper() ):
+            for rt in ROUTES[ wfo.upper() ]:
+                message['to'] = "%s@conference.%s" % (rt, secret.CHATSERVER)
+                self.xmlstream.send(message)
