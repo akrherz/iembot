@@ -98,6 +98,18 @@ ROUTES = {
   'DVN': ['dvnemachat'],
   'ILX': ['ilxhamchat'],
   'MSR': ['ncrfcchat'],
+  'ORN': ['lmrfcchat'],
+  'ALR': ['serfcchat'],
+  'RHA': ['marfcchat'],
+  'TIR': ['ohrfcchat'],
+  'FWR': ['wgrfcchat'],
+  'KRF': ['mbrfcchat'],
+  'PTR': ['mwrfcchat'],
+  'RSA': ['cnrfcchat'],
+  'STR': ['cbrfcchat'],
+  'TAR': ['nerfcchat'],
+  'TUA': ['abrfcchat'],
+  'ACR': ['aprfcchat'],
 }
 
 PHONE_RE = re.compile(r'(\d{3})\D*(\d{3})\D*(\d{4})\D*(\d*)')
