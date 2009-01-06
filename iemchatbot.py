@@ -37,6 +37,7 @@ import secret
 CHATLOG = {}
 ROSTER = {}
 
+
 CWSU = ['zabchat', 'ztlchat', 'zbwchat', 'zauchat', 'zobchat', 
         'zdvchat', 'zfwchat', 'zhuchat', 'zidchat', 'zkcchat', 
         'zjxchat', 'zlachat', 'zmechat', 'zmachat', 'zmpchat', 
@@ -54,7 +55,8 @@ PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'dvnemachat','ilxhamchat', 'sdeoc',
                  'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat',
                  'tbwnetchat', 'apxfwxchat', 'apxemachat', 'xxxchat',
-                 'tbwhamchat', 'lsxemachat', 'spaceflightmet','ekaemachat']
+                 'tbwhamchat', 'lsxemachat', 'spaceflightmet','ekaemachat',
+                 'tsaemachat']
 
 PUBLIC_ROOMS = ['botstalk', 'peopletalk']
 
@@ -96,6 +98,7 @@ ROUTES = {
   'EKA': ['ekaemachat'],
   'PUB': ['pubemachat'],
   'DVN': ['dvnemachat'],
+  'TSA': ['tsaemachat'],
   'ILX': ['ilxhamchat'],
   'MSR': ['ncrfcchat'],
   'ORN': ['lmrfcchat'],
