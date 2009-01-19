@@ -435,7 +435,7 @@ Current Supported Commands:
   %s: users         ### Generates list of users in room""" % (cmd, 
             self.handle, self.handle, self.handle, self.handle)
             htmlerr = err.replace("\n", "<br />").replace("Supported Commands"\
-      ,"<a href=\"https://%s/%s.php\">Supported Commands</a>" % \
+      ,"<a href=\"https://%s/nws/%s.php\">Supported Commands</a>" % \
             (secret.CHATSERVER, self.myname) )
             self.send_groupchat(room, err, htmlerr)
 
@@ -638,7 +638,7 @@ Currently supported commands are:
   set sms# 555-555-5555  (command will set your SMS number)
   set sms# 0             (disables SMS messages from NWSChat)""" % (self.handle,)
         htmlmsg = msg.replace("\n","<br />").replace(self.handle, \
-                 "<a href=\"https://%s/%s.php\">%s</a>" % \
+                 "<a href=\"https://%s/nws/%s.php\">%s</a>" % \
                  (secret.CHATSERVER, self.myname, self.myname) )
         self.send_privatechat(to, msg, htmlmsg)
 
