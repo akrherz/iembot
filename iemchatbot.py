@@ -56,7 +56,7 @@ PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat',
                  'tbwnetchat', 'apxfwxchat', 'apxemachat', 'xxxchat',
                  'tbwhamchat', 'lsxemachat', 'spaceflightmet','ekaemachat',
-                 'tsaemachat']
+                 'tsaemachat', 'allpeopletalk']
 
 PUBLIC_ROOMS = ['botstalk', 'peopletalk']
 
@@ -169,6 +169,8 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
         #print "XMLRPC-request", room, seqnum, CHATLOG[room]['seqnum']
         r = []
         if (not CHATLOG.has_key(room)):
+            return r
+        if (PRIVATE_ROOMS.__contains__(room)):
             return r
         # Optimization
         if (CHATLOG[room]['seqnum'][-1] == seqnum and seqnum > 0):
@@ -336,6 +338,11 @@ class JabberClient:
         # TODO: support sending the HTML variant
         if (res != self.handle and room in WFOS):
             self.send_groupchat("peopletalk", "[%s] %s: %s"%(room,res,bstring))
+
+        # Send a copy of the message to the allpeopletalk room
+        # TODO: support sending the HTML variant
+        if (res != self.handle):
+            self.send_groupchat("allpeopletalk", "[%s] %s: %s"%(room,res,bstring))
 
         # Look for bot commands
         if (res != self.handle) and re.match(r"^%s:" % (self.handle,), bstring):
