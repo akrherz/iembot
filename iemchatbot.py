@@ -56,7 +56,7 @@ PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat',
                  'tbwnetchat', 'apxfwxchat', 'apxemachat', 'xxxchat',
                  'tbwhamchat', 'lsxemachat', 'spaceflightmet','ekaemachat',
-                 'tsaemachat', 'allpeopletalk']
+                 'tsaemachat', 'allpeopletalk', 'ncrfcagencieschat']
 
 PUBLIC_ROOMS = ['botstalk', 'peopletalk']
 
@@ -101,7 +101,7 @@ ROUTES = {
   'TSA': ['tsaemachat'],
   'HGX': ['hgxemachat'],
   'ILX': ['ilxhamchat'],
-  'MSR': ['ncrfcchat'],
+  'MSR': ['ncrfcchat', 'ncrfcagencieschat'],
   'ORN': ['lmrfcchat'],
   'ALR': ['serfcchat'],
   'RHA': ['marfcchat'],
