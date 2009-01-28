@@ -45,7 +45,7 @@ class JabberClient:
 
 
     def debug(self, elem):
-        logging.info( elem.toXml().encode('utf-8') )
+        #logging.info( elem.toXml().encode('utf-8') )
         logging.info("="*20 )
 
 
@@ -75,6 +75,8 @@ def doit():
     title = elem.findtext('title')
     ts = elem.findtext('pubDate')
     #Wed, 05 Sep 2007 23:27:20 -0400
+    if (ts[17:19] == "24"):
+      ts = ts[:17] + "00" + ts[19:]
     post_ts = mx.DateTime.strptime( ts[5:25], "%d %b %Y %H:%M:%S")
     if (post_ts > oldts):
       # Fire alert!
