@@ -89,7 +89,7 @@ def doit():
   stopme()
 
 
-myJid = jid.JID('iembot_ingest@%s/ingest_%s' % ( mx.DateTime.gmt().ticks(), secret.CHATSERVER) )
+myJid = jid.JID('nwsbot_ingest@nwschat.weather.gov/ingest_%s' % ( mx.DateTime.gmt().ticks(), ) )
 factory = client.basicClientFactory(myJid, secret.IEMCHAT_PASS)
 
 jabber = JabberClient(myJid)
@@ -99,7 +99,7 @@ factory.addBootstrap("//event/client/basicauth/invaliduser", jabber.debug)
 factory.addBootstrap("//event/client/basicauth/authfailed", jabber.debug)
 factory.addBootstrap("//event/stream/error", jabber.debug)
 
-reactor.connectTCP(secret.CHATSERVER,5222,factory)
+reactor.connectTCP('nwschat.weather.gov',5222,factory)
 
 reactor.callLater(10, doit)
 reactor.callLater(240, stopme)
