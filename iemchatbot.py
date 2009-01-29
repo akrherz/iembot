@@ -56,7 +56,8 @@ PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat',
                  'tbwnetchat', 'apxfwxchat', 'apxemachat', 'xxxchat',
                  'tbwhamchat', 'lsxemachat', 'spaceflightmet','ekaemachat',
-                 'tsaemachat', 'allpeopletalk', 'ncrfcagencieschat']
+                 'tsaemachat', 'allpeopletalk', 'ncrfcagencieschat',
+                 'sewemachat']
 
 PUBLIC_ROOMS = ['botstalk', 'peopletalk']
 
@@ -100,6 +101,7 @@ ROUTES = {
   'DVN': ['dvnemachat'],
   'TSA': ['tsaemachat'],
   'HGX': ['hgxemachat'],
+  'SEW': ['sewemachat'],
   'ILX': ['ilxhamchat'],
   'MSR': ['ncrfcchat', 'ncrfcagencieschat'],
   'ORN': ['lmrfcchat'],
@@ -365,7 +367,7 @@ class JabberClient:
         if not l:
             return
         msg = MIMEText("""The following message has been sent to you from
-IEMChat room "%s" by user "%s"
+NWSChat room "%s" by user "%s"
 ________________________________________________________
 
 %s
@@ -375,16 +377,16 @@ ________________________________________________________
 Please reply to this email if you think you are receiving this in error.
 
 Thank you!""" % (room, sender, msgtxt) )
-        msg['subject'] = 'IEMCHAT Message from %s' % (room,)
-        msg['From'] = "akrherz@iastate.edu"
+        msg['subject'] = 'NWSChat Message from %s' % (room,)
+        msg['From'] = "nwschatadmin@noaa.gov"
 
         for i in range(len(l)):
             msg['To'] = l[i][0]
-            smtp.sendmail("mailhub.iastate.edu", msg['From'], \
+            smtp.sendmail("localhost", msg['From'], \
                      msg['To'], msg)
 
         # Always send daryl a copy
-        smtp.sendmail("mailhub.iastate.edu", msg['From'], msg['From'], msg)
+        smtp.sendmail("localhost", msg['From'], 'Daryl.Herzmann@noaa.gov', msg)
 
         err = "Sent email to %s users" % (len(l), )
         self.send_groupchat(room, err)
@@ -628,7 +630,7 @@ Current Supported Commands:
         self.send_privatechat(elem["from"], msg)
 
         cdnum = "cs%i" % (mx.DateTime.now().second * 1000,)
-        pv = "IEMCHAT sms confirmation code is %s" % (cdnum, )
+        pv = "NWSCHAT sms confirmation code is %s" % (cdnum, )
         resTxt = "Sent SMS Confirmation.  Please check your text messages. \
 Please respond in this chat with the code number I just sent you."
         self.sms_really_send_pc( elem["from"], clean_number, pv, resTxt)
