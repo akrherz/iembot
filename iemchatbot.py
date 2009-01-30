@@ -54,7 +54,7 @@ PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'pspcchat', 'iaseocchat', 'ounemchat','pubemachat',
                  'dvnemachat','ilxhamchat', 'sdeoc','wdtbchat', 'hgxemachat',
                  'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat',
-                 'tbwnetchat', 'apxfwxchat', 'apxemachat', 'xxxchat',
+                 'tbwnetchat', 'apxfwxchat', 'apxemachat', 
                  'tbwhamchat', 'lsxemachat', 'spaceflightmet','ekaemachat',
                  'tsaemachat', 'allpeopletalk', 'ncrfcagencieschat',
                  'sewemachat', 'redoubtchat']
@@ -156,7 +156,6 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
         #    source, report)
         rm = "%schat" % (report[:3].lower(), )
         self.jabber.send_groupchat(rm, report)
-        self.jabber.send_groupchat('xxxchat', report)
         self.jabber.send_groupchat('botstalk', report)
         return "THANK YOU"
 
