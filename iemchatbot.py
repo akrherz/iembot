@@ -57,7 +57,7 @@ PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'tbwnetchat', 'apxfwxchat', 'apxemachat', 'xxxchat',
                  'tbwhamchat', 'lsxemachat', 'spaceflightmet','ekaemachat',
                  'tsaemachat', 'allpeopletalk', 'ncrfcagencieschat',
-                 'sewemachat']
+                 'sewemachat', 'redoubtchat']
 
 PUBLIC_ROOMS = ['botstalk', 'peopletalk']
 
