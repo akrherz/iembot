@@ -41,7 +41,8 @@ ROSTER = {}
 CWSU = ['zabchat', 'ztlchat', 'zbwchat', 'zauchat', 'zobchat', 
         'zdvchat', 'zfwchat', 'zhuchat', 'zidchat', 'zkcchat', 
         'zjxchat', 'zlachat', 'zmechat', 'zmachat', 'zmpchat', 
-        'znychat', 'zoachat', 'zlcchat', 'zsechat', 'zdcchat']
+        'znychat', 'zoachat', 'zlcchat', 'zsechat', 'zdcchat',
+        'zanchat']
 
 RFC_ROOMS = ['abrfcchat', 'aprfcchat', 'cnrfcchat', 'cbrfcchat',
              'marfcchat', 'mbrfcchat', 'lmrfcchat', 'ncrfcchat',
@@ -57,7 +58,7 @@ PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'tbwnetchat', 'apxfwxchat', 'apxemachat', 
                  'tbwhamchat', 'lsxemachat', 'spaceflightmet','ekaemachat',
                  'tsaemachat', 'allpeopletalk', 'ncrfcagencieschat',
-                 'sewemachat', 'redoubtchat']
+                 'sewemachat', 'redoubtchat', 'aawuchat']
 
 PUBLIC_ROOMS = ['botstalk', 'peopletalk']
 
