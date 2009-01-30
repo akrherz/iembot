@@ -33,7 +33,7 @@ class JabberClient:
             reactor.callLater(3, self.sendMessage, body, html)
             return
         message = domish.Element(('jabber:client','message'))
-        message['to'] = 'iembot@iemchat.com'
+        message['to'] = 'nwsbot@nwschat.weather.gov'
         message['type'] = 'chat'
 
         # message.addElement('subject',None,subject)
@@ -45,7 +45,7 @@ class JabberClient:
 
 
     def debug(self, elem):
-        #logging.info( elem.toXml().encode('utf-8') )
+        print elem.toXml().encode('utf-8') 
         logging.info("="*20 )
 
 
@@ -88,7 +88,6 @@ def doit():
         writeTS(post_ts)
         logts = post_ts
 
-  stopme()
 
 
 myJid = jid.JID('nwsbot_ingest@nwschat.weather.gov/ingest_%s' % ( mx.DateTime.gmt().ticks(), ) )
@@ -104,5 +103,5 @@ factory.addBootstrap("//event/stream/error", jabber.debug)
 reactor.connectTCP('nwschat.weather.gov',5222,factory)
 
 reactor.callLater(10, doit)
-reactor.callLater(240, stopme)
+reactor.callLater(120, stopme)
 reactor.run()
