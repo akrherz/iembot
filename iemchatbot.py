@@ -58,7 +58,7 @@ PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
                  'tbwnetchat', 'apxfwxchat', 'apxemachat', 
                  'tbwhamchat', 'lsxemachat', 'spaceflightmet','ekaemachat',
                  'tsaemachat', 'allpeopletalk', 'ncrfcagencieschat',
-                 'sewemachat', 'redoubtchat', 'aawuchat']
+                 'sewemachat', 'redoubtchat', 'aawuchat', 'mafskywarn']
 
 PUBLIC_ROOMS = ['botstalk', 'peopletalk']
 
@@ -118,6 +118,7 @@ ROUTES = {
   'TUA': ['abrfcchat'],
   'ACR': ['aprfcchat'],
   'AWU': ['redoubtchat'],
+  'MAF': ['mafskywarn'],
 }
 
 PHONE_RE = re.compile(r'(\d{3})\D*(\d{3})\D*(\d{4})\D*(\d*)')
