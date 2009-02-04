@@ -45,7 +45,7 @@ class JabberClient:
 
 
     def debug(self, elem):
-        print elem.toXml().encode('utf-8') 
+        logging.info( elem.toXml().encode('utf-8') )
         logging.info("="*20 )
 
 
