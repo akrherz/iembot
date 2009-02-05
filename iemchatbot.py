@@ -63,9 +63,9 @@ OT_PRIVATE_ROOMS = ['rgn3fwxchat', 'abc3340', 'wdtbchat', 'spaceflightmet',
 PRIVATE_ROOMS = OT_PRIVATE_ROOMS + WR_PRIVATE_ROOMS + CR_PRIVATE_ROOMS + SR_PRIVATE_ROOMS + ER_PRIVATE_ROOMS + PR_PRIVATE_ROOMS + AR_PRIVATE_ROOMS
 
 PUBLIC_ROOMS = ['botstalk', 'peopletalk',
-                'crbotstalk', 'wrbotstalk',
+                'crbotstalk', 'wrbotstalk', 'prbotstalk',
                 'srbotstalk', 'erbotstalk', 'arbotstalk',
-                'crpeopletalk', 'wrpeopletalk',
+                'crpeopletalk', 'wrpeopletalk', 'prpeopletalk',
                 'srpeopletalk', 'erpeopletalk', 'arpeopletalk']
 
 CR_WFOS = ['gjtchat', 'jklchat', 'dmxchat',
