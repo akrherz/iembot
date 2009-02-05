@@ -48,41 +48,58 @@ RFC_ROOMS = ['abrfcchat', 'aprfcchat', 'cnrfcchat', 'cbrfcchat',
              'marfcchat', 'mbrfcchat', 'lmrfcchat', 'ncrfcchat',
              'nerfcchat', 'nwrfcchat', 'ohrfcchat', 'serfcchat',
              'wgrfcchat']
+ER_PRIVATE_ROOMS = []
+PR_PRIVATE_ROOMS = []
+AR_PRIVATE_ROOMS = ['redoubtchat', 'aawuchat']
+SR_PRIVATE_ROOMS = ['broemchat', 'abqemachat', 'jaxemachat', 'bmxalert',
+                    'mlbemchat', 'ounemchat', 'hgxemachat', 'janhydrochat',
+                    'bmxemachat', 'fwdemachat', 'tbwemchat', 'tbwnetchat',
+                    'tbwhamchat', 'ekaemachat', 'tsaemachat', 'mafskywarn']
+CR_PRIVATE_ROOMS = ['dmxemachat', 'iaseocchat', 'dvnemachat', 'ilxhamchat',
+                    'sdeoc', 'apxfwxchat', 'apxemachat', 'lsxemachat']
+WR_PRIVATE_ROOMS = ['pspcchat', 'pubemachat', 'sewemachat']
+OT_PRIVATE_ROOMS = ['rgn3fwxchat', 'abc3340', 'wdtbchat', 'spaceflightmet',
+                 'allpeopletalk', 'ncrfcagencieschat']
+PRIVATE_ROOMS = OT_PRIVATE_ROOMS + WR_PRIVATE_ROOMS + CR_PRIVATE_ROOMS + SR_PRIVATE_ROOMS + ER_PRIVATE_ROOMS + PR_PRIVATE_ROOMS + AR_PRIVATE_ROOMS
 
-PRIVATE_ROOMS = ['rgn3fwxchat', 'broemchat', 'wrhchat', 'abqemachat',
-                 'jaxemachat', 'bmxalert', 'mlbemchat', 'wxiaweather',
-                 'kccichat', 'vipir6and7', 'abc3340', 'dmxemachat',
-                 'pspcchat', 'iaseocchat', 'ounemchat','pubemachat',
-                 'dvnemachat','ilxhamchat', 'sdeoc','wdtbchat', 'hgxemachat',
-                 'janhydrochat', 'bmxemachat', 'fwdemachat', 'tbwemchat',
-                 'tbwnetchat', 'apxfwxchat', 'apxemachat', 
-                 'tbwhamchat', 'lsxemachat', 'spaceflightmet','ekaemachat',
-                 'tsaemachat', 'allpeopletalk', 'ncrfcagencieschat',
-                 'sewemachat', 'redoubtchat', 'aawuchat', 'mafskywarn']
+PUBLIC_ROOMS = ['botstalk', 'peopletalk',
+                'crbotstalk', 'wrbotstalk',
+                'srbotstalk', 'erbotstalk', 'arbotstalk',
+                'crpeopletalk', 'wrpeopletalk',
+                'srpeopletalk', 'erpeopletalk', 'arpeopletalk']
 
-PUBLIC_ROOMS = ['botstalk', 'peopletalk']
+CR_WFOS = ['gjtchat', 'jklchat', 'dmxchat',
+           'dtxchat', 'dvnchat', 'eaxchat', 'fgfchat', 'fsdchat', 'gidchat',
+           'gldchat', 'grbchat', 'grrchat', 'ictchat', 'ilnchat', 'ilxchat',
+           'indchat', 'iwxchat', 'lbfchat', 'lotchat', 'lsxchat', 'mkxchat',
+           'mpxchat', 'mqtchat', 'oaxchat', 'sgfchat', 'topchat', 'unrchat',
+           'lmkchat', 'pahchat', 'abrchat', 'apxchat', 'arxchat', 'bischat',
+           'ddcchat', 'dlhchat']
+SR_WFOS = ['abqchat', 'amachat', 'bmxchat', 'brochat', 'crpchat', 'epzchat',
+           'ewxchat', 'keychat', 'ffcchat', 'fwdchat', 'hgxchat', 'hunchat',
+           'janchat', 'jaxchat', 'lchchat', 'gumchat', 'lixchat', 'lubchat',
+           'lzkchat', 'mafchat', 'megchat', 'mflchat', 'mlbchat', 'mobchat',
+           'mrxchat', 'ohxchat', 'ounchat', 'rahchat', 'shvchat', 'sjtchat',
+           'sjuchat', 'taechat', 'tbwchat', 'tsachat']
+PR_WFOS = ['afcchat', 'afgchat', 'ajkchat']
+AR_WFOS = ['hfochat',]
+ER_WFOS = ['akqchat', 'alychat', 'bgmchat', 'boxchat', 'btvchat', 'bufchat',
+           'caechat', 'carchat', 'chschat', 'ctpchat', 'gspchat', 'gyxchat',
+           'ilmchat', 'lwxchat', 'mhxchat', 'msochat', 'mtrchat', 'okxchat',
+           'pbzchat', 'phichat', 'rlxchat', 'rnkchat', 'clechat']
+WR_WFOS = ['boichat', 'bouchat', 'byzchat', 'cyschat', 'ekachat', 'fgzchat',
+           'ggwchat', 'hnxchat', 'lknchat', 'loxchat', 'mfrchat', 'otxchat',
+           'pdtchat', 'pihchat', 'pqrchat', 'psrchat', 'pubchat', 'revchat',
+           'riwchat', 'sewchat', 'sgxchat', 'slcchat', 'stochat', 'tfxchat',
+           'twcchat', 'vefchat']
+WFOS = CR_WFOS + SR_WFOS + PR_WFOS + ER_WFOS + WR_WFOS + AR_WFOS
 
-WFOS = ['abqchat', 'afcchat', 'afgchat', 'ajkchat', 'akqchat', 'alychat',
-        'amachat', 'bgmchat', 'bmxchat', 'boichat', 'bouchat', 'boxchat',
-        'brochat', 'btvchat', 'bufchat', 'byzchat', 'caechat', 'carchat',
-        'chschat', 'crpchat', 'ctpchat', 'cyschat', 'ekachat', 'epzchat',
-        'ewxchat', 'keychat', 'ffcchat', 'fgzchat', 'fwdchat', 'ggwchat',
-        'gjtchat', 'gspchat', 'gyxchat', 'hfochat', 'hgxchat', 'hnxchat',
-        'hunchat', 'ilmchat', 'janchat', 'jaxchat', 'jklchat', 'lchchat',
-        'lixchat', 'lknchat', 'lmkchat', 'loxchat', 'lubchat', 'lwxchat',
-        'lzkchat', 'mafchat', 'megchat', 'mflchat', 'mfrchat', 'mhxchat',
-        'mlbchat', 'mobchat', 'mrxchat', 'msochat', 'mtrchat', 'ohxchat',
-        'okxchat', 'otxchat', 'ounchat', 'pahchat', 'pbzchat', 'pdtchat',
-        'phichat', 'pihchat', 'pqrchat', 'psrchat', 'pubchat', 'rahchat',
-        'revchat', 'riwchat', 'rlxchat', 'rnkchat', 'sewchat', 'sgxchat',
-        'shvchat', 'sjtchat', 'sjuchat', 'slcchat', 'stochat', 'taechat',
-        'tbwchat', 'tfxchat', 'tsachat', 'twcchat', 'vefchat', 'abrchat',
-        'apxchat', 'arxchat', 'bischat', 'clechat', 'ddcchat', 'dlhchat',
-        'dtxchat', 'dvnchat', 'eaxchat', 'fgfchat', 'fsdchat', 'gidchat',
-        'gldchat', 'grbchat', 'grrchat', 'ictchat', 'ilnchat', 'ilxchat',
-        'indchat', 'iwxchat', 'lbfchat', 'lotchat', 'lsxchat', 'mkxchat',
-        'mpxchat', 'mqtchat', 'oaxchat', 'sgfchat', 'topchat', 'unrchat',
-        'dmxchat', 'gumchat']
+CR_ROOMS = CR_WFOS + CR_PRIVATE_ROOMS
+SR_ROOMS = SR_WFOS + SR_PRIVATE_ROOMS
+ER_ROOMS = ER_WFOS + ER_PRIVATE_ROOMS
+WR_ROOMS = WR_WFOS + WR_PRIVATE_ROOMS
+AR_ROOMS = AR_WFOS + AR_PRIVATE_ROOMS
+PR_ROOMS = PR_WFOS + PR_PRIVATE_ROOMS
 
 ROUTES = {
   'TBW': ['tbwnetchat', 'tbwhamchat', 'tbwemchat'],
@@ -338,22 +355,35 @@ class JabberClient:
             return
         bstring = xpath.queryForString('/message/body', elem)
 
+        if (res == self.handle):
+            return
+
         # Send a copy of the message to the peopletalk room
         # TODO: support sending the HTML variant
-        if (res != self.handle and room in WFOS):
+        if room in WFOS:
             self.send_groupchat("peopletalk", "[%s] %s: %s"%(room,res,bstring))
+        if room in CR_ROOMS:
+            self.send_groupchat("crpeopletalk", "[%s] %s: %s"%(room,res,bstring))
+        elif room in AR_ROOMS:
+            self.send_groupchat("arpeopletalk", "[%s] %s: %s"%(room,res,bstring))
+        elif room in SR_ROOMS:
+            self.send_groupchat("srpeopletalk", "[%s] %s: %s"%(room,res,bstring))
+        elif room in WR_ROOMS:
+            self.send_groupchat("wrpeopletalk", "[%s] %s: %s"%(room,res,bstring))
+        elif room in PR_ROOMS:
+            self.send_groupchat("prpeopletalk", "[%s] %s: %s"%(room,res,bstring))
+        elif room in ER_ROOMS:
+            self.send_groupchat("erpeopletalk", "[%s] %s: %s"%(room,res,bstring))
 
         # Send a copy of the message to the allpeopletalk room
-        # TODO: support sending the HTML variant
-        if (res != self.handle):
-            self.send_groupchat("allpeopletalk", "[%s] %s: %s"%(room,res,bstring))
+        self.send_groupchat("allpeopletalk", "[%s] %s: %s"%(room,res,bstring))
 
         # Look for bot commands
-        if (res != self.handle) and re.match(r"^%s:" % (self.handle,), bstring):
+        if re.match(r"^%s:" % (self.handle,), bstring):
             self.process_groupchat_cmd(room, res, bstring[7:].strip())
 
         # Look for legacy ping
-        if (res != self.handle) and re.match(r"^ping", bstring):
+        if re.match(r"^ping", bstring):
             self.process_groupchat_cmd(room, res, "ping")
 
     def send_group_email(self, room, msgtxt, sender):
@@ -730,7 +760,23 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         message.addElement('body', None, bstring.split(":",1)[1])
         if (elem.html):
             message.addChild(elem.html)
+        self.xmlstream.send(message)
 
+        room = "%schat" % (wfo.lower(),)
+        if room in CR_WFOS:
+          message['to'] = "crbotstalk@conference.%s" % (secret.CHATSERVER,)
+        elif room in SR_WFOS:
+          message['to'] = "srbotstalk@conference.%s" % (secret.CHATSERVER,)
+        elif room in ER_WFOS:
+          message['to'] = "erbotstalk@conference.%s" % (secret.CHATSERVER,)
+        elif room in WR_WFOS:
+          message['to'] = "wrbotstalk@conference.%s" % (secret.CHATSERVER,)
+        elif room in AR_WFOS:
+          message['to'] = "arbotstalk@conference.%s" % (secret.CHATSERVER,)
+        elif room in PR_WFOS:
+          message['to'] = "prbotstalk@conference.%s" % (secret.CHATSERVER,)
+        else:
+          message['to'] = "unknown@conference.%s" % (secret.CHATSERVER,)
         self.xmlstream.send(message)
 
         # Special Routing!
