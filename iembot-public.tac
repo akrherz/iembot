@@ -37,7 +37,7 @@ ifactory.addBootstrap('//event/stream/authd',iembot.authd)
 ifactory.addBootstrap("//event/client/basicauth/invaliduser", iembot.debug)
 ifactory.addBootstrap("//event/client/basicauth/authfailed", iembot.debug)
 ifactory.addBootstrap("//event/stream/error", iembot.debug)
-i = internet.TCPClient(secret.CHATSERVER,5222,ifactory)
+i = internet.TCPClient('localhost',5222,ifactory)
 i.setServiceParent(serviceCollection)
 
 #3. Bot logs into main server for routing
@@ -62,7 +62,7 @@ i2.setServiceParent(serviceCollection)
 
 # 4. JSON channel requests
 #    iembot-http/channel/dmx/12341234234
-json = server.Site( publicbot.WebResource(), logPath='web.log' )
+json = server.Site( publicbot.JsonChannel(), logPath='web.log' )
 x = internet.TCPServer(8003, json)
 x.setServiceParent(serviceCollection)
 

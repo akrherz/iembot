@@ -481,8 +481,3 @@ class JsonChannel(resource.Resource):
         request.write( simplejson.dumps(r) )
         request.finish()
         return server.NOT_DONE_YET
-
-class WebResource(resource.Resource):
-    def __init__(self):
-        resource.Resource.__init__(self)
-        self.putChild('channel', JsonChannel())
