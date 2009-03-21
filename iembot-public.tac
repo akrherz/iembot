@@ -56,8 +56,14 @@ i2.setServiceParent(serviceCollection)
 
 
 # 4. Answer xmlrpc requests for room updates
-xmlrpc = publicbot.IEMChatXMLRPC()
-x = internet.TCPServer(8003, server.Site(xmlrpc, logPath="xmlrpc.log"))
+#xmlrpc = publicbot.IEMChatXMLRPC()
+#x = internet.TCPServer(8003, server.Site(xmlrpc, logPath="xmlrpc.log"))
+#x.setServiceParent(serviceCollection)
+
+# 4. JSON channel requests
+#    iembot-http/channel/dmx/12341234234
+json = server.Site( publicbot.WebResource(), logPath='web.log' )
+x = internet.TCPServer(8003, json)
 x.setServiceParent(serviceCollection)
 
 # 5. Answer requests for RSS feeds of the bot logs

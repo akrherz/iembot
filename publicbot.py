@@ -14,6 +14,7 @@ dbpool = adbapi.ConnectionPool("psycopg2", database='iem', host='iemdb')
 import pdb, mx.DateTime, datetime, re, random, pickle, os
 
 import secret
+import simplejson
 #log.startLogging( open('twisted.log', 'w') )
 
 import PyRSS2Gen
@@ -199,6 +200,10 @@ class IEMJabberClient:
                 message['type'] = "groupchat"
                 if (self.appriss.xmlstream is not None):
                     self.appriss.xmlstream.send(message)
+                message['to'] = "abc3340@%s" % (secret.APPRISS_MUC,)
+                message['type'] = "groupchat"
+                if (self.appriss.xmlstream is not None):
+                    self.appriss.xmlstream.send(message)
                 message['to'] = "bmxspotterchat@%s" % (secret.APPRISS_MUC,)
                 message['type'] = "groupchat"
                 if (self.appriss.xmlstream is not None):
@@ -243,6 +248,8 @@ class APPRISSJabberClient:
         presence['to'] = "wxdump@%s/iembot" % (secret.APPRISS_MUC,)
         xmlstream.send(presence)
         presence['to'] = "abc3340skywatcher@%s/iembot" % (secret.APPRISS_MUC,)
+        xmlstream.send(presence)
+        presence['to'] = "abc3340@%s/iembot" % (secret.APPRISS_MUC,)
         xmlstream.send(presence)
         presence['to'] = "bmxspotterchat@%s/iembot" % (secret.APPRISS_MUC,)
         xmlstream.send(presence)
@@ -441,3 +448,41 @@ class RootResource(resource.Resource):
     def __init__(self):
         resource.Resource.__init__(self)
         self.putChild('wfo', HomePage())
+
+class JsonChannel(resource.Resource):
+    def isLeaf(self): return true
+    def __init__(self):
+        resource.Resource.__init__(self)
+
+    def render(self, request):
+        #html = "<html><h4>"+ `dir(self.server)` + request.uri +"</h4></html>"
+        tokens = re.findall("/room/([a-z0-9]+)",request.uri.lower())
+        if (len(tokens) == 0):
+            request.write( simplejson.dumps("ERROR") )
+            request.finish()
+            return server.NOT_DONE_YET
+        
+        room = tokens[0][0]
+        seqnum = int(request.args['seqnum'][0])
+
+        r = {'messages': [],}
+        if (not CHATLOG.has_key(room)):
+            request.write( simplejson.dumps("ERROR") )
+            request.finish()
+            return server.NOT_DONE_YET
+        for k in range(len(CHATLOG[room]['seqnum'])):
+            if (CHATLOG[room]['seqnum'][k] > seqnum):
+                ts = mx.DateTime.DateTimeFromTicks( CHATLOG[room]['timestamps'][k] / 100.0)
+                r['messages'].append({'seqnum': CHATLOG[room]['seqnum'][k], 
+                                     'ts': ts.strftime("%Y-%m-%d %H:%M:%S"), 
+                                     'author': CHATLOG[room]['author'][k], 
+                                     'message': CHATLOG[room]['log'][k] } )
+
+        request.write( simplejson.dumps(r) )
+        request.finish()
+        return server.NOT_DONE_YET
+
+class WebResource(resource.Resource):
+    def __init__(self):
+        resource.Resource.__init__(self)
+        self.putChild('channel', JsonChannel())
