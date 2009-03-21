@@ -462,7 +462,7 @@ class JsonChannel(resource.Resource):
             request.finish()
             return server.NOT_DONE_YET
         
-        room = tokens[0][0]
+        room = tokens[0]
         seqnum = int(request.args['seqnum'][0])
 
         r = {'messages': [],}
