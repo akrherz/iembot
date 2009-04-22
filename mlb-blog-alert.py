@@ -80,8 +80,8 @@ def doit():
     post_ts = mx.DateTime.strptime( ts[5:25], "%d %b %Y %H:%M:%S")
     if (post_ts > oldts):
       # Fire alert!
-      txt = "MLB: Impact Weather Blog updated ("+title+") http://www.srh.noaa.gov/mlb/IMUblog/blog.html"
-      html = "<a href=\"http://www.srh.noaa.gov/mlb/IMUblog/blog.html\">Impact Weather Blog</a> updated ("+title+")"
+      txt = "MLB: Impact Weather Blog updated ("+title+") http://www.srh.noaa.gov/mlb/IMUblog/blog.php"
+      html = "<a href=\"http://www.srh.noaa.gov/mlb/IMUblog/blog.php\">Impact Weather Blog</a> updated ("+title+")"
       jabber.sendMessage(txt,html)
   
       if (post_ts > logts):
