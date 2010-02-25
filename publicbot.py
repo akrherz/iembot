@@ -5,6 +5,7 @@ from twisted.internet import reactor
 from twisted.web import server, xmlrpc, resource
 from twisted.internet import reactor
 from twisted.python import log
+from twisted.python.logfile import DailyLogFile
 from twisted.internet.task import LoopingCall
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
 
@@ -183,6 +184,12 @@ class IEMJabberClient:
             #message['type'] = "chat"
             #gmail.xmlstream.send(message)
 
+            if wfo.lower() in ['lmk','pah','ohx']:
+                message['to'] = "wbkoweatherwatchers@%s" % (secret.APPRISS_MUC,)
+                message['type'] = "groupchat"
+                if (self.appriss.xmlstream is not None):
+                    self.appriss.xmlstream.send(message)
+
             if (wfo.lower() == "bmx" or wfo.lower() == "hun"):
                 #message['to'] = "abc3340conference@gmail.com"
                 #message['type'] = "chat"
@@ -250,6 +257,8 @@ class APPRISSJabberClient:
         presence['to'] = "abc3340skywatcher@%s/iembot" % (secret.APPRISS_MUC,)
         xmlstream.send(presence)
         presence['to'] = "abc3340@%s/iembot" % (secret.APPRISS_MUC,)
+        xmlstream.send(presence)
+        presence['to'] = "wbkoweatherwatchers@%s/iembot" % (secret.APPRISS_MUC,)
         xmlstream.send(presence)
         presence['to'] = "bmxspotterchat@%s/iembot" % (secret.APPRISS_MUC,)
         xmlstream.send(presence)
@@ -407,6 +416,8 @@ def wfoRSS(rm):
     return rss.to_xml()
 
 class HomePage(resource.Resource):
+    log = DailyLogFile('rsslog', 'logs/')
+
     def isLeaf(self): return true
     def __init__(self):
         resource.Resource.__init__(self)
@@ -450,6 +461,8 @@ class RootResource(resource.Resource):
         self.putChild('wfo', HomePage())
 
 class JsonChannel(resource.Resource):
+    log = DailyLogFile('jsonlog', 'logs/')
+
     def isLeaf(self): return true
     def __init__(self):
         resource.Resource.__init__(self)
