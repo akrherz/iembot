@@ -76,6 +76,7 @@ def add2chatlog(iembot, res, elem):
         except:
             print realroom, 'VERY VERY BAD'
     for rm in [myrm, "botstalk"]:
+        print 'Adding %s room to CHATLOG' % (rm,)
         if (not CHATLOG.has_key(rm)):
             CHATLOG[rm] = {'seqnum': [-1]*40, 'timestamps': [0]*40,
               'txtlog': ['']*40, 'log': ['']*40, 'author': ['']*40, 
