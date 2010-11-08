@@ -477,6 +477,7 @@ class JsonChannel(resource.Resource):
         #html = "<html><h4>"+ `dir(self.server)` + request.uri +"</h4></html>"
         tokens = re.findall("/room/([a-z0-9]+)",request.uri.lower())
         if (len(tokens) == 0):
+            print 'Len tokens is 0'
             request.write( self.wrap(request, simplejson.dumps("ERROR")) )
             request.finish()
             return server.NOT_DONE_YET
@@ -486,6 +487,7 @@ class JsonChannel(resource.Resource):
 
         r = {'messages': [],}
         if (not CHATLOG.has_key(room)):
+            print 'No CHATLOG', room
             request.write( self.wrap(request, simplejson.dumps("ERROR")) )
             request.finish()
             return server.NOT_DONE_YET
