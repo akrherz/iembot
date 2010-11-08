@@ -467,11 +467,17 @@ class JsonChannel(resource.Resource):
     def __init__(self):
         resource.Resource.__init__(self)
 
+    def wrap(self, request, j):
+        if request.args.has_key('callback'):
+            return '%s(%s);' % (request.args['callback'][0], j)
+        else:
+            return j
+
     def render(self, request):
         #html = "<html><h4>"+ `dir(self.server)` + request.uri +"</h4></html>"
         tokens = re.findall("/room/([a-z0-9]+)",request.uri.lower())
         if (len(tokens) == 0):
-            request.write( simplejson.dumps("ERROR") )
+            request.write( self.wrap(request, simplejson.dumps("ERROR")) )
             request.finish()
             return server.NOT_DONE_YET
         
@@ -480,7 +486,7 @@ class JsonChannel(resource.Resource):
 
         r = {'messages': [],}
         if (not CHATLOG.has_key(room)):
-            request.write( simplejson.dumps("ERROR") )
+            request.write( self.wrap(request, simplejson.dumps("ERROR")) )
             request.finish()
             return server.NOT_DONE_YET
         for k in range(len(CHATLOG[room]['seqnum'])):
@@ -491,6 +497,6 @@ class JsonChannel(resource.Resource):
                                      'author': CHATLOG[room]['author'][k], 
                                      'message': CHATLOG[room]['log'][k] } )
 
-        request.write( simplejson.dumps(r) )
+        request.write( self.wrap(request, simplejson.dumps(r)) )
         request.finish()
         return server.NOT_DONE_YET

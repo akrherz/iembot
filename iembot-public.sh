@@ -4,4 +4,4 @@
 
 kill -9 `cat iembot.pid `
 sleep 5
-twistd --pidfile=iembot.pid -y iembot-public.tac
+twistd --logfile=logs/iembot.log --pidfile=iembot.pid -y iembot-public.tac

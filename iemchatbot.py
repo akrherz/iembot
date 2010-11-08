@@ -23,6 +23,7 @@ from twisted.words.xish import domish, xpath
 from twisted.web import xmlrpc, client
 from twisted.mail import smtp
 from twisted.python import log
+from twisted.python.logfile import DailyLogFile
 from twisted.enterprise import adbapi
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
 from twisted.internet.task import LoopingCall

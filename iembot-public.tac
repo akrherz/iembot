@@ -62,12 +62,12 @@ i2.setServiceParent(serviceCollection)
 
 # 4. JSON channel requests
 #    iembot-http/channel/dmx/12341234234
-json = server.Site( publicbot.JsonChannel(), logPath='web.log' )
+json = server.Site( publicbot.JsonChannel(), logPath='/dev/null' )
 x = internet.TCPServer(8003, json)
 x.setServiceParent(serviceCollection)
 
 # 5. Answer requests for RSS feeds of the bot logs
-rss = server.Site( publicbot.RootResource(), logPath="rss.log" )
+rss = server.Site( publicbot.RootResource(), logPath="/dev/null" )
 r = internet.TCPServer(8004, rss)
 r.setServiceParent(serviceCollection)
 
