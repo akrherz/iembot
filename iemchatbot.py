@@ -188,7 +188,7 @@ class IEMChatXMLRPC(xmlrpc.XMLRPC):
             return
         # If seqnum is zero, we have a new monitor person :)
 
-        #print "XMLRPC-request", room, seqnum, CHATLOG[room]['seqnum']
+        print "XMLRPC-request", room, seqnum, CHATLOG[room]['seqnum']
         r = []
         if (not CHATLOG.has_key(room)):
             return r
