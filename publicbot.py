@@ -10,7 +10,8 @@ from twisted.internet.task import LoopingCall
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
 
 from twisted.enterprise import adbapi
-dbpool = adbapi.ConnectionPool("psycopg2", database='iem', host='iemdb')
+dbpool = adbapi.ConnectionPool("psycopg2", database='iem', host='iemdb', 
+                               cp_reconnect=True)
 
 import pdb, mx.DateTime, datetime, re, random, pickle, os
 
@@ -191,6 +192,12 @@ class IEMJabberClient:
                 if (self.appriss.xmlstream is not None):
                     self.appriss.xmlstream.send(message)
 
+            if wfo.lower() in ['hun','bmx','ohx']:
+                message['to'] = "whntweather@%s" % (secret.APPRISS_MUC,)
+                message['type'] = "groupchat"
+                if (self.appriss.xmlstream is not None):
+                    self.appriss.xmlstream.send(message)
+
             if (wfo.lower() == "bmx" or wfo.lower() == "hun"):
                 #message['to'] = "abc3340conference@gmail.com"
                 #message['type'] = "chat"
@@ -260,6 +267,8 @@ class APPRISSJabberClient:
         presence['to'] = "abc3340@%s/iembot" % (secret.APPRISS_MUC,)
         xmlstream.send(presence)
         presence['to'] = "wbkoweatherwatchers@%s/iembot" % (secret.APPRISS_MUC,)
+        xmlstream.send(presence)
+        presence['to'] = "whntweather@%s/iembot" % (secret.APPRISS_MUC,)
         xmlstream.send(presence)
         presence['to'] = "bmxspotterchat@%s/iembot" % (secret.APPRISS_MUC,)
         xmlstream.send(presence)
@@ -492,6 +501,8 @@ class JsonChannel(resource.Resource):
             request.write( self.wrap(request, simplejson.dumps("ERROR")) )
             request.finish()
             return server.NOT_DONE_YET
+        #print 'ROOM: %s RESEQ: %s SEQ0: %s SEQ-1: %s' % (room,
+        #        seqnum, CHATLOG[room]['seqnum'][0], CHATLOG[room]['seqnum'][-1])
         for k in range(len(CHATLOG[room]['seqnum'])):
             if (CHATLOG[room]['seqnum'][k] > seqnum):
                 ts = mx.DateTime.DateTimeFromTicks( CHATLOG[room]['timestamps'][k] / 100.0)
