@@ -473,12 +473,15 @@ class RootResource(resource.Resource):
 class JsonChannel(resource.Resource):
     log = DailyLogFile('jsonlog', 'logs/')
 
-    def isLeaf(self): return true
+    def isLeaf(self):
+        return True
     def __init__(self):
         resource.Resource.__init__(self)
 
     def wrap(self, request, j):
+        """ Support specification of a JSONP callback """
         if request.args.has_key('callback'):
+            request.setHeader("Content-type", "application/javascript")
             return '%s(%s);' % (request.args['callback'][0], j)
         else:
             return j
