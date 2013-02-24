@@ -1,0 +1,11 @@
+[appriss]
+user=iembot
+xmppdomain=appriss.com
+connecthost=jabber.appriss.com
+password=password
+muc=muc.appriss.com
+  
+[local]
+xmppdomain=laptop.local
+connecthost=localhost
+password=password

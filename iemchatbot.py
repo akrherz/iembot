@@ -15,9 +15,6 @@
 # 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 """ Chat bot implementation for NWSChat """
 
-__revision__ = '$Id$'
-
-
 from twisted.words.protocols.jabber import client, jid
 from twisted.words.xish import domish, xpath
 from twisted.web import xmlrpc, client
@@ -33,7 +30,9 @@ import mx.DateTime, socket, re, md5
 import StringIO, traceback, base64, urllib
 from email.MIMEText import MIMEText
 
-import secret
+import ConfigParser
+config = ConfigParser.ConfigParser()
+config.read('config.ini')
 
 CHATLOG = {}
 ROSTER = {}
@@ -141,72 +140,6 @@ ROUTES = {
 
 PHONE_RE = re.compile(r'(\d{3})\D*(\d{3})\D*(\d{4})\D*(\d*)')
 
-DBPOOL = adbapi.ConnectionPool("psycopg2",  database="openfire")
-
-
-class IEMChatXMLRPC(xmlrpc.XMLRPC):
-
-    jabber = None
-
-    def xmlrpc_getAllRoomCount(self):
-        r = []
-        for rm in ROSTER.keys():
-            r.append( [ rm, len(ROSTER[rm]) ] )
-        return r
-
-    def xmlrpc_addMUCMember(self, apikey, room, user, affiliation):
-        if (apikey != 'apikey'):
-            return "apikey did not match, sorry"
-        iq = domish.Element((None,'iq'))
-        iq['to'] = "%s@conference.%s" %(room.lower(), secret.CHATSERVER)
-        iq['type'] = "set"
-        iq['id'] = "admin1"
-        iq['from'] = self.jabber.myJid.full()
-        # Note, this is because openfire supports older NS  JM-391
-        iq.addRawXml("<query xmlns='http://jabber.org/protocol/muc#owner'><item affiliation='%s' jid='%s@%s'/></query>" % (affiliation, user, secret.CHATSERVER) )
-        self.jabber.xmlstream.send(iq)
-        return "OK"
-
-    def xmlrpc_submitSpotternetwork(self, apikey, ts, lon, lat, source, report):
-        """ Allow submissions of Spotternet reports """
-        if (apikey != secret.snkey):
-            return "apikey did not match, sorry"
-        if (report is None or len(report) < 10):
-            return "report is too short!"
-        #jstr = "XXX: ts=%s lon=%s lat=%s source=%s report=%s" % (ts, lon, lat, \
-        #    source, report)
-        rm = "%schat" % (report[:3].lower(), )
-        self.jabber.send_groupchat(rm, report)
-        self.jabber.send_groupchat('botstalk', report)
-        return "THANK YOU"
-
-    def xmlrpc_getUpdate(self, jabberid, xmlkey, room, seqnum):
-        """ Return most recent messages since timestamp (ticks...) """
-        if (md5.new("%s%s"%(secret.xmlrpc_key, jabberid)).hexdigest() != xmlkey):
-            print "Auth error for jabberid: ", jabberid, xmlkey, \
-                   md5.new("%s%s"%(secret.xmlrpc_key, jabberid)).hexdigest()
-            return
-        # If seqnum is zero, we have a new monitor person :)
-
-        print "XMLRPC-request", room, seqnum, CHATLOG[room]['seqnum']
-        r = []
-        if (not CHATLOG.has_key(room)):
-            return r
-        if (PRIVATE_ROOMS.__contains__(room)):
-            return r
-        # Optimization
-        if (CHATLOG[room]['seqnum'][-1] == seqnum and seqnum > 0):
-            return r
-        for k in range(len(CHATLOG[room]['seqnum'])):
-            if (CHATLOG[room]['seqnum'][k] > seqnum):
-                ts = mx.DateTime.DateTimeFromTicks( 
-                     CHATLOG[room]['timestamps'][k] / 100.0)
-                r.append( [ CHATLOG[room]['seqnum'][k] , 
-                            ts.strftime("%Y%m%d%H%M%S"), 
-                            CHATLOG[room]['author'][k], 
-                            CHATLOG[room]['log'][k] ] )
-        #print r
-        return r
 
 
 class JabberClient:
@@ -264,7 +197,7 @@ class JabberClient:
         for rm in CWSU + PRIVATE_ROOMS + PUBLIC_ROOMS + WFOS + RFC_ROOMS:
             ROSTER[rm] = {}
             presence = domish.Element(('jabber:client','presence'))
-            presence['to'] = "%s@conference.%s/%s" % (rm, secret.CHATSERVER, self.handle)
+            presence['to'] = "%s@conference.%s/%s" % (rm, config.get('local','xmppdomain'), self.handle)
             reactor.callLater(cnt % 20, self.xmlstream.send, presence)
             cnt += 1
 
@@ -334,8 +267,6 @@ class JabberClient:
             print "FOUND Xdelay", xdelay, ":"
             delayts = mx.DateTime.strptime(xdelay, "%Y%m%dT%H:%M:%S")
             ticks = int(delayts.ticks() * 100)
-        elif (x is not None):
-            print "What is this?", x[0].toXml()
 
         CHATLOG[room]['seqnum'] = CHATLOG[room]['seqnum'][1:] + [self.nextSeqnum(),]
         CHATLOG[room]['timestamps'] = CHATLOG[room]['timestamps'][1:] + [ticks,]
@@ -387,42 +318,7 @@ class JabberClient:
         if re.match(r"^ping", bstring):
             self.process_groupchat_cmd(room, res, "ping")
 
-    def send_group_email(self, room, msgtxt, sender):
-        """ Send the chatgroup an email, why don't we """
-        # Query for a listing of emails 
-        sql = "select distinct email from ofuser u, ofgroupuser g \
-               WHERE u.username = g.username and \
-               g.groupname = '%sgroup'" % (room.replace("chat","").lower(),)
-        DBPOOL.runQuery(sql).addCallback(self.really_send_group_email, room, \
-                                         msgtxt, sender)
 
-    def really_send_group_email(self, l, room, msgtxt, sender):
-        if not l:
-            return
-        msg = MIMEText("""The following message has been sent to you from
-NWSChat room "%s" by user "%s"
-________________________________________________________
-
-%s
-
-________________________________________________________
-
-Please reply to this email if you think you are receiving this in error.
-
-Thank you!""" % (room, sender, msgtxt) )
-        msg['subject'] = 'NWSChat Message from %s' % (room,)
-        msg['From'] = "nwschatadmin@noaa.gov"
-
-        for i in range(len(l)):
-            msg['To'] = l[i][0]
-            smtp.sendmail("localhost", msg['From'], \
-                     msg['To'], msg)
-
-        # Always send daryl a copy
-        smtp.sendmail("localhost", msg['From'], 'Daryl.Herzmann@noaa.gov', msg)
-
-        err = "Sent email to %s users" % (len(l), )
-        self.send_groupchat(room, err)
 
     def process_groupchat_cmd(self, room, res, cmd):
         """ I actually process the groupchat commands and do stuff """
@@ -478,78 +374,9 @@ Current Supported Commands:
             self.handle, self.handle, self.handle, self.handle)
             htmlerr = err.replace("\n", "<br />").replace("Supported Commands"\
       ,"<a href=\"https://%s/nws/%s.php\">Supported Commands</a>" % \
-            (secret.CHATSERVER, self.myname) )
+            (config.get('local','xmppdomain'), self.myname) )
             self.send_groupchat(room, err, htmlerr)
 
-    def process_sms(self, room, send_txt, sender):
-        # Query for users in chatgroup
-        sql = "select i.propvalue as num, i.username as username from \
-         nwschat_userprop i, ofgroupuser j WHERE \
-         i.username = j.username and \
-         j.groupname = '%sgroup'" % (room[:3].lower(),)
-        DBPOOL.runQuery(sql).addCallback(self.sendSMS, room, send_txt, sender)
-
-    def sendSMS(self, l, rm, send_txt, sender):
-        """ https://mobile.wrh.noaa.gov/mobile_secure/quios_relay.php 
-         numbers - string, a comma delimited list of 10 digit
-                   phone numbers
-         message - string, the message you want to send
-        """
-        if l:
-            numbers = []
-            for i in range(len(l)):
-                numbers.append( l[i][0] )
-                #username = l[i][1]
-            str_numbers =  ",".join(numbers)
-            self.sms_really_send(rm, str_numbers, sender, send_txt)
-        else:
-            self.send_groupchat(rm, "No SMS numbers found for chatgroup.")
-
-    def sms_really_send(self, rm, str_numbers, sender, send_txt):
-        #url = "https://mobile.wrh.noaa.gov/mobile_secure/quios_relay.php"
-        url = "https://192.168.10.199:4749/mobile_secure/quios_relay.php"
-        basicAuth = base64.encodestring("%s:%s" % (secret.QUIOS_USER, 
-                                        secret.QUIOS_PASS) )
-        authHeader = "Basic " + basicAuth.strip()
-        print 'Sender is', sender
-        payload = urllib.urlencode({'numbers': str_numbers,\
-                                     'sender': sender,\
-                                      'message': send_txt})
-        client.getPage(url, postdata=payload, method="POST",\
-          headers={"Authorization": authHeader,\
-                   "Content-type":"application/x-www-form-urlencoded"}\
-          ).addCallback(\
-          self.sms_success_gc, rm).addErrback(self.sms_failure_gc, rm)
-
-    def sms_failure_gc(self, res, rm):
-        print res
-        self.send_groupchat(rm, "SMS Send Failure, Sorry")
-
-    def sms_success_gc(self, res, rm):
-        self.send_groupchat(rm, "Sent SMS")
-
-    # Private Chat Variant.....
-    def sms_really_send_pc(self, jid, str_numbers, send_txt, resTxt):
-        #url = "https://mobile.wrh.noaa.gov/mobile_secure/quios_relay.php"
-        url = "https://192.168.10.199:4749/mobile_secure/quios_relay.php"
-        basicAuth = base64.encodestring("%s:%s" % (secret.QUIOS_USER, 
-                                        secret.QUIOS_PASS) )
-        authHeader = "Basic " + basicAuth.strip()
-        payload = urllib.urlencode({'numbers': str_numbers,\
-                                     'sender': self.handle,\
-                                      'message': send_txt})
-        client.getPage(url, postdata=payload, method="POST",\
-          headers={"Authorization": authHeader,\
-                   "Content-type":"application/x-www-form-urlencoded"}\
-          ).addCallback(\
-          self.sms_success_pc, jid, resTxt).addErrback(self.sms_failure_pc, jid)
-
-    def sms_failure_pc(self, res, jid):
-        print res
-        self.send_privatechat(jid, "SMS Send Confirmation Failure, Sorry")
-
-    def sms_success_pc(self, res, jid, resTxt):
-        self.send_privatechat(jid, resTxt)
 
 
     def processor(self, elem):
@@ -565,7 +392,7 @@ Current Supported Commands:
             print io.getvalue() 
             msg = MIMEText("%s\n\n%s\n\n"%(elem.toXml(), io.getvalue() ))
             msg['subject'] = '%s Traceback' % (self.handle,)
-            msg['From'] = "ldm@%s" % (secret.CHATSERVER,)
+            msg['From'] = "ldm@%s" % (config.get('local','xmppdomain'),)
             msg['To'] = "akrherz@iastate.edu"
 
             smtp.sendmail("localhost", msg["From"], msg["To"], msg)
@@ -603,77 +430,6 @@ Current Supported Commands:
         else:
             self.send_help_message( elem["from"] )
 
-    def confirm_sms(self, elem, bstring):
-        print "confirm_sms step1"
-        _from = jid.JID( elem["from"] )
-        cs = bstring.strip()
-        sql = "select * from nwschat_userprop WHERE \
-         username = '%s' and name = 'sms_confirm' and propvalue = '%s'"\
-         % (_from.user, cs)
-        print sql
-        DBPOOL.runQuery(sql).addCallback(self.confirm_sms2, elem['from'])
-
-    def confirm_sms2(self, l, jabberid):
-        print "confirm_sms2 step2"
-        _from = jid.JID( jabberid )
-        if not l:
-            self.send_privatechat(jabberid, "SMS Confirmation Failed")
-            return
-        sql = "UPDATE nwschat_userprop SET name = 'sms#' WHERE \
-               username = '%s' and name = 'unconfirm_sms#'" % \
-              (_from.user,) 
-        DBPOOL.runOperation( sql )
-        sql = "DELETE from nwschat_userprop WHERE name = 'sms_confirm' and \
-               username = '%s'" % \
-              (_from.user,) 
-        DBPOOL.runOperation( sql )
-        self.send_privatechat(jabberid, "SMS Confirmed, thank you!")
-   
-
-    def handle_sms_request(self, elem, bstring):
-        _from = jid.JID( elem["from"] )
-        cmd = bstring.replace("set sms#", "").strip()
-
-        # They can opt out, if they wish
-        if (cmd == "0" or cmd == ""):
-            sql = "DELETE from nwschat_userprop WHERE username = '%s' and \
-               name = 'sms#'" % (_from.user, )
-            DBPOOL.runOperation( sql )
-            msg = "Thanks, SMS service disabled for your account"
-            self.send_privatechat(elem["from"], msg)
-            return
-        ttt = PHONE_RE.search(cmd)
-        if ttt is None:
-            self.send_help_message( elem["from"] )
-            return
-        ar = ttt.groups()
-        if len(ar) < 4:
-            self.send_help_message( elem["from"] )
-            return
-        clean_number = "%s%s%s" % (ar[0], ar[1], ar[2])
-        clean_number2 = "%s-%s-%s" % (ar[0], ar[1], ar[2])
-        sql = "DELETE from nwschat_userprop WHERE username = '%s' and \
-           name IN ('sms#', 'unconfirm_sms#', 'sms_confirm')" % (_from.user, )
-        DBPOOL.runOperation( sql )
-        sql = "INSERT into nwschat_userprop(username, name, propvalue)\
-               VALUES ('%s','%s','%s')" % \
-               (_from.user, 'unconfirm_sms#', clean_number)
-        DBPOOL.runOperation( sql )
-        msg = """Thanks, your SMS number is updated to: %s ... We will now send you a confirmation text message to verify this number. Please note: This service is provided without warranty and standard text messaging rates apply.""" % (clean_number2,)
-        self.send_privatechat(elem["from"], msg)
-
-        cdnum = "cs%i" % (mx.DateTime.now().second * 1000,)
-        pv = "NWSCHAT sms confirmation code is %s" % (cdnum, )
-        resTxt = "Sent SMS Confirmation.  Please check your text messages. \
-Please respond in this chat with the code number I just sent you."
-        self.sms_really_send_pc( elem["from"], clean_number, pv, resTxt)
-
-        sql = "INSERT into nwschat_userprop(username, name, propvalue)\
-               VALUES ('%s','%s','%s')" % \
-               (_from.user, 'sms_confirm', cdnum)
-        DBPOOL.runOperation( sql )
-
-
     def send_help_message(self, to):
         msg = """Hi, I am %s.  You can try talking directly with me.
 Currently supported commands are:
@@ -681,7 +437,7 @@ Currently supported commands are:
   set sms# 0             (disables SMS messages from NWSChat)""" % (self.handle,)
         htmlmsg = msg.replace("\n","<br />").replace(self.handle, \
                  "<a href=\"https://%s/nws/%s.php\">%s</a>" % \
-                 (secret.CHATSERVER, self.myname, self.myname) )
+                 (config.get('local','xmppdomain'), self.myname, self.myname) )
         self.send_privatechat(to, msg, htmlmsg)
 
     def send_privatechat(self, to, mess, html=None):
@@ -695,7 +451,7 @@ Currently supported commands are:
 
     def send_groupchat(self, room, mess, html=None):
         message = domish.Element(('jabber:client','message'))
-        message['to'] = "%s@conference.%s" %(room, secret.CHATSERVER)
+        message['to'] = "%s@conference.%s" %(room, config.get('local','xmppdomain'))
         message['type'] = "groupchat"
         message.addElement('body',None, mess)
         if (html is not None):
@@ -721,67 +477,64 @@ with me outside of a groupchat.  I have initated such a chat for you.")
 
     def processMessagePC(self, elem):
         _from = jid.JID( elem["from"] )
-        if (elem["from"] == secret.CHATSERVER):
+        if (elem["from"] == config.get('local','xmppdomain')):
             print "MESSAGE FROM SERVER?"
             return
         # Intercept private messages via a chatroom, can't do that :)
-        if (_from.host == "conference.%s" % (secret.CHATSERVER,)):
+        if (_from.host == "conference.%s" % (config.get('local','xmppdomain'),)):
             self.send_private_request( _from )
             return
 
-        if (_from.userhost() != "%s_ingest@%s" % (self.handle, secret.CHATSERVER)):
+        if (_from.userhost() != "%s_ingest@%s" % (self.handle, config.get('local','xmppdomain'))):
             self.talkWithUser(elem)
             return
 
         # Go look for body to see routing info! 
         # Get the body string
         bstring = xpath.queryForString('/message/body', elem)
-        htmlstr = xpath.queryForString('/message/html/body', elem)
-        if (bstring and bstring.find(":") == -1):
+        if not bstring:
             print "Nothing found in body?", bstring
             return
-        # The body string contains 
-        wfo = bstring.split(":")[0]
-        # Look for HTML
-        html = xpath.queryForNodes('/message/html', elem)
+        
+        if elem.x and elem.x.hasAttribute("channels"):
+            channels = elem.x['channels'].split(",")
+        else:
+            # The body string contains
+            (channel, meat) = bstring.split(":", 1)
+            channels = [channel,]
+            # Send to chatroom, clip body of channel notation
+            #elem.body.children[0] = meat
 
-        # Route message to botstalk room in tact
-        message = domish.Element(('jabber:client','message'))
-        message['to'] = "botstalk@conference.%s" % (secret.CHATSERVER,)
-        message['type'] = "groupchat"
-        message.addChild( elem.body )
-        if (elem.html):
-            message.addChild(elem.html)
-        self.xmlstream.send(message)
+        # Send to botstalk
+        elem['to'] = "botstalk@conference.%s" % (config.get('local','xmppdomain'),)
+        elem['type'] = "groupchat"
+        self.xmlstream.send( elem )
 
         # Send to chatroom, clip body
-        message = domish.Element(('jabber:client','message'))
-        message['to'] = "%schat@conference.%s" % (wfo.lower(), secret.CHATSERVER,)
-        message['type'] = "groupchat"
-        message.addElement('body', None, bstring.split(":",1)[1])
-        if (elem.html):
-            message.addChild(elem.html)
-        self.xmlstream.send(message)
+        wfo = channels[0] # TODO
+        elem['to'] = "%schat@conference.%s" % (wfo.lower(), 
+                                                  config.get('local','xmppdomain'))
+        self.xmlstream.send( elem )
 
         room = "%schat" % (wfo.lower(),)
         if room in CR_WFOS:
-          message['to'] = "crbotstalk@conference.%s" % (secret.CHATSERVER,)
+            elem['to'] = "crbotstalk@conference.%s" % (config.get('local','xmppdomain'),)
         elif room in SR_WFOS:
-          message['to'] = "srbotstalk@conference.%s" % (secret.CHATSERVER,)
+            elem['to'] = "srbotstalk@conference.%s" % (config.get('local','xmppdomain'),)
         elif room in ER_WFOS:
-          message['to'] = "erbotstalk@conference.%s" % (secret.CHATSERVER,)
+            elem['to'] = "erbotstalk@conference.%s" % (config.get('local','xmppdomain'),)
         elif room in WR_WFOS:
-          message['to'] = "wrbotstalk@conference.%s" % (secret.CHATSERVER,)
+            elem['to'] = "wrbotstalk@conference.%s" % (config.get('local','xmppdomain'),)
         elif room in AR_WFOS:
-          message['to'] = "arbotstalk@conference.%s" % (secret.CHATSERVER,)
+            elem['to'] = "arbotstalk@conference.%s" % (config.get('local','xmppdomain'),)
         elif room in PR_WFOS:
-          message['to'] = "prbotstalk@conference.%s" % (secret.CHATSERVER,)
+            elem['to'] = "prbotstalk@conference.%s" % (config.get('local','xmppdomain'),)
         else:
-          message['to'] = "unknown@conference.%s" % (secret.CHATSERVER,)
-        self.xmlstream.send(message)
+            elem['to'] = "unknown@conference.%s" % (config.get('local','xmppdomain'),)
+        self.xmlstream.send( elem )
 
         # Special Routing!
         if ROUTES.has_key( wfo.upper() ):
             for rt in ROUTES[ wfo.upper() ]:
-                message['to'] = "%s@conference.%s" % (rt, secret.CHATSERVER)
-                self.xmlstream.send(message)
+                elem['to'] = "%s@conference.%s" % (rt, config.get('local','xmppdomain'))
+                self.xmlstream.send( elem )
