@@ -9,3 +9,7 @@ muc=muc.appriss.com
 xmppdomain=laptop.local
 connecthost=localhost
 password=password
+
+[database]
+name=mesosite
+host=localhost
