@@ -53,6 +53,7 @@ if os.path.isfile(PICKLEFILE):
             s = CHATLOG[rm]['seqnum'][-1]
             if s is not None and int(s) > SEQNUM0:
                 SEQNUM0 = int(s)
+                #log.msg("Setting SEQNUM to %s" % (SEQNUM0,))
         log.msg("Loaded CHATLOG pickle: %s"  % (PICKLEFILE,))
     except Exception,exp:
         log.err(exp)
@@ -90,7 +91,7 @@ class JabberClient:
         """ Constructor """
         self.xmlstream = None
         self.myjid = myjid
-        self.seqnum = 0
+        self.seqnum = SEQNUM0
         self.appriss = appriss
         self.rooms = []
         self.routingtable = {}
