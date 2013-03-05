@@ -35,6 +35,7 @@ import ConfigParser
 config = ConfigParser.ConfigParser()
 config.read('config.ini')
 
+
 DBPOOL = adbapi.ConnectionPool("twistedpg", 
                                database=config.get('database','name'), 
                                cp_reconnect=True,
@@ -122,6 +123,7 @@ class JabberClient:
         
     def authd(self, xmlstream):
         log.msg("Logged into local jabber server")
+        self.rooms = []
         self.xmlstream = xmlstream
         self.xmlstream.rawDataInFn = self.rawDataInFn
         self.xmlstream.rawDataOutFn = self.rawDataOutFn
