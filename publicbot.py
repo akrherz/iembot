@@ -103,7 +103,7 @@ class APPRISSJabberClient:
             channel = bstring.split(":", 1)[0]
             channels = [channel,]
 
-        elem['from'] = "%s" % (self.myjid,)
+        del(elem['from'])
         elem['type'] = "groupchat"
         # Always send to wxdump
         elem['to'] = "wxdump@%s" % (config.get('appriss','muc'),)
