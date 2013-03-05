@@ -1,6 +1,5 @@
 #!/bin/sh
-
-#export PATH=/mesonet/python-2.4/bin:$PATH
+# Starts the IEMBot Process, run from ldm's crontab
 
 kill -9 `cat iembot.pid `
 sleep 5

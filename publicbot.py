@@ -6,23 +6,15 @@ from twisted.internet.task import LoopingCall
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
 
 from twisted.enterprise import adbapi
-dbpool = adbapi.ConnectionPool("psycopg2", database='iem', host='iemdb', 
-                               cp_reconnect=True)
 
 import random
-
 import ConfigParser
 config = ConfigParser.ConfigParser()
 config.read('config.ini')
 
-o = open('startrek', 'r').read()
-FORTUNES = o.split("\n%\n")
-del o
-
-def getFortune():
-    """ Get a random value from the array """
-    offset = int((len(FORTUNES)-1) * random.random())
-    return " ".join( FORTUNES[offset].replace("\n","").split() )
+DBPOOL = adbapi.ConnectionPool("psycopg2", database='iem', host='iemdb', 
+                               user='nobody',
+                               cp_reconnect=True)
    
 SUBS = {
         'LMK': ['wbkoweatherwatchers',],
@@ -41,9 +33,17 @@ class APPRISSJabberClient:
         self.myJid = myJid
         self.seqnum = 0
         self.rooms = []
+        self.xmlstream = None
+        self.fortunes = open('startrek', 'r').read().split("\n%\n")
+
+    def get_fortune(self):
+        """ Get a random value from the array """
+        offset = int((len(self.fortunes)-1) * random.random())
+        return " ".join( self.fortunes[offset].replace("\n","").split() )
 
     def keepalive(self):
-        self.xmlstream.send(' ')
+        if self.xmlstream is not None:
+            self.xmlstream.send(' ')
 
     def authd(self,xmlstream):
         
@@ -51,6 +51,7 @@ class APPRISSJabberClient:
         self.xmlstream = xmlstream
         self.xmlstream.rawDataInFn = self.rawDataInFn
         self.xmlstream.rawDataOutFn = self.rawDataOutFn
+        self.xmlstream.addObserver('/message',  self.processMessage)
 
         presence = domish.Element(('jabber:client','presence'))
         xmlstream.send(presence)
@@ -84,13 +85,13 @@ class APPRISSJabberClient:
             xmlstream.send(presence)
             self.rooms.append( rm )
    
-        self.xmlstream.addObserver('/message',  self.processMessage)
-
+        # Keepalive
         lc = LoopingCall(self.keepalive)
         lc.start(60)
         self.xmlstream.addObserver(STREAM_END_EVENT, lambda _: lc.stop())
 
     def from_iembot(self, elem):
+        """ Process a stanza sent to us from the IEMBot instance """
         bstring = xpath.queryForString('/message/body', elem)
         if len(bstring) < 3:
             return
@@ -118,45 +119,39 @@ class APPRISSJabberClient:
                 
 
     def processMessage(self, elem):
-        _from = jid.JID( elem["from"] )
-        t = ""
-        try:
-            t = elem["type"]
-        except:
-            print elem.toXml(), 'BOOOOOOO'
+        if not elem.hasAttribute("type") or elem['type'] != 'groupchat':
+            return
 
-        if (t == "groupchat"):
-            #print elem.toXml(), '----', str(elem.children), '---'
-            room = _from.user
-            res = _from.resource
-            if (res is None): return
-            # If the message is x-delay, old message, no relay
-            x = xpath.queryForNodes('/message/x', elem)
-            if (x is not None): return
-            # If it is from some user!
-            if (res == "iembot"):
-                return 
-            bstring = xpath.queryForString('/message/body', elem)
-            # No worky
-            #print "I FIND bstring: %s room: %s res: %s" % (unicode(bstring,'utf-8','ignore').encode('ascii', 'replace'), room, res)
-            if (len(bstring) >= 4 and bstring[:4] == "ping"):
-                message = domish.Element(('jabber:client','message'))
-                message['to'] = "%s@%s" %(room,config.get('appriss','muc'))
-                message['type'] = "groupchat"
-                message.addElement('body',None,"%s: %s"%(res, getFortune() ))
-                self.xmlstream.send(message)
-                
-            if (len(bstring) < 6 or bstring[:7] != "iembot:"):
-                return
-            # We have a command for iembot!
-            cmd = bstring[7:].upper().strip()
-            tokens = cmd.split()
-            if (len(tokens) < 2):
-                return
-            if (tokens[0] == "METAR" and len(tokens) == 2):
-                if (len(tokens[1]) == 4):
-                    tokens[1] = tokens[1][1:]
-                self.getMETAR( tokens[1] ).addCallback(self.sendMETAR, room).addErrback(self.errHandler)
+        _from = jid.JID( elem["from"] )
+        room = _from.user
+        res = _from.resource
+        if res is None: 
+            return
+        
+        # If the message is x-delay, old message, no relay
+        x = xpath.queryForNodes("/message/x[@xmlns='jabber:x:delay']", elem)
+        if x is not None:
+            return
+        # If it is from some user!
+        if res == "iembot":
+            return 
+        bstring = xpath.queryForString('/message/body', elem)
+        # No worky
+        if len(bstring) >= 4 and bstring[:4] == "ping":
+            self.send_groupchat(room, "%s: %s" % (res, self.get_fortune() ) )
+            
+        if len(bstring) < 6 or bstring[:7] != "iembot:":
+            return
+        # We have a command for iembot!
+        cmd = bstring[7:].upper().strip()
+        tokens = cmd.split()
+        if len(tokens) < 2:
+            return
+        if tokens[0] == "METAR" and len(tokens) == 2:
+            if len(tokens[1]) == 4:
+                tokens[1] = tokens[1][1:]
+            df = DBPOOL.runInteraction( self.send_metar, tokens[1], room)
+            df.addErrback( log.err )
 
     def debug(self, elem):
         log.msg('APP_DEBUG %s' % (elem,))
@@ -171,23 +166,27 @@ class APPRISSJabberClient:
             return
         log.msg('APP_SEND %s' % (data,))
 
-    def errHandler(self, reason):
-        print reason
 
-    def getMETAR(self, sid):
-        return dbpool.runQuery("select raw from current WHERE station = '%s'" % (
-                                                                        sid,) )
+    def send_groupchat(self, room, mess, html=None):
+        """ Send a groupchat message to the desired room """
+        message = domish.Element(('jabber:client','message'))
+        message['to'] = "%s@%s" % (room, 
+                                              config.get('appriss','muc'))
+        message['type'] = "groupchat"
+        message.addElement('body', None, mess)
+        if html is not None:
+            message.addRawXml("<html xmlns='http://jabber.org/protocol/xhtml-im'><body xmlns='http://www.w3.org/1999/xhtml'>"+ html +"</body></html>")
+        self.xmlstream.send(message)
 
-    def sendMETAR(self, l, room):
-        if l:
-            print l[0][0], "years old"
-            message = domish.Element(('jabber:client','message'))
-            message['to'] = "%s@%s" %(room, config.get('appriss','muc'))
-            message['type'] = "groupchat"
-            message.addElement('body',None, 'metar: '+ l[0][0])
-            self.xmlstream.send(message)
+    def send_metar(self, txn, faaid, room):
+        txn.execute("""select raw from current c JOIN stations s 
+         ON (s.iemid = c.iemid) WHERE s.id = %s""",  (faaid,) )
+
+        if txn.rowcount == 1:
+            row = txn.fetchone()
+            self.send_groupchat(room, 'metar: %s' % (row[0],))
         else:
-            print "No results returned"
+            self.send_groupchat(room, 'Sorry METAR for site %s not found' % (faaid,))
 
 
 

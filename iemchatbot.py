@@ -13,12 +13,11 @@
 # You should have received a copy of the GNU General Public License along with
 # this program; if not, write to the Free Software Foundation, Inc.,
 # 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-""" Chat bot implementation for NWSChat """
+""" Chat bot implementation of IEMBot """
 
 from twisted.words.protocols.jabber import jid
 from twisted.words.xish import domish, xpath
 from twisted.python import log
-from twisted.python.logfile import DailyLogFile
 from twisted.web import server, resource
 from twisted.enterprise import adbapi
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
@@ -67,7 +66,7 @@ def really_save_chat_log():
     pickle.dump( CHATLOG, open(PICKLEFILE,'w'))
 
 lc2 = LoopingCall(saveChatLog)
-lc2.start(240)
+lc2.start( 600 ) # Every 10 minutes
 
 ROUTES = {
   'MSR': ['ncrfcchat', 'ncrfcagencieschat'],
@@ -84,10 +83,6 @@ ROUTES = {
   'TUA': ['abrfcchat'],
   'ACR': ['aprfcchat'],
 }
-
-PHONE_RE = re.compile(r'(\d{3})\D*(\d{3})\D*(\d{4})\D*(\d*)')
-
-
 
 class JabberClient:
 
@@ -137,6 +132,15 @@ class JabberClient:
         lc = LoopingCall(self.keepalive)
         lc.start(60)
         self.xmlstream.addObserver(STREAM_END_EVENT, lambda _: lc.stop())
+
+    def compute_daily_caller(self):
+        # Figure out when to spam all rooms with a timestamp
+        utc = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        tnext =  utc.replace(hour=0,minute=0,second=0)
+        log.msg('Initial Calling daily_timestamp in %s seconds' % (
+                            (tnext - datetime.datetime.utcnow()).seconds, ))
+        reactor.callLater((tnext - datetime.datetime.utcnow()).seconds, 
+                          self.daily_timestamp)
 
     def join_chatrooms(self):
         df = DBPOOL.runInteraction(self.load_chatrooms)
@@ -249,10 +253,12 @@ class JabberClient:
         
 
     def send_groupchat(self, room, mess, html=None):
+        """ Send a groupchat message to the desired room """
         message = domish.Element(('jabber:client','message'))
-        message['to'] = "%s@conference.%s" %(room, config.get('local','xmppdomain'))
+        message['to'] = "%s@conference.%s" % (room, 
+                                              config.get('local','xmppdomain'))
         message['type'] = "groupchat"
-        message.addElement('body',None, mess)
+        message.addElement('body', None, mess)
         if html is not None:
             message.addRawXml("<html xmlns='http://jabber.org/protocol/xhtml-im'><body xmlns='http://www.w3.org/1999/xhtml'>"+ html +"</body></html>")
         self.xmlstream.send(message)
@@ -353,7 +359,6 @@ def wfoRSS(rm):
     return rss.to_xml()
 
 class HomePage(resource.Resource):
-    log = DailyLogFile('rsslog', 'logs/')
 
     def isLeaf(self):
         return True
@@ -401,7 +406,6 @@ class RootResource(resource.Resource):
         self.putChild('wfo', HomePage())
 
 class JsonChannel(resource.Resource):
-    log = DailyLogFile('jsonlog', 'logs/')
 
     def isLeaf(self):
         return True
