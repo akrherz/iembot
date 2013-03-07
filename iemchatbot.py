@@ -184,7 +184,8 @@ class JabberClient:
         for rm in self.rooms:
             self.send_groupchat(rm, mess)
 
-        ts = ts + datetime.timedelta(days=1)
+        # Place us well into tomorrow
+        ts = ts + datetime.timedelta(hours=30)
         tnext = ts.replace(hour=0,minute=0,second=0)
         log.msg('Calling daily_timestamp in %s seconds' % (
                                 (tnext - datetime.datetime.utcnow()).seconds,))
