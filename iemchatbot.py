@@ -187,10 +187,10 @@ class JabberClient:
         # Place us well into tomorrow
         ts = ts + datetime.timedelta(hours=30)
         tnext = ts.replace(hour=0,minute=0,second=0)
-        log.msg('Calling daily_timestamp in %s seconds' % (
-                                (tnext - datetime.datetime.utcnow()).seconds,))
-        reactor.callLater( (tnext - datetime.datetime.utcnow()).seconds, 
-                           self.daily_timestamp)
+        delta = tnext - datetime.datetime.utcnow()
+        secs = delta.days * 86400.0 + delta.secs
+        log.msg('Calling daily_timestamp in %s seconds' % (secs,))
+        reactor.callLater( secs, self.daily_timestamp)
 
     def debug(self, elem):
         log.msg("IEMBOT_DEBUG %s" % (elem,))
