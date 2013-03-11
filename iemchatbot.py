@@ -424,16 +424,24 @@ class JsonChannel(resource.Resource):
             return j
 
     def render(self, request):
-        #html = "<html><h4>"+ `dir(self.server)` + request.uri +"</h4></html>"
+        """ Process the request that we got, it should look something like:
+        /room/dmxchat?seqnum=1
+        """
         tokens = re.findall("/room/([a-z0-9]+)",request.uri.lower())
-        if (len(tokens) == 0):
-            print 'Len tokens is 0'
+        if len(tokens) == 0:
+            log.msg('Bad URI: %s len(tokens) is 0' % (request.uri,))
             request.write( self.wrap(request, json.dumps("ERROR")) )
             request.finish()
             return server.NOT_DONE_YET
         
         room = tokens[0]
-        seqnum = int(request.args['seqnum'][0])
+        seqnum = request.args.get('seqnum')
+        if seqnum is None or len(seqnum) != 1:
+            log.msg('Bad URI: %s seqnum problem' % (request.uri,))
+            request.write( self.wrap(request, json.dumps("ERROR")) )
+            request.finish()
+            return server.NOT_DONE_YET
+        seqnum = int(seqnum[0])
 
         r = {'messages': [],}
         if not CHATLOG.has_key(room):
