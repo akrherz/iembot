@@ -188,7 +188,7 @@ class JabberClient:
         ts = ts + datetime.timedelta(hours=30)
         tnext = ts.replace(hour=0,minute=0,second=0)
         delta = tnext - datetime.datetime.utcnow()
-        secs = delta.days * 86400.0 + delta.secs
+        secs = delta.days * 86400.0 + delta.seconds
         log.msg('Calling daily_timestamp in %s seconds' % (secs,))
         reactor.callLater( secs, self.daily_timestamp)
 
