@@ -13,3 +13,7 @@ password=password
 [database]
 name=mesosite
 host=localhost
+
+[twitter]
+consumerkey=xxx
+consumersecret=xxx

@@ -24,6 +24,8 @@ from twisted.words.xish.xmlstream import STREAM_END_EVENT
 from twisted.internet.task import LoopingCall
 from twisted.internet import reactor
 import PyRSS2Gen
+from twittytwister import twitter
+from oauth import oauth
 
 import datetime
 import re
@@ -86,6 +88,29 @@ ROUTES = {
   'ACR': ['aprfcchat'],
 }
 
+def load_twitter_from_db(txn, bot):
+    """ Load twitter config from database """
+    txn.execute("SELECT screen_name, channel from iembot_twitter_subs")
+    twrt = {}
+    for row in txn:
+        sn = row['screen_name']
+        channel = row['channel']
+        if not twrt.has_key(channel):
+            twrt[channel] = []
+        twrt[channel].append( sn )
+    bot.tw_routingtable = twrt
+    log.msg("tw_routingtable has %s entries" % (len(bot.tw_routingtable),))
+
+    txn.execute("""SELECT username, token, secret 
+        from oauth_tokens""")
+    for row in txn:
+        sn = row['username']
+        at = row['token']
+        ats = row['secret']
+        bot.tw_access_tokens[sn] =  oauth.OAuthToken(at,ats)
+    log.msg("tw_access_tokens has %s entries" % (len(bot.tw_access_tokens),))
+
+
 class JabberClient:
 
     def __init__(self, myjid, appriss):
@@ -96,6 +121,13 @@ class JabberClient:
         self.appriss = appriss
         self.rooms = []
         self.routingtable = {}
+        self.tw_access_tokens = {}
+        self.tw_routingtable = {}
+        self.MAIL_COUNT = 20
+        # Default value
+        self.twitter_oauth_consumer = oauth.OAuthConsumer(
+                                    config.get('twitter','consumerkey'),
+                                    config.get('twitter','consumersecret'))
 
     def send_presence(self):
         """ Send presence """
@@ -129,12 +161,19 @@ class JabberClient:
         self.xmlstream.rawDataOutFn = self.rawDataOutFn
 
         self.xmlstream.addObserver('/message',  self.processor)
-
+        self.load_twitter()
         self.send_presence()
         self.join_chatrooms()
         lc = LoopingCall(self.keepalive)
         lc.start(60)
         self.xmlstream.addObserver(STREAM_END_EVENT, lambda _: lc.stop())
+
+    def load_twitter(self):
+        ''' Load the twitter subscriptions and access tokens '''
+        log.msg("load_twitter() called...")
+        df = DBPOOL.runInteraction(load_twitter_from_db, self)
+        df.addErrback( log.err )
+
 
     def compute_daily_caller(self):
         # Figure out when to spam all rooms with a timestamp
@@ -313,6 +352,39 @@ class JabberClient:
                 elem['to'] = "%s@conference.%s" % (room, 
                                             config.get('local','xmppdomain'))
                 self.xmlstream.send( elem )
+            for page in self.tw_routingtable.get(channel, []):
+                if not self.tw_access_tokens.has_key(page):
+                    log.msg("Failed to tweet due to no access_tokens for %s" % (
+                                                page,))
+                    continue
+                # Require the x.twitter attribute to be set to prevent 
+                # confusion with some ingestors still sending tweets themself
+                if elem.x.hasAttribute("twitter"):
+                    self.tweet(elem, self.tw_access_tokens[page])
+
+    def tweet_eb(self, err, twttxt):
+        ''' twitter update errorback '''
+        log.msg('Twitter errorback on %s' % (twttxt,))
+        log.err( err )
+
+    def tweet_cb(self, res, twttxt):
+        ''' twitter callback '''
+        log.msg('Tweet: %s Res: %s' % (twttxt, res))
+
+    def tweet(self, elem, access_token):
+        ''' Send a tweet please '''
+        twt = twitter.Twitter(consumer=self.twitter_oauth_consumer,
+                              token=access_token)
+
+        # Look for custom twitter formatting
+        twttxt = xpath.queryForString('/message/body', elem)
+        if elem.x and elem.x.hasAttribute("twitter"):
+            twttxt = elem.x['twitter']
+
+        df = twt.update( twttxt )
+        df.addErrback(self.tweet_eb, twttxt)
+        df.addCallback(self.tweet_cb, twttxt)
+        df.addErrback( log.err )
 
 
 xml_cache = {}
@@ -477,6 +549,7 @@ class AdminChannel(resource.Resource):
     def render(self, request):
         log.msg("Reloading iembot room configuration....")
         self.iembot.join_chatrooms()
+        self.iembot.load_twitter()
         request.write( json.dumps({}) )
         request.finish()
         return server.NOT_DONE_YET
