@@ -23,6 +23,8 @@ from twisted.enterprise import adbapi
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
 from twisted.internet.task import LoopingCall
 from twisted.internet import reactor
+from twisted.mail import smtp
+
 import PyRSS2Gen
 from twittytwister import twitter
 from oauth import oauth
@@ -32,6 +34,8 @@ import re
 import pickle
 import os
 import json
+import socket
+from email.MIMEText import MIMEText
 
 import ConfigParser
 config = ConfigParser.ConfigParser()
@@ -129,6 +133,25 @@ class JabberClient:
                                     config.get('twitter','consumerkey'),
                                     config.get('twitter','consumersecret'))
 
+    def email_error(self, err, raw=''):
+        """
+        Something to email errors when something fails
+        """
+        self.MAIL_COUNT -= 1
+        if self.MAIL_COUNT < 0:
+            log.msg("MAIL_COUNT limit breached, no email sent")
+            return
+        msg = MIMEText("EMAILS LEFT:%s\n\n%s\n\n%s\n\n" % (self.MAIL_COUNT,
+                                                           raw, err) )
+        msg['subject'] = '%s NOTICE - %s' % (self.myjid.user,
+                                        socket.gethostname() )
+        # TODO: remove hard codes
+        msg['From'] = config.get('email', 'errors_from')
+        msg['To'] = config.get('email', 'errors_to')
+
+        smtp.sendmail("localhost", msg["From"], msg["To"], msg)
+
+
     def send_presence(self):
         """ Send presence """
         presence = domish.Element(('jabber:client','presence'))
@@ -155,6 +178,7 @@ class JabberClient:
         
     def authd(self, xmlstream):
         log.msg("Logged into local jabber server")
+        self.email_error(None, "Login session started at iemchatbot.authd")
         self.rooms = []
         self.xmlstream = xmlstream
         self.xmlstream.rawDataInFn = self.rawDataInFn

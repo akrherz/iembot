@@ -17,3 +17,7 @@ host=localhost
 [twitter]
 consumerkey=xxx
 consumersecret=xxx
+
+[email]
+errors_from=akrherz@laptop.local
+errors_to=akrherz@laptop.local
