@@ -35,6 +35,7 @@ import pickle
 import os
 import json
 import socket
+import random
 from email.MIMEText import MIMEText
 
 import ConfigParser
@@ -76,22 +77,6 @@ def really_save_chat_log():
 lc2 = LoopingCall(saveChatLog)
 lc2.start( 600 ) # Every 10 minutes
 
-ROUTES = {
-  'MSR': ['ncrfcchat', 'ncrfcagencieschat'],
-  'ORN': ['lmrfcchat'],
-  'ALR': ['serfcchat'],
-  'RHA': ['marfcchat'],
-  'TIR': ['ohrfcchat'],
-  'FWR': ['wgrfcchat'],
-  'KRF': ['mbrfcchat'],
-  'PTR': ['mwrfcchat'],
-  'RSA': ['cnrfcchat'],
-  'STR': ['cbrfcchat'],
-  'TAR': ['nerfcchat'],
-  'TUA': ['abrfcchat'],
-  'ACR': ['aprfcchat'],
-}
-
 def load_twitter_from_db(txn, bot):
     """ Load twitter config from database """
     txn.execute("SELECT screen_name, channel from iembot_twitter_subs")
@@ -117,12 +102,11 @@ def load_twitter_from_db(txn, bot):
 
 class JabberClient:
 
-    def __init__(self, myjid, appriss):
+    def __init__(self, myjid):
         """ Constructor """
         self.xmlstream = None
         self.myjid = myjid
         self.seqnum = SEQNUM0
-        self.appriss = appriss
         self.rooms = []
         self.routingtable = {}
         self.tw_access_tokens = {}
@@ -132,6 +116,14 @@ class JabberClient:
         self.twitter_oauth_consumer = oauth.OAuthConsumer(
                                     config.get('twitter','consumerkey'),
                                     config.get('twitter','consumersecret'))
+
+        self.fortunes = open('startrek', 'r').read().split("\n%\n")
+
+    def get_fortune(self):
+        """ Get a random value from the array """
+        offset = int((len(self.fortunes)-1) * random.random())
+        return " ".join( self.fortunes[offset].replace("\n","").split() )
+
 
     def email_error(self, err, raw=''):
         """
@@ -266,8 +258,19 @@ class JabberClient:
         _from = jid.JID( elem["from"] )
         room = _from.user
         res = _from.resource
+        
+        body = xpath.queryForString('/message/body', elem)
+        if body is not None and len(body) >= 4 and body[:4] == "ping":
+            self.send_groupchat(room, "%s: %s" % (res, self.get_fortune() ) )
+
+        # In order for the message to be logged, it needs to be from iembot
+        # and have a channels attribute
         if res is None or res != 'iembot':
             return
+        
+        if not elem.x and not elem.x.hasAttribute("channels"):
+            return
+        
         if not CHATLOG.has_key(room):
             CHATLOG[room] = {'seqnum': [-1]*40, 'timestamps': [0]*40, 
                              'log': ['']*40, 'author': ['']*40,
@@ -283,7 +286,6 @@ class JabberClient:
             product_id = elem.x['product_id']
 
         html = xpath.queryForNodes('/message/html/body', elem)
-        body = xpath.queryForString('/message/body', elem)
         logEntry = body
         if html is not None:
             logEntry = html[0].toXml()
@@ -362,9 +364,6 @@ class JabberClient:
             channels = [channel,]
             # Send to chatroom, clip body of channel notation
             #elem.body.children[0] = meat
-
-        # Send to the APPRISS instance
-        self.appriss.from_iembot( elem )
 
         # Always send to botstalk
         elem['to'] = "botstalk@conference.%s" % (config.get('local','xmppdomain'),)

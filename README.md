@@ -12,5 +12,5 @@ router more than anything.
 - I expose a JSON webservice that emits logs of rooms
 - I expose a RSS webservice that emits RSS for rooms
 
-the public rooms show up at muc.appriss.com within room names like xxdmxchat,
+the public rooms show up at conference.weather.im within room names like dmxchat,
 for Des Moines NWS. 
