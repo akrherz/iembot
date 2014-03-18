@@ -36,6 +36,8 @@ import os
 import json
 import socket
 import random
+import traceback
+import StringIO
 from email.MIMEText import MIMEText
 
 import ConfigParser
@@ -255,9 +257,15 @@ class JabberClient:
         return self.seqnum
 
     def processMessageGC(self, elem):
+        ''' Process a stanza element that is from a chatroom '''
+        # Ignore all messages that are x-stamp (delayed / room history)
+        if xpath.queryForNodes("/message/x[@xmlns='jabber:x:delay']", elem):
+            return
+
         _from = jid.JID( elem["from"] )
         room = _from.user
         res = _from.resource
+        
         
         body = xpath.queryForString('/message/body', elem)
         if body is not None and len(body) >= 4 and body[:4] == "ping":
@@ -268,7 +276,8 @@ class JabberClient:
         if res is None or res != 'iembot':
             return
         
-        if not elem.x and not elem.x.hasAttribute("channels"):
+        a = xpath.queryForNodes("/message/x[@xmlns='nwschat:nwsbot']", elem)
+        if a is None or len(a) == 0:
             return
         
         if not CHATLOG.has_key(room):
@@ -303,7 +312,9 @@ class JabberClient:
         try:
             self.processMessage(elem)
         except Exception, exp:
-            log.err( exp )
+            io = StringIO.StringIO()
+            traceback.print_exc(file=io)
+            self.email_error(io.getvalue(), elem.toXml())
 
     def processMessage(self, elem):
 
