@@ -39,6 +39,7 @@ import random
 import traceback
 import StringIO
 from email.MIMEText import MIMEText
+from lib import basicbot
 
 import ConfigParser
 config = ConfigParser.ConfigParser()
@@ -102,7 +103,7 @@ def load_twitter_from_db(txn, bot):
     log.msg("tw_access_tokens has %s entries" % (len(bot.tw_access_tokens),))
 
 
-class JabberClient:
+class JabberClient(basicbot.basicbot):
 
     def __init__(self, myjid):
         """ Constructor """
@@ -145,30 +146,12 @@ class JabberClient:
 
         smtp.sendmail("localhost", msg["From"], msg["To"], msg)
 
-
-    def send_presence(self):
-        """ Send presence """
-        presence = domish.Element(('jabber:client','presence'))
-        presence.addElement('status').addContent('At your service...')
-        self.xmlstream.send(presence)
-
-
     def keepalive(self):
         """ Whitespace ping for now... Openfire < 3.6.0 does not 
             support XMPP-Ping
         """
         if self.xmlstream is not None:
             self.xmlstream.send(' ')
-
-    def rawDataInFn(self, data):
-        if data == ' ':
-            return
-        log.msg("IEMBOT_RECV %s" % (data,))
-        
-    def rawDataOutFn(self, data):
-        if data == ' ':
-            return
-        log.msg("IEMBOT_SEND %s" % (data,))
         
     def authd(self, xmlstream):
         log.msg("Logged into local jabber server")
@@ -236,25 +219,6 @@ class JabberClient:
             self.routingtable[channel].append( rm )
         log.msg("Loaded %s channels subscriptions for %s total rooms" % (
                                                 txn.rowcount, len(rooms)))
-
-
-    def daily_timestamp(self):
-        """  Send the timestamp into each room, each GMT day... """
-        ts = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
-        mess = "------ %s [UTC] ------" % (ts.strftime("%b %d, %Y"),)
-        for rm in self.rooms:
-            self.send_groupchat(rm, mess)
-
-        # Place us well into tomorrow
-        ts = ts + datetime.timedelta(hours=30)
-        tnext = ts.replace(hour=0,minute=0,second=0)
-        delta = tnext - datetime.datetime.utcnow()
-        secs = delta.days * 86400.0 + delta.seconds
-        log.msg('Calling daily_timestamp in %s seconds' % (secs,))
-        reactor.callLater( secs, self.daily_timestamp)
-
-    def debug(self, elem):
-        log.msg("IEMBOT_DEBUG %s" % (elem,))
 
     def nextSeqnum(self,):
         self.seqnum += 1
@@ -335,19 +299,6 @@ class JabberClient:
         if elem['type'] == "chat":
             self.processMessagePC(elem)
         
-
-    def send_groupchat(self, room, mess, html=None):
-        """ Send a groupchat message to the desired room """
-        message = domish.Element(('jabber:client','message'))
-        message['to'] = "%s@conference.%s" % (room, 
-                                              config.get('local','xmppdomain'))
-        message['type'] = "groupchat"
-        message.addElement('body', None, mess)
-        if html is not None:
-            message.addRawXml("<html xmlns='http://jabber.org/protocol/xhtml-im'><body xmlns='http://www.w3.org/1999/xhtml'>"+ html +"</body></html>")
-        self.xmlstream.send(message)
-
-
     def processMessagePC(self, elem):
         #log.msg("processMessagePC() called from %s...." % (elem['from'],))
         _from = jid.JID( elem["from"] )
@@ -408,22 +359,6 @@ class JabberClient:
     def tweet_cb(self, res, twttxt):
         ''' twitter callback '''
         log.msg('Tweet: %s Res: %s' % (twttxt, res))
-
-    def tweet(self, elem, access_token):
-        ''' Send a tweet please '''
-        twt = twitter.Twitter(consumer=self.twitter_oauth_consumer,
-                              token=access_token)
-
-        # Look for custom twitter formatting
-        twttxt = xpath.queryForString('/message/body', elem)
-        if elem.x and elem.x.hasAttribute("twitter"):
-            twttxt = elem.x['twitter']
-
-        df = twt.update( twttxt )
-        df.addErrback(self.tweet_eb, twttxt)
-        df.addCallback(self.tweet_cb, twttxt)
-        df.addErrback( log.err )
-
 
 xml_cache = {}
 xml_cache_expires = {}
