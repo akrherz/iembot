@@ -222,16 +222,20 @@ class JabberClient:
             cnt += 1
         log.msg("Attempted to join %s rooms" % (cnt,))
 
-        txn.execute("""SELECT roomname, channel from iembot_room_subscriptions""")
-        cnt = 0
+        txn.execute("""
+            SELECT roomname, channel from iembot_room_subscriptions
+        """)
         self.routingtable = {}
+        rooms = {}
         for row in txn:
             rm = row['roomname']
+            rooms[rm] = 1
             channel = row['channel']
             if not self.routingtable.has_key(channel):
                 self.routingtable[channel] = []
             self.routingtable[channel].append( rm )
-        log.msg("Loaded room subscriptions")
+        log.msg("Loaded %s channels subscriptions for %s total rooms" % (
+                                                txn.rowcount, len(rooms)))
 
 
     def daily_timestamp(self):
