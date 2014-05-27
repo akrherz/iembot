@@ -19,7 +19,9 @@ application = service.Application("Public IEMBOT")
 serviceCollection = service.IServiceCollection(application)
 
 # 1. Bot logs into main server for routing
-myJid = jid.JID('iembot@%s/twisted_words' % (config.get('local', 'xmppdomain'),) )
+myJid = jid.JID('%s@%s/twisted_words' % (config.get('local', 'username'),
+                                             config.get('local', 'xmppdomain')) 
+                )
 # Configure the IEMBot with a reference to the appriss bot
 jabber = iemchatbot.JabberClient(myJid)
 jabber.compute_daily_caller() # Setup daily spamming of rooms

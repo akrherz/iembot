@@ -6,6 +6,7 @@ password=password
 muc=muc.appriss.com
   
 [local]
+username=iemdbot
 xmppdomain=laptop.local
 connecthost=localhost
 password=password
