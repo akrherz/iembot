@@ -18,6 +18,7 @@
 from twisted.words.protocols.jabber import jid
 from twisted.words.xish import domish, xpath
 from twisted.python import log
+from twisted.python.logfile import DailyLogFile
 from twisted.web import server, resource
 from twisted.enterprise import adbapi
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
@@ -34,6 +35,7 @@ import re
 import pickle
 import os
 import json
+import pytz
 import socket
 import random
 import traceback
@@ -107,10 +109,13 @@ class JabberClient(basicbot.basicbot):
 
     def __init__(self, myjid):
         """ Constructor """
+        self.startup_time = datetime.datetime.utcnow().replace(
+                                                tzinfo=pytz.timezone("UTC"))
+
         self.xmlstream = None
         self.myjid = myjid
         self.seqnum = SEQNUM0
-        self.rooms = []
+        self.roomcfg = {}
         self.routingtable = {}
         self.tw_access_tokens = {}
         self.tw_routingtable = {}
@@ -121,6 +126,9 @@ class JabberClient(basicbot.basicbot):
                                     config.get('twitter','consumersecret'))
 
         self.fortunes = open('startrek', 'r').read().split("\n%\n")
+
+        self.xmllog = DailyLogFile('xmllog', 'logs/')
+
 
     def get_fortune(self):
         """ Get a random value from the array """
@@ -156,7 +164,7 @@ class JabberClient(basicbot.basicbot):
     def authd(self, xmlstream):
         log.msg("Logged into local jabber server")
         self.email_error(None, "Login session started at iemchatbot.authd")
-        self.rooms = []
+        self.roomcfg = {}
         self.xmlstream = xmlstream
         self.xmlstream.rawDataInFn = self.rawDataInFn
         self.xmlstream.rawDataOutFn = self.rawDataOutFn
@@ -195,9 +203,9 @@ class JabberClient(basicbot.basicbot):
         cnt = 0
         for row in txn:
             rm = row['roomname']
-            if rm in self.rooms:
+            if self.roomcfg.has_key(rm):
                 continue
-            self.rooms.append( rm )
+            self.roomcfg[ rm ] = {}
             presence = domish.Element(('jabber:client','presence'))
             presence['to'] = "%s@conference.%s/iembot" % (rm, 
                                         config.get('local','xmppdomain') )
