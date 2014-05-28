@@ -387,13 +387,13 @@ def wfoRSS(rm):
 
     lastID = CHATLOG[rm]['seqnum'][-1]
     if lastID == xml_cache_expires[rm]:
-        log.msg('Using cached RSS for room: %s' % (rm,))
+        #log.msg('Using cached RSS for room: %s' % (rm,))
         return xml_cache[rm]
 
     rss = PyRSS2Gen.RSS2(
            generator = "iembot",
            title = "IEMBOT Feed",
-           link = "http://mesonet.agron.iastate.edu/iembot-rss/wfo/"+ rm +".xml",
+           link = "http://weather.im/iembot-rss/wfo/"+ rm +".xml",
            description = "IEMBOT RSS Feed of %s" % (rm,),
            lastBuildDate = datetime.datetime.utcnow() )
 
@@ -437,12 +437,12 @@ class HomePage(resource.Resource):
             rm = '%schat' % (rm[-3:],)
         elif len(rm) == 3:
             rm = 'k%schat' % (rm,)
-        log.msg("Looking for CHATLOG room: %s" % (rm,))
+        #log.msg("Looking for CHATLOG room: %s" % (rm,))
         if not CHATLOG.has_key(rm):
             rss = PyRSS2Gen.RSS2(
             generator = "iembot",
             title = "IEMBOT Feed",
-            link = "http://mesonet.agron.iastate.edu/iembot-rss/wfo/"+ tokens[0] +".xml",
+            link = "http://weather.im/iembot-rss/wfo/"+ tokens[0] +".xml",
             description = "Syndication of iembot messages.",
             lastBuildDate = datetime.datetime.utcnow() )
             rss.items.append( 
