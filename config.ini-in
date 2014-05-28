@@ -8,6 +8,7 @@ muc=muc.appriss.com
 [local]
 username=iemdbot
 xmppdomain=laptop.local
+mucservice=conference.laptop.local
 connecthost=localhost
 password=password
 

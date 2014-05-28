@@ -111,11 +111,13 @@ class JabberClient(basicbot.basicbot):
         """ Constructor """
         self.startup_time = datetime.datetime.utcnow().replace(
                                                 tzinfo=pytz.timezone("UTC"))
+        self.conference = config.get('local', 'mucservice')
         self.football = True
         self.xmlstream = None
         self.myjid = myjid
         self.seqnum = SEQNUM0
         self.roomcfg = {}
+        self.roomroster = {}
         self.IQ = {}
         self.routingtable = {}
         self.tw_access_tokens = {}
@@ -164,6 +166,7 @@ class JabberClient(basicbot.basicbot):
 
         self.xmlstream.addObserver('/message',  self.processor)
         self.xmlstream.addObserver('/iq',  self.iq_processor)
+        self.xmlstream.addObserver('/presence/x/item',  self.presence_processor)
         self.load_twitter()
         self.send_presence()
         self.join_chatrooms()
@@ -200,6 +203,7 @@ class JabberClient(basicbot.basicbot):
             if self.roomcfg.has_key(rm):
                 continue
             self.roomcfg[ rm ] = {}
+            self.roomroster[ rm ] = {}
             presence = domish.Element(('jabber:client','presence'))
             presence['to'] = "%s@conference.%s/iembot" % (rm, 
                                         config.get('local','xmppdomain') )

@@ -189,7 +189,7 @@ class basicbot:
         if to is not None:
             elem['to'] = to
         room = jid.JID(elem['to']).user
-        if not self.roomroster.get(room, {}).has_key('nwsbot'):
+        if not self.roomroster.get(room, {}).has_key( self.myjid.user ):
             if secondtrip:
                 log.msg("ABORT of send to room: %s, msg: %s, not in room" % (
                                                         room, elem))
@@ -259,6 +259,7 @@ class basicbot:
     </x>
 </presence>
         """
+        #log.msg("presence_processor() called")
         items = xpath.queryForNodes("/presence/x[@xmlns='http://jabber.org/protocol/muc#user']/item", elem)
         if items is None:
             return
