@@ -111,11 +111,12 @@ class JabberClient(basicbot.basicbot):
         """ Constructor """
         self.startup_time = datetime.datetime.utcnow().replace(
                                                 tzinfo=pytz.timezone("UTC"))
-
+        self.football = True
         self.xmlstream = None
         self.myjid = myjid
         self.seqnum = SEQNUM0
         self.roomcfg = {}
+        self.IQ = {}
         self.routingtable = {}
         self.tw_access_tokens = {}
         self.tw_routingtable = {}
@@ -128,7 +129,6 @@ class JabberClient(basicbot.basicbot):
         self.fortunes = open('startrek', 'r').read().split("\n%\n")
 
         self.xmllog = DailyLogFile('xmllog', 'logs/')
-
 
     def get_fortune(self):
         """ Get a random value from the array """
@@ -153,13 +153,6 @@ class JabberClient(basicbot.basicbot):
         msg['To'] = config.get('email', 'errors_to')
 
         smtp.sendmail("localhost", msg["From"], msg["To"], msg)
-
-    def keepalive(self):
-        """ Whitespace ping for now... Openfire < 3.6.0 does not 
-            support XMPP-Ping
-        """
-        if self.xmlstream is not None:
-            self.xmlstream.send(' ')
         
     def authd(self, xmlstream):
         log.msg("Logged into local jabber server")
@@ -170,10 +163,11 @@ class JabberClient(basicbot.basicbot):
         self.xmlstream.rawDataOutFn = self.rawDataOutFn
 
         self.xmlstream.addObserver('/message',  self.processor)
+        self.xmlstream.addObserver('/iq',  self.iq_processor)
         self.load_twitter()
         self.send_presence()
         self.join_chatrooms()
-        lc = LoopingCall(self.keepalive)
+        lc = LoopingCall(self.housekeeping)
         lc.start(60)
         self.xmlstream.addObserver(STREAM_END_EVENT, lambda _: lc.stop())
 

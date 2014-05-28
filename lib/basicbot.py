@@ -72,9 +72,8 @@ def safe_twitter_text( text ):
 class basicbot:
     """
     Basic Jabber Chat Bot functionality, common stuff found here
-
     """
-        
+
     def failure(self, f):
         log.err( f )
 
@@ -129,7 +128,7 @@ class basicbot:
                 self.xmlstream.connectionLost('BAD')
             return
         ping = domish.Element((None,'iq'))
-        ping['to'] = self.myJID.host
+        ping['to'] = self.myjid.host
         ping['type'] = 'get'
         pingid = "%s" % (gmtnow.strftime("%Y%m%d%H%M"), )
         ping['id'] = pingid
@@ -216,14 +215,15 @@ class basicbot:
         if self.xmlstream is not None:
             self.xmlstream.send(presence)
             
-    def tweet(self, twttxt, access_token, room=None, myjid=None, twituser=None):
+    def tweet(self, twttxt, access_token, room=None, myjid=None, twituser=None,
+              twtextra=dict()):
         """
         Tweet a message 
         """
         twt = twitter.Twitter(consumer=self.twitter_oauth_consumer, 
                               token=access_token)
         twttxt = safe_twitter_text( twttxt )
-        df = twt.update( twttxt )
+        df = twt.update( twttxt, None, twtextra )
         df.addCallback(self.tweet_cb, twttxt, room, myjid, twituser)
         df.addErrback(self.tweet_eb, twttxt, room, myjid, twituser)
         df.addErrback( log.err )
@@ -349,8 +349,14 @@ class basicbot:
                         log.msg('Channel: [%s] Page: [%s] Tweet: [%s]' % (
                                                         channel, page, twt))
                         if self.football:
+                            twtextra = {}
+                            if (elem.x and elem.x.hasAttribute("lat") and 
+                                elem.x.hasAttribute("long")):
+                                twtextra['lat'] = elem.x['lat']
+                                twtextra['long'] = elem.x['long']
                             self.tweet(twt, self.tw_access_tokens[page],
-                                       twituser=page, myjid=source)
+                                       twituser=page, myjid=source,
+                                       twtextra=twtextra)
                             # ASSUME we joined twitter room already
                             self.send_groupchat('twitter', twt)
                         else:
@@ -419,7 +425,14 @@ class basicbot:
             response, response_code) values (%s,%s,%s,%s,%s,%s)
             """, ('facebook', myjid, url, message, response, 200))
         df.addErrback( log.err )
-        
+ 
+    def iq_processor(self, elem):
+        """
+        Something to process IQ messages
+        """
+        if elem.hasAttribute("id") and self.IQ.has_key( elem["id"] ):
+            del( self.IQ[ elem["id"] ] )
+    
     def processMessagePC(self, elem):
         """
         Process a XML stanza that is a private chat
@@ -446,10 +459,10 @@ class basicbot:
         Send a user a help message about what I can do
         """
         msg = """Hi, I am %s.  You can try talking directly with me.
-I currently do not support any commands, sorry.""" % (self.myJID.user,)
-        htmlmsg = msg.replace("\n","<br />").replace(self.myJID.user, 
-                 "<a href=\"https://%s/%sfaq.php\">%s</a>" % (self.myJID.host, 
-                                            self.myJID.user, self.myJID.user) )
+I currently do not support any commands, sorry.""" % (self.myjid.user,)
+        htmlmsg = msg.replace("\n","<br />").replace(self.myjid.user, 
+                 "<a href=\"https://%s/%sfaq.php\">%s</a>" % (self.myjid.host, 
+                                            self.myjid.user, self.myjid.user) )
         self.send_privatechat(user, msg, htmlmsg)
 
     def convert_to_privatechat(self, myjid):
