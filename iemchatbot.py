@@ -351,16 +351,22 @@ class JabberClient(basicbot.basicbot):
                 # Require the x.twitter attribute to be set to prevent 
                 # confusion with some ingestors still sending tweets themself
                 if elem.x.hasAttribute("twitter"):
-                    self.tweet(elem, self.tw_access_tokens[page])
+                    twtextra = {}
+                    if (elem.x and elem.x.hasAttribute("lat") and 
+                        elem.x.hasAttribute("long")):
+                        twtextra['lat'] = elem.x['lat']
+                        twtextra['long'] = elem.x['long']
+                    self.tweet(elem.x['twitter'], self.tw_access_tokens[page],
+                               twtextra=twtextra)
 
-    def tweet_eb(self, err, twttxt):
+    def tweet_eb(self, err, twttxt, room, myjid, twituser):
         ''' twitter update errorback '''
         log.msg('Twitter errorback on %s' % (twttxt,))
         log.err( err )
 
-    def tweet_cb(self, res, twttxt):
+    def tweet_cb(self, res, twttxt, room, myjid, twituser):
         ''' twitter callback '''
-        log.msg('Tweet: %s Res: %s' % (twttxt, res))
+        log.msg('tweet_cb: [%s] Res: %s' % (twituser, res))
 
 xml_cache = {}
 xml_cache_expires = {}
