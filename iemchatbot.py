@@ -354,14 +354,16 @@ class JabberClient(basicbot.basicbot):
                     continue
                 # Require the x.twitter attribute to be set to prevent 
                 # confusion with some ingestors still sending tweets themself
-                if elem.x.hasAttribute("twitter"):
-                    twtextra = {}
-                    if (elem.x and elem.x.hasAttribute("lat") and 
-                        elem.x.hasAttribute("long")):
-                        twtextra['lat'] = elem.x['lat']
-                        twtextra['long'] = elem.x['long']
-                    self.tweet(elem.x['twitter'], self.tw_access_tokens[page],
-                               twtextra=twtextra)
+                if not elem.x.hasAttribute("twitter"):
+                    continue
+                twtextra = {}
+                if (elem.x and elem.x.hasAttribute("lat") and 
+                    elem.x.hasAttribute("long")):
+                    twtextra['lat'] = elem.x['lat']
+                    twtextra['long'] = elem.x['long']
+                # Finally, actually tweet, this is in basicbot
+                self.tweet(elem.x['twitter'], self.tw_access_tokens[page],
+                           twtextra=twtextra, twituser=page)
 
     def tweet_eb(self, err, twttxt, room, myjid, twituser):
         ''' twitter update errorback '''
