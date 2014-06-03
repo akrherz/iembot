@@ -367,7 +367,7 @@ class JabberClient(basicbot.basicbot):
 
     def tweet_eb(self, err, twttxt, room, myjid, twituser):
         ''' twitter update errorback '''
-        log.msg('Twitter errorback on %s' % (twttxt,))
+        log.msg('tweet_eb: [%s] on %s' % (twituser, twttxt))
         log.err( err )
 
     def tweet_cb(self, res, twttxt, room, myjid, twituser):
