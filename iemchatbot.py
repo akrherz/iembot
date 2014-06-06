@@ -355,12 +355,14 @@ class JabberClient(basicbot.basicbot):
                 # Require the x.twitter attribute to be set to prevent 
                 # confusion with some ingestors still sending tweets themself
                 if not elem.x.hasAttribute("twitter"):
+                    log.msg("skip message due to no twitter attr")
                     continue
                 twtextra = {}
                 if (elem.x and elem.x.hasAttribute("lat") and 
                     elem.x.hasAttribute("long")):
                     twtextra['lat'] = elem.x['lat']
                     twtextra['long'] = elem.x['long']
+                log.msg("Sending tweet %s" % (elem.x['twitter'],))
                 # Finally, actually tweet, this is in basicbot
                 self.tweet(elem.x['twitter'], self.tw_access_tokens[page],
                            twtextra=twtextra, twituser=page)
@@ -373,6 +375,10 @@ class JabberClient(basicbot.basicbot):
     def tweet_cb(self, res, twttxt, room, myjid, twituser):
         ''' twitter callback '''
         log.msg('tweet_cb: [%s] Res: %s' % (twituser, res))
+        url = "https://twitter.com/%s/status/%s" % (twituser, res)
+        
+        self.send_groupchat("twitter", "%s %s" % (twttxt, url))
+
 
 xml_cache = {}
 xml_cache_expires = {}
