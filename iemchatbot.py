@@ -1,5 +1,11 @@
 """ Chat bot implementation of IEMBot """
 
+# http://stackoverflow.com/questions/7016602
+from twisted.web.client import HTTPClientFactory
+HTTPClientFactory.noisy = False
+from twisted.mail.smtp import SMTPSenderFactory
+SMTPSenderFactory.noisy = False
+
 from twisted.words.protocols.jabber import jid
 from twisted.words.xish import domish, xpath
 from twisted.python import log
