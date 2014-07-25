@@ -11,7 +11,6 @@ import twisted.web.error as weberror
 
 import datetime
 import pytz
-import mx.DateTime
 import json
 import traceback
 import StringIO
@@ -58,6 +57,11 @@ class basicbot:
     """
     Basic Jabber Chat Bot functionality, common stuff found here
     """
+
+    def __init__(self, myjid):
+        """ Constructor """
+        self.myjid = myjid
+        self.firstrun = False
 
     def failure(self, f):
         log.err( f )
@@ -215,19 +219,31 @@ class basicbot:
 
         return df
     
+    def compute_daily_caller(self):
+        log.msg("compute_daily_caller() called...")
+        # Figure out when to spam all rooms with a timestamp
+        utc = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        tnext =  utc.replace(hour=0,minute=0,second=0)
+        log.msg('Initial Calling daily_timestamp in %s seconds' % (
+                            (tnext - datetime.datetime.utcnow()).seconds, ))
+        reactor.callLater((tnext - datetime.datetime.utcnow()).seconds, 
+                          self.daily_timestamp)
+
     def daily_timestamp(self):
-        """  Send the timestamp into each room, each GMT day... """
+        """  Send date each 00:00 UTC Day, helps to break apart logs """
+        utcnow = (datetime.datetime.utcnow()).replace(
+                                            tzinfo=pytz.timezone("UTC"))
         # Make sure we are a bit into the future!
-        ts = mx.DateTime.gmt() + mx.DateTime.RelativeDateTime(hours=1)
-        mess = "------ %s [UTC] ------" % (ts.strftime("%b %d, %Y"),)
+        utc0z = utcnow + datetime.timedelta(hours=1)
+        utc0z = utc0z.replace(hour=0, minute=0, second=0, microsecond=0)
+        mess = "------ %s [UTC] ------" % (utc0z.strftime("%b %-d, %Y"),)
         for rm in self.roomroster.keys():
             self.send_groupchat(rm, mess)
 
-        tnext = ts + mx.DateTime.RelativeDateTime(hour=0, days=1,
-                                                  minute=0, second=0)
-        log.msg('Calling daily_timestamp in %s seconds' % (
-                                    (tnext - mx.DateTime.gmt()).seconds, ))
-        reactor.callLater( (tnext - mx.DateTime.gmt()).seconds, self.daily_timestamp)
+        tnext = utc0z + datetime.timedelta(hours=24)
+        delta = (tnext - utcnow).days * 86400. + (tnext - utcnow).seconds
+        log.msg('Calling daily_timestamp in %.2f seconds' % (delta, ))
+        reactor.callLater(delta, self.daily_timestamp)
         
     def presence_processor(self, elem):
         """

@@ -18,7 +18,6 @@ from twisted.internet import reactor
 from twisted.mail import smtp
 
 import PyRSS2Gen
-from twittytwister import twitter
 from oauth import oauth
 
 import datetime
@@ -98,14 +97,15 @@ def load_twitter_from_db(txn, bot):
 
 class JabberClient(basicbot.basicbot):
 
-    def __init__(self, myjid):
-        """ Constructor """
+        
+    def bootstrap(self):
+        """ bootstrap the things we need done! """
+        
         self.startup_time = datetime.datetime.utcnow().replace(
                                                 tzinfo=pytz.timezone("UTC"))
         self.conference = config.get('local', 'mucservice')
         self.football = True
         self.xmlstream = None
-        self.myjid = myjid
         self.seqnum = SEQNUM0
         self.roomcfg = {}
         self.roomroster = {}
@@ -122,6 +122,7 @@ class JabberClient(basicbot.basicbot):
         self.fortunes = open('startrek', 'r').read().split("\n%\n")
 
         self.xmllog = DailyLogFile('xmllog', 'logs/')
+        self.compute_daily_caller()
 
     def get_fortune(self):
         """ Get a random value from the array """
@@ -149,6 +150,9 @@ class JabberClient(basicbot.basicbot):
         
     def authd(self, xmlstream):
         log.msg("Logged into local jabber server")
+        if not self.firstrun:
+            self.bootstrap()
+            self.firstrun = True
         self.email_error(None, "Login session started at iemchatbot.authd")
         self.roomcfg = {}
         self.xmlstream = xmlstream
@@ -171,15 +175,6 @@ class JabberClient(basicbot.basicbot):
         df = DBPOOL.runInteraction(load_twitter_from_db, self)
         df.addErrback( log.err )
 
-
-    def compute_daily_caller(self):
-        # Figure out when to spam all rooms with a timestamp
-        utc = datetime.datetime.utcnow() + datetime.timedelta(days=1)
-        tnext =  utc.replace(hour=0,minute=0,second=0)
-        log.msg('Initial Calling daily_timestamp in %s seconds' % (
-                            (tnext - datetime.datetime.utcnow()).seconds, ))
-        reactor.callLater((tnext - datetime.datetime.utcnow()).seconds, 
-                          self.daily_timestamp)
 
     def join_chatrooms(self):
         df = DBPOOL.runInteraction(self.load_chatrooms)

@@ -24,7 +24,6 @@ myJid = jid.JID('%s@%s/twisted_words' % (config.get('local', 'username'),
                 )
 # Configure the IEMBot with a reference to the appriss bot
 jabber = iemchatbot.JabberClient(myJid)
-jabber.compute_daily_caller() # Setup daily spamming of rooms
 factory = client.basicClientFactory(myJid, config.get('local', 'password'))
 factory.addBootstrap('//event/stream/authd',jabber.authd)
 b = internet.TCPClient(config.get('local', 'connecthost'), 5222, factory)
