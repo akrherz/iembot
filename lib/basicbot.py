@@ -4,9 +4,11 @@
 
 from twisted.words.xish import domish
 from twisted.words.xish import xpath
-from twisted.words.protocols.jabber import jid
+from twisted.words.protocols.jabber import jid, client
 from twisted.internet import reactor
+from twisted.application import internet
 from twisted.python import log
+from twisted.python.logfile import DailyLogFile
 import twisted.web.error as weberror
 
 import datetime
@@ -54,14 +56,52 @@ def safe_twitter_text( text ):
     return text[:140]
 
 class basicbot:
-    """
-    Basic Jabber Chat Bot functionality, common stuff found here
-    """
+    """ Here lies the Jabber Bot """
 
-    def __init__(self, myjid):
+    def __init__(self, dbpool):
         """ Constructor """
-        self.myjid = myjid
+        self.startup_time = datetime.datetime.utcnow().replace(
+                                                tzinfo=pytz.timezone("UTC"))
+        self.dbpool = dbpool
+        self.config = {}
         self.firstrun = False
+        self.xmllog = DailyLogFile('xmllog', 'logs/')
+        self.myjid = None
+        self.conference = None
+
+    def fire_client_with_config(self, res, serviceCollection):
+        """ Calledback once bot has loaded its database configuration """
+        log.msg("fire_client_with_config() called ...")
+
+        for row in res:
+            self.config[ row['propname'] ] = row['propvalue']
+        
+        self.myjid = jid.JID("%s@%s/twisted_words" % (
+                                                self.config["bot.username"],
+                                                self.config["bot.xmppdomain"]))
+        self.conference = self.config['bot.mucservice']
+
+        # We need to clean up after ourselves and do stuff while running
+        #lc = LoopingCall( self.housekeeping )
+        #lc.start(60)
+        
+        # We need to clean up after ourselves and do stuff while running
+        #lc2 = LoopingCall( self.purge_logs )
+        #lc2.start(60*60*24)
+        
+        # Start up task to spam rooms at the 0z time
+        #tnext =  mx.DateTime.gmt() + mx.DateTime.RelativeDateTime(hour=0,
+        #                                        days=1, minute=0, second=0)
+        #secs = (tnext - mx.DateTime.gmt()).seconds
+        #reactor.callLater(secs, self.daily_timestamp)
+        
+        factory = client.basicClientFactory(self.myjid, 
+                                            self.config['bot.password'])
+        factory.addBootstrap('//event/stream/authd', self.authd)
+
+        i = internet.TCPClient(self.config['bot.connecthost'], 5222, 
+                               factory)
+        i.setServiceParent(serviceCollection)
 
     def failure(self, f):
         log.err( f )

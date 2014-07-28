@@ -9,9 +9,7 @@ SMTPSenderFactory.noisy = False
 from twisted.words.protocols.jabber import jid
 from twisted.words.xish import domish, xpath
 from twisted.python import log
-from twisted.python.logfile import DailyLogFile
 from twisted.web import server, resource
-from twisted.enterprise import adbapi
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
 from twisted.internet.task import LoopingCall
 from twisted.internet import reactor
@@ -25,24 +23,12 @@ import re
 import pickle
 import os
 import json
-import pytz
 import socket
 import random
 import traceback
 import StringIO
 from email.MIMEText import MIMEText
 from lib import basicbot
-
-import ConfigParser
-config = ConfigParser.ConfigParser()
-config.read('config.ini')
-
-
-DBPOOL = adbapi.ConnectionPool("pyiem.twistedpg", 
-                               database=config.get('database','name'), 
-                               cp_reconnect=True,
-                               host=config.get('database','host'))
-
 
 CHATLOG = {}
 
@@ -101,9 +87,6 @@ class JabberClient(basicbot.basicbot):
     def bootstrap(self):
         """ bootstrap the things we need done! """
         
-        self.startup_time = datetime.datetime.utcnow().replace(
-                                                tzinfo=pytz.timezone("UTC"))
-        self.conference = config.get('local', 'mucservice')
         self.football = True
         self.xmlstream = None
         self.seqnum = SEQNUM0
@@ -116,12 +99,11 @@ class JabberClient(basicbot.basicbot):
         self.MAIL_COUNT = 20
         # Default value
         self.twitter_oauth_consumer = oauth.OAuthConsumer(
-                                    config.get('twitter','consumerkey'),
-                                    config.get('twitter','consumersecret'))
+                            self.config['bot.twitter.consumerkey'],
+                            self.config['bot.twitter.consumersecret'])
 
         self.fortunes = open('startrek', 'r').read().split("\n%\n")
 
-        self.xmllog = DailyLogFile('xmllog', 'logs/')
         self.compute_daily_caller()
 
     def get_fortune(self):
@@ -143,8 +125,8 @@ class JabberClient(basicbot.basicbot):
         msg['subject'] = '%s NOTICE - %s' % (self.myjid.user,
                                         socket.gethostname() )
         # TODO: remove hard codes
-        msg['From'] = config.get('email', 'errors_from')
-        msg['To'] = config.get('email', 'errors_to')
+        msg['From'] = self.config['bot.email_errors_from']
+        msg['To'] = self.config['bot.email_errors_to']
 
         smtp.sendmail("localhost", msg["From"], msg["To"], msg)
         
@@ -172,12 +154,12 @@ class JabberClient(basicbot.basicbot):
     def load_twitter(self):
         ''' Load the twitter subscriptions and access tokens '''
         log.msg("load_twitter() called...")
-        df = DBPOOL.runInteraction(load_twitter_from_db, self)
+        df = self.dbpool.runInteraction(load_twitter_from_db, self)
         df.addErrback( log.err )
 
 
     def join_chatrooms(self):
-        df = DBPOOL.runInteraction(self.load_chatrooms)
+        df = self.dbpool.runInteraction(self.load_chatrooms)
         df.addErrback( log.err )
         
     def load_chatrooms(self, txn):
@@ -191,8 +173,8 @@ class JabberClient(basicbot.basicbot):
             self.roomcfg[ rm ] = {}
             self.roomroster[ rm ] = {}
             presence = domish.Element(('jabber:client','presence'))
-            presence['to'] = "%s@conference.%s/iembot" % (rm, 
-                                        config.get('local','xmppdomain') )
+            presence['to'] = "%s@%s/iembot" % (rm, 
+                                        self.config['bot.mucservice'] )
             reactor.callLater(cnt % 20, self.xmlstream.send, presence)
             cnt += 1
         log.msg("Attempted to join %s rooms" % (cnt,))
@@ -294,16 +276,16 @@ class JabberClient(basicbot.basicbot):
     def processMessagePC(self, elem):
         #log.msg("processMessagePC() called from %s...." % (elem['from'],))
         _from = jid.JID( elem["from"] )
-        if (elem["from"] == config.get('local','xmppdomain')):
+        if (elem["from"] == self.config['bot.xmppdomain']):
             log.msg("MESSAGE FROM SERVER?")
             return
         # Intercept private messages via a chatroom, can't do that :)
-        if _from.host == "conference.%s" % (config.get('local','xmppdomain'),):
+        if _from.host == self.config['bot.mucservice']:
             log.msg("ERROR: message is MUC private chat")
             return
 
         if _from.userhost() != "iembot_ingest@%s" % (
-                                            config.get('local','xmppdomain')):
+                                            self.config['bot.xmppdomain']):
             log.msg("ERROR: message not from iembot_ingest")
             return
 
@@ -324,14 +306,14 @@ class JabberClient(basicbot.basicbot):
             #elem.body.children[0] = meat
 
         # Always send to botstalk
-        elem['to'] = "botstalk@conference.%s" % (config.get('local','xmppdomain'),)
+        elem['to'] = "botstalk@%s" % (self.config['bot.mucservice'],)
         elem['type'] = "groupchat"
         self.xmlstream.send( elem )
 
         for channel in channels:
             for room in self.routingtable.get(channel, []):
-                elem['to'] = "%s@conference.%s" % (room, 
-                                            config.get('local','xmppdomain'))
+                elem['to'] = "%s@%s" % (room, 
+                                            self.config['bot.mucservice'])
                 self.xmlstream.send( elem )
             for page in self.tw_routingtable.get(channel, []):
                 if not self.tw_access_tokens.has_key(page):
