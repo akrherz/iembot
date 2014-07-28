@@ -28,12 +28,12 @@ defer.addCallback(jabber.fire_client_with_config, serviceCollection)
 
 # 2. JSON channel requests
 json = server.Site( iemchatbot.JSONResource(jabber), logPath='/dev/null' )
-x = internet.TCPServer(8003, json)
+x = internet.TCPServer(9003, json)
 x.setServiceParent(serviceCollection)
 
 # 3. Answer requests for RSS feeds of the bot logs
 rss = server.Site( iemchatbot.RootResource(), logPath="/dev/null" )
-r = internet.TCPServer(8004, rss)
+r = internet.TCPServer(9004, rss)
 r.setServiceParent(serviceCollection)
 
 # END
