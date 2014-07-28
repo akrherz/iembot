@@ -65,6 +65,8 @@ class basicbot:
                                                 tzinfo=pytz.timezone("UTC"))
         self.dbpool = dbpool
         self.config = {}
+        self.IQ = {}
+        self.xmlstream = None
         self.firstrun = False
         self.xmllog = DailyLogFile('xmllog', 'logs/')
         self.myjid = None
@@ -131,7 +133,7 @@ class basicbot:
         """ Remove chat logs on a 24 HR basis """
         log.msg("purge_logs() called...")
         basets = datetime.datetime.utcnow() - datetime.timedelta(
-                days=int(self.settings.get('nwsbot_purge_xmllog_days', 7)))
+                days=int(self.config.get('bot.purge_xmllog_days', 7)))
         basets = basets.replace(tzinfo=pytz.timezone("UTC"))
         for fn in glob.glob("logs/xmllog.*"):
             ts = datetime.datetime.strptime(fn,'logs/xmllog.%Y_%m_%d')
@@ -189,7 +191,7 @@ class basicbot:
         """
         message = domish.Element(('jabber:client','message'))
         if to.find("@") == -1: # base username, add domain
-            to = "%s@%s" % (to, self.settings.get("xmpp_domain"))
+            to = "%s@%s" % (to, self.config["bot.xmppdomain"])
         message['to'] = to
         message['type'] = "chat"
         message.addElement('body', None, mess)
