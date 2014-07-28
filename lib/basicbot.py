@@ -16,6 +16,7 @@ import pytz
 import json
 import traceback
 import StringIO
+import random
 import os
 import locale
 import re
@@ -69,6 +70,8 @@ class basicbot:
         self.myjid = None
         self.conference = None
 
+        self.fortunes = open('startrek', 'r').read().split("\n%\n")
+
     def fire_client_with_config(self, res, serviceCollection):
         """ Calledback once bot has loaded its database configuration """
         log.msg("fire_client_with_config() called ...")
@@ -102,6 +105,11 @@ class basicbot:
         i = internet.TCPClient(self.config['bot.connecthost'], 5222, 
                                factory)
         i.setServiceParent(serviceCollection)
+
+    def get_fortune(self):
+        """ Get a random value from the array """
+        offset = int((len(self.fortunes)-1) * random.random())
+        return " ".join( self.fortunes[offset].replace("\n","").split() )
 
     def failure(self, f):
         log.err( f )

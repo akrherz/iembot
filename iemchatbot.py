@@ -24,7 +24,6 @@ import pickle
 import os
 import json
 import socket
-import random
 import traceback
 import StringIO
 from email.MIMEText import MIMEText
@@ -102,14 +101,7 @@ class JabberClient(basicbot.basicbot):
                             self.config['bot.twitter.consumerkey'],
                             self.config['bot.twitter.consumersecret'])
 
-        self.fortunes = open('startrek', 'r').read().split("\n%\n")
-
         self.compute_daily_caller()
-
-    def get_fortune(self):
-        """ Get a random value from the array """
-        offset = int((len(self.fortunes)-1) * random.random())
-        return " ".join( self.fortunes[offset].replace("\n","").split() )
 
 
     def email_error(self, err, raw=''):
