@@ -86,7 +86,6 @@ class JabberClient(basicbot.basicbot):
     def bootstrap(self):
         """ bootstrap the things we need done! """
         
-        self.football = True
         self.xmlstream = None
         self.seqnum = SEQNUM0
         self.roomcfg = {}

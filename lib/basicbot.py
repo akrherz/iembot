@@ -66,6 +66,7 @@ class basicbot:
         self.dbpool = dbpool
         self.config = {}
         self.IQ = {}
+        self.has_football = True
         self.xmlstream = None
         self.firstrun = False
         self.xmllog = DailyLogFile('xmllog', 'logs/')
@@ -73,6 +74,11 @@ class basicbot:
         self.conference = None
 
         self.fortunes = open('startrek', 'r').read().split("\n%\n")
+
+    def check_for_football(self):
+        """ Logic to check if we have the football or not, this should
+        be over-ridden """
+        self.has_football = True
 
     def fire_client_with_config(self, res, serviceCollection):
         """ Calledback once bot has loaded its database configuration """
@@ -150,7 +156,7 @@ class basicbot:
         3. Update presence
         """
         gmtnow = datetime.datetime.utcnow()
-        self.football = os.path.isfile("/home/nwschat/public_html/service.on")
+        self.check_for_football()
 
         # Reset MAIL_COUNT at the top of the new day
         if gmtnow.hour == 0 and gmtnow.minute < 5 and self.MAIL_COUNT != 24:
@@ -400,7 +406,7 @@ class basicbot:
                     if self.tw_access_tokens.has_key(page):
                         log.msg('Channel: [%s] Page: [%s] Tweet: [%s]' % (
                                                         channel, page, twt))
-                        if self.football:
+                        if self.has_football:
                             twtextra = {}
                             if (elem.x and elem.x.hasAttribute("lat") and 
                                 elem.x.hasAttribute("long")):
