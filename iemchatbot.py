@@ -86,10 +86,9 @@ class JabberClient(basicbot.basicbot):
     def bootstrap(self):
         """ bootstrap the things we need done! """
         
-        self.xmlstream = None
+        # We use a sequence number on the messages to track things
         self.seqnum = SEQNUM0
-        self.roomcfg = {}
-        self.roomroster = {}
+        
         self.IQ = {}
         self.routingtable = {}
         self.tw_access_tokens = {}
@@ -127,7 +126,7 @@ class JabberClient(basicbot.basicbot):
             self.bootstrap()
             self.firstrun = True
         self.email_error(None, "Login session started at iemchatbot.authd")
-        self.roomcfg = {}
+        self.rooms = {}
         self.xmlstream = xmlstream
         self.xmlstream.rawDataInFn = self.rawDataInFn
         self.xmlstream.rawDataOutFn = self.rawDataOutFn
@@ -159,10 +158,10 @@ class JabberClient(basicbot.basicbot):
         cnt = 0
         for row in txn:
             rm = row['roomname']
-            if self.roomcfg.has_key(rm):
+            if self.rooms.has_key(rm):
                 continue
-            self.roomcfg[ rm ] = {}
-            self.roomroster[ rm ] = {}
+            self.rooms[ rm ] = {'fbpage': None, 'twitter': None, 
+                                'occupants': {}}
             presence = domish.Element(('jabber:client','presence'))
             presence['to'] = "%s@%s/iembot" % (rm, 
                                         self.config['bot.mucservice'] )

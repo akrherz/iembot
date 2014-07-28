@@ -66,6 +66,7 @@ class basicbot:
         self.dbpool = dbpool
         self.config = {}
         self.IQ = {}
+        self.rooms = {}
         self.has_football = True
         self.xmlstream = None
         self.firstrun = False
@@ -234,7 +235,7 @@ class basicbot:
         if to is not None:
             elem['to'] = to
         room = jid.JID(elem['to']).user
-        if not self.roomroster.get(room, {}).has_key( self.myjid.user ):
+        if not self.rooms[room]['occupants'].has_key( self.myjid.user ):
             if secondtrip:
                 log.msg("ABORT of send to room: %s, msg: %s, not in room" % (
                                                         room, elem))
@@ -254,7 +255,7 @@ class basicbot:
         msg = "Booted: %s Updated: %s UTC, Rooms: %s, Messages: %s" % (
                                         self.startup_time.strftime("%d %b"),
                                         datetime.datetime.utcnow().strftime("%H%M"),
-                                        len(self.roomcfg.keys()), 
+                                        len(self.rooms), 
                                         locale.format("%d", self.seqnum, grouping=True) )
         presence.addElement('status').addContent(msg)
         if self.xmlstream is not None:
@@ -293,7 +294,7 @@ class basicbot:
         utc0z = utcnow + datetime.timedelta(hours=1)
         utc0z = utc0z.replace(hour=0, minute=0, second=0, microsecond=0)
         mess = "------ %s [UTC] ------" % (utc0z.strftime("%b %-d, %Y"),)
-        for rm in self.roomroster.keys():
+        for rm in self.rooms.keys():
             self.send_groupchat(rm, mess)
 
         tnext = utc0z + datetime.timedelta(hours=24)
@@ -327,9 +328,7 @@ class basicbot:
             affiliation = item.getAttribute('affiliation')
             _jid = item.getAttribute('jid')
             role = item.getAttribute('role')
-            #log.msg("SET roomroster room: %s, handle: %s, aff: %s jid: %s role: %s" % (
-            #                    _room, _handle, affiliation, _jid, role))
-            self.roomroster[ _room ][ _handle ] = {
+            self.rooms[ _room ]['occupants'][ _handle ] = {
                   'jid': _jid,
                   'affiliation': affiliation,
                   'role': role }
@@ -532,9 +531,9 @@ I currently do not support any commands, sorry.""" % (self.myjid.user,)
         """
         _handle = myjid.resource
         _room = myjid.user
-        if (not self.roomroster[_room].has_key(_handle)):
+        if (not self.rooms[_room]['occupants'].has_key(_handle)):
             return
-        realjid = self.roomroster[_room][_handle]["jid"]
+        realjid = self.rooms[_room]['occupants'][_handle]["jid"]
 
         self.send_help_message( realjid )
 
@@ -594,13 +593,13 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         @param cmd String command that the resource sent
         """
         # Make sure we know who the real JID of this user is....
-        if not self.roomroster[room].has_key(res):
+        if not self.rooms[room]['occupants'].has_key(res):
             self.send_groupchat(room, "%s: Sorry, I am unable to process your request due to a lookup failure.  Please consider rejoining the chatroom if you really wish to speak with me." % (res, ))
             return
 
         # Figure out the user's affiliation
-        aff = self.roomroster[room][res]['affiliation']
-        jid = self.roomroster[room][res]['jid']
+        aff = self.rooms[room]['occupants'][res]['affiliation']
+        jid = self.rooms[room]['occupants'][res]['jid']
 
         # Support legacy ping, return as done
         if re.match(r"^ping", cmd, re.I):
@@ -632,9 +631,9 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         elif re.match(r"^users", cmd, re.I):
             if aff in ['owner', 'admin']:
                 rmess = ""
-                for hndle in self.roomroster[room].keys():
+                for hndle in self.rooms[room]['occupants'].keys():
                     rmess += "%s (%s), " % (hndle, 
-                                          self.roomroster[room][hndle]['jid'])
+                                          self.rooms[room]['occupants'][hndle]['jid'])
                 self.send_privatechat(jid, "JIDs in room: %s" % (rmess,))
             else:
                 err = "%s: Sorry, you must be a room admin to query users" \
