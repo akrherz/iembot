@@ -10,7 +10,7 @@ from twisted.words.protocols.jabber import jid
 from twisted.words.xish import domish, xpath
 from twisted.python import log
 from twisted.web import server, resource
-from twisted.words.xish.xmlstream import STREAM_END_EVENT
+
 from twisted.internet.task import LoopingCall
 from twisted.internet import reactor
 
@@ -80,41 +80,29 @@ def load_twitter_from_db(txn, bot):
 
 
 class JabberClient(basicbot.basicbot):
+    """ I am a Jabber Bot
+    
+    I provide some customizations that are not provided by basicbot, here are
+    some details on calling order
+    
+    1. Twisted .tac calls 'basicbot.fire_client_with_config'
+    2. jabber.client callsback 'authd' when we login
+       -> 'authd' will call on_firstlogin when this is the first_run
+       -> 'auth' will call on_login
+    3-inf. jabber.client callsback 'authd' when we get logged in 
+       -> 'auth' will call on_login
+    """
 
         
-    def bootstrap(self):
-        """ bootstrap the things we need done! """
+    def on_firstlogin(self):
+        """ local stuff that we care about, that gets called on first login """
         
         # We use a sequence number on the messages to track things
         self.seqnum = SEQNUM0
         
-        # Default value
-        self.twitter_oauth_consumer = oauth.OAuthConsumer(
-                            self.config['bot.twitter.consumerkey'],
-                            self.config['bot.twitter.consumersecret'])
 
-        self.compute_daily_caller()
         
-    def authd(self, xmlstream):
-        log.msg("Logged into local jabber server")
-        if not self.firstrun:
-            self.bootstrap()
-            self.firstrun = True
-        self.email_error(None, "Login session started at iemchatbot.authd")
-        self.rooms = {}
-        self.xmlstream = xmlstream
-        self.xmlstream.rawDataInFn = self.rawDataInFn
-        self.xmlstream.rawDataOutFn = self.rawDataOutFn
 
-        self.xmlstream.addObserver('/message',  self.processor)
-        self.xmlstream.addObserver('/iq',  self.iq_processor)
-        self.xmlstream.addObserver('/presence/x/item',  self.presence_processor)
-        self.load_twitter()
-        self.send_presence()
-        self.join_chatrooms()
-        lc = LoopingCall(self.housekeeping)
-        lc.start(60)
-        self.xmlstream.addObserver(STREAM_END_EVENT, lambda _: lc.stop())
 
     def load_twitter(self):
         ''' Load the twitter subscriptions and access tokens '''
@@ -215,7 +203,7 @@ class JabberClient(basicbot.basicbot):
         CHATLOG[room]['txtlog'] = CHATLOG[room]['txtlog'][1:] + [body,]
 
 
-    def processor(self, elem):
+    def message_processor(self, elem):
         try:
             self.processMessage(elem)
         except Exception, exp:

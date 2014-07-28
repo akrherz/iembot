@@ -5,12 +5,16 @@
 from twisted.words.xish import domish
 from twisted.words.xish import xpath
 from twisted.words.protocols.jabber import jid, client
+from twisted.words.xish.xmlstream import STREAM_END_EVENT
 from twisted.internet import reactor
 from twisted.application import internet
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
 import twisted.web.error as weberror
+from twisted.internet.task import LoopingCall
 from twisted.mail import smtp
+
+from oauth import oauth
 
 import datetime
 import pytz
@@ -75,12 +79,48 @@ class basicbot:
         self.tw_routingtable = {}
         self.has_football = True
         self.xmlstream = None
-        self.firstrun = False
+        self.firstlogin = False
         self.xmllog = DailyLogFile('xmllog', 'logs/')
         self.myjid = None
         self.conference = None
         self.email_timestamps = []
         self.fortunes = open('startrek', 'r').read().split("\n%\n")
+        self.twitter_oauth_consumer = None
+        self.logins = 0
+
+    def authd(self, xmlstream):
+        """ callback when we are logged into the server! """
+        msg = "Logged into jabber server as %s" % (self.myjid,)
+        self.email_error(None, msg)
+        if not self.firstlogin:
+            self.compute_daily_caller()
+            self.on_firstlogin()
+            self.firstlogin = True
+        
+        # Resets associated with the previous login session, perhaps
+        self.rooms = {}
+        self.IQ = {}
+        
+        # Assignment of xmlstream!
+        self.xmlstream = xmlstream
+        self.xmlstream.rawDataInFn = self.rawDataInFn
+        self.xmlstream.rawDataOutFn = self.rawDataOutFn
+
+        self.xmlstream.addObserver('/message',  self.message_processor)
+        self.xmlstream.addObserver('/iq',  self.iq_processor)
+        self.xmlstream.addObserver('/presence/x/item',  self.presence_processor)
+        
+        self.load_twitter()
+        self.send_presence()
+        self.join_chatrooms()
+        self.load_facebook()
+        
+        lc = LoopingCall(self.housekeeping)
+        lc.start(60)
+        self.xmlstream.addObserver(STREAM_END_EVENT, lambda _: lc.stop())
+
+    def load_facebook(self):
+        pass
 
     def email_error(self, exp, message=''):
         """
@@ -157,6 +197,10 @@ Message:
                                                 self.config["bot.username"],
                                                 self.config["bot.xmppdomain"]))
         self.conference = self.config['bot.mucservice']
+
+        self.twitter_oauth_consumer = oauth.OAuthConsumer(
+                            self.config['bot.twitter.consumerkey'],
+                            self.config['bot.twitter.consumersecret'])
 
         # We need to clean up after ourselves and do stuff while running
         #lc = LoopingCall( self.housekeeping )
