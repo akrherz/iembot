@@ -21,7 +21,7 @@ dbpool = adbapi.ConnectionPool("pyiem.twistedpg", cp_reconnect=True,
                             password=dbconfig.get('databaserw').get('password'),
                             user=dbconfig.get('databaserw').get('user') )
 
-jabber = iemchatbot.JabberClient(dbpool)
+jabber = iemchatbot.JabberClient("iembot", dbpool)
 
 defer = dbpool.runQuery("select propname, propvalue from properties")
 defer.addCallback(jabber.fire_client_with_config, serviceCollection)

@@ -56,29 +56,6 @@ def really_save_chat_log():
 lc2 = LoopingCall(saveChatLog)
 lc2.start( 600 ) # Every 10 minutes
 
-def load_twitter_from_db(txn, bot):
-    """ Load twitter config from database """
-    txn.execute("SELECT screen_name, channel from iembot_twitter_subs")
-    twrt = {}
-    for row in txn:
-        sn = row['screen_name']
-        channel = row['channel']
-        if not twrt.has_key(channel):
-            twrt[channel] = []
-        twrt[channel].append( sn )
-    bot.tw_routingtable = twrt
-    log.msg("tw_routingtable has %s entries" % (len(bot.tw_routingtable),))
-
-    txn.execute("""SELECT username, token, secret 
-        from oauth_tokens""")
-    for row in txn:
-        sn = row['username']
-        at = row['token']
-        ats = row['secret']
-        bot.tw_access_tokens[sn] =  oauth.OAuthToken(at,ats)
-    log.msg("tw_access_tokens has %s entries" % (len(bot.tw_access_tokens),))
-
-
 class JabberClient(basicbot.basicbot):
     """ I am a Jabber Bot
     
@@ -99,16 +76,6 @@ class JabberClient(basicbot.basicbot):
         
         # We use a sequence number on the messages to track things
         self.seqnum = SEQNUM0
-        
-
-        
-
-
-    def load_twitter(self):
-        ''' Load the twitter subscriptions and access tokens '''
-        log.msg("load_twitter() called...")
-        df = self.dbpool.runInteraction(load_twitter_from_db, self)
-        df.addErrback( log.err )
 
 
     def load_chatrooms(self, always_join):

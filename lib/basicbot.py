@@ -31,6 +31,31 @@ import glob
 from twittytwister import twitter
 locale.setlocale(locale.LC_ALL, 'en_US')
 
+def load_twitter_from_db(txn, bot):
+    """ Load twitter config from database """
+    txn.execute("SELECT screen_name, channel from %s_twitter_subs" % (
+                                                                bot.name,))
+    twrt = {}
+    for row in txn:
+        sn = row['screen_name']
+        channel = row['channel']
+        if sn == '' or channel == '':
+            continue
+        if not twrt.has_key(channel):
+            twrt[channel] = []
+        twrt[channel].append( sn )
+    bot.tw_routingtable = twrt
+    log.msg("load_twitter_from_db(): %s subs found" % (txn.rowcount,))
+        
+    txn.execute("""SELECT screen_name, access_token, access_token_secret 
+        from %s_twitter_oauth""" % (bot.name,))
+    for row in txn:
+        sn = row['screen_name']
+        at = row['access_token']
+        ats = row['access_token_secret']
+        bot.tw_access_tokens[sn] =  oauth.OAuthToken(at,ats)
+    log.msg("load_twitter_from_db(): %s oauth tokens found" % (txn.rowcount,))
+
 def safe_twitter_text( text ):
     """ Attempt to rip apart a message that is too long! 
     To be safe, the URL is counted as 24 chars
@@ -66,10 +91,11 @@ def safe_twitter_text( text ):
 class basicbot:
     """ Here lies the Jabber Bot """
 
-    def __init__(self, dbpool):
+    def __init__(self, name, dbpool):
         """ Constructor """
         self.startup_time = datetime.datetime.utcnow().replace(
                                                 tzinfo=pytz.timezone("UTC"))
+        self.name = name
         self.dbpool = dbpool
         self.config = {}
         self.IQ = {}
@@ -118,6 +144,12 @@ class basicbot:
         lc = LoopingCall(self.housekeeping)
         lc.start(60)
         self.xmlstream.addObserver(STREAM_END_EVENT, lambda _: lc.stop())
+
+    def load_twitter(self):
+        ''' Load the twitter subscriptions and access tokens '''
+        log.msg("load_twitter() called...")
+        df = self.dbpool.runInteraction(load_twitter_from_db, self)
+        df.addErrback( self.email_error, "load_twitter() failure" )
 
     def load_facebook(self):
         pass
