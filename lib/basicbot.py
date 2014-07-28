@@ -13,6 +13,7 @@ from twisted.python.logfile import DailyLogFile
 import twisted.web.error as weberror
 from twisted.internet.task import LoopingCall
 from twisted.mail import smtp
+from twisted.web import client as webclient
 
 from oauth import oauth
 
@@ -24,6 +25,7 @@ from email.MIMEText import MIMEText
 import StringIO
 import random
 import os
+import urllib
 import socket
 import locale
 import re
@@ -823,7 +825,7 @@ Message:
             self.convert_to_privatechat( _from )
             return
 
-        if _from.userhost() == self.ingestJID.userhost():
+        if _from.userhost() == self.ingestjid.userhost():
             self.route_message(elem)
         else:
             self.talkWithUser(elem)
@@ -1043,3 +1045,175 @@ channel %s" % (room, channel))
         self.send_groupchat(room, "Unscribed %s to channel %s" % \
             (room, channel))
         self.channels_room_list(room)
+
+    def send_groupchat_help(self, room):
+        """
+        Send a message to a given chatroom about what commands I support
+        """
+        msg = """Current Supported Commands:
+  %(i)s: channels add channelname ### Add single channel to this room 
+  %(i)s: channels del channelname ### Delete single channel to this room 
+  %(i)s: channels list ### List channels this room is subscribed to
+  %(i)s: ping          ### Test connectivity with a 'pong' response
+  %(i)s: users         ### Generates list of users in room""" % {
+                                                    'i': self.myjid.user }
+
+        htmlmsg = msg.replace("\n", "<br />")
+        self.send_groupchat(room, msg, htmlmsg)
+
+    def handle_flood_request(self, elem, bstring):
+        """
+        All a user to flood a chatroom with messages to flush it!
+        with star trek quotes, yes!
+        """
+        _from = jid.JID( elem["from"] )
+        if not re.match(r"^nws-", _from.user):
+            msg = "Sorry, you must be NWS to flood a chatroom!"
+            self.send_privatechat(elem["from"], msg)
+            return
+        tokens = bstring.split()
+        if len(tokens) == 1:
+            msg = "Did you specify a room to flood?"
+            self.send_privatechat(elem["from"], msg)
+            return
+        room = tokens[1].lower()
+        o = open('util/startrek', 'r').read()
+        fortunes = o.split("\n%\n")
+        cnt_fortunes = len(fortunes)
+        i = 0
+        while i < 60:
+            offset = int(cnt_fortunes * random.random())
+            msg = fortunes[offset]
+            self.send_groupchat(room, msg)
+            i += 1
+        self.send_groupchat(room, "Room flooding complete, offending message should no longer appear")
+
+    def send_fb_fanpage(self, elem, page):
+        """
+        Post something to facebook fanpage
+        """
+        log.msg('attempting to send to facebook page %s' % (page,))
+        bstring = unicode(elem.body)
+        post_args = {}
+        post_args['access_token'] = self.fb_access_tokens[page]
+        tokens = bstring.split("http")
+        if len(tokens) == 1:
+            post_args['message'] = bstring
+        else:
+            post_args['message'] = tokens[0]
+            post_args['link'] = "http"+ tokens[1]
+            post_args['name'] = 'Product Link'
+        if elem.x:
+            for key in ['picture', 'name', 'link', 'caption',
+                        'description']:
+                if elem.x.hasAttribute(key):
+                    post_args[key] = elem.x[key]
+
+        url = "https://graph.facebook.com/me/feed?"
+        postdata = urllib.urlencode(post_args)
+        if self.has_football:
+            cf = webclient.getPage( url, method='POST', postdata=postdata)
+            cf.addCallback(self.fbsuccess, None, 'nwsbot_ingest',
+                           post_args['message'])
+            cf.addErrback(self.fbfail, None, 'nwsbot_ingest', 
+                          post_args['message'], page)
+            cf.addErrback( log.err )
+        else:
+            log.msg("Skipping facebook relay as I don't have the football")
+   
+    def process_twitter_cmd(self, room, res, plaintxt):
+        """
+        Process a command (#twitter or #social) generated within a chatroom
+        """
+        # Lets see if this room has a twitter page associated with it
+        twitter = self.rooms[room]['twitter']
+        if twitter is None:
+            msg = '%s: Sorry, this room is not associated with ' % (res,)
+            msg += 'a twitter account. Please contact Admin Team'
+            self.send_groupchat(room, msg)
+            return
+        
+        myjid = "%s,%s" % (room, self.rooms[room]['occupants'][res]['jid'])
+        if self.rooms[room]['occupants'][res]['jid'] is None:
+            msg = "%s: Sorry, I am unable to process your facebook " % (res,)
+            msg += "request due to a lookup failure.  Please consider "
+            msg += "rejoining the chatroom if you really wish to speak with me"
+            self.send_groupchat(room, msg)
+            return
+   
+        aff = self.rooms[room]['occupants'][res]['affiliation']
+        
+        if aff not in ['owner', 'admin']:
+            msg = "%s: Sorry, you need to be a local room admin " % (res,)
+            msg += "or owner to use twitter feature!"
+            self.send_groupchat(room, msg)
+            return
+        
+        access_token = self.tw_access_tokens.get(twitter, None)
+        if access_token is None:
+            msg = "%s: Sorry, I don't have permission to post to your " % (res,)
+            msg += "page."
+            self.send_groupchat(room, msg)
+            return
+        
+        if len(plaintxt) > 139:
+            msg = "%s: Sorry, your message is longer than 140 " % (res,)
+            msg += "characters, so I can not relay to twitter!"
+            self.send_groupchat(room, msg)
+            return 
+        
+        # We can finally tweet! 
+        self.tweet(plaintxt, access_token, room=room, myjid=myjid, 
+                   twituser=twitter )
+   
+    def process_facebook_cmd(self, room, res, plaintxt):
+        """
+        Process a command (#facebook) generated within a chatroom requesting 
+        facebook posting
+          1. User must be local admin
+          2. Bot posts back a link to the post, tricky!
+        @param room The room name this request came from
+        @param res The resource this came from
+        @param plaintxt The plain text variant of this message
+        """
+        # Make sure the local room has a FB page associated with it
+        if self.rooms[room]['fbpage'] is None:
+            self.send_groupchat(room, "%s: Sorry, this room is not associated with Facebook Page.  Please contact Admin Team." % (res, ))
+            return
+        fbpage = self.rooms[room]['fbpage']
+        
+        # Make sure we know who the real JID of this user is....
+        if not self.rooms[room]['occupants'].has_key(res):
+            self.send_groupchat(room, "%s: Sorry, I am unable to process your facebook request due to a lookup failure.  Please consider rejoining the chatroom if you really wish to speak with me." % (res, ))
+            return
+
+        # Figure out the user's affiliation
+        aff = self.rooms[room]['occupants'][res]['affiliation']
+        myjid = "%s,%s" % (room, self.rooms[room]['occupants'][res]['jid'])
+
+        if aff not in ['owner', 'admin']:
+            self.send_groupchat(room, "%s: Sorry, you need to be a local room admin or owner to use facebook feature!" % (res, ))
+            return
+        
+        if not self.fb_access_tokens.has_key(fbpage):
+            self.send_groupchat(room, "%s: Sorry, I don't have permission to post to your page." % (res, ))
+            return
+
+        # Done with error checking!
+        post_args = {}
+        post_args['access_token'] = self.fb_access_tokens[fbpage]
+        # Without encoding, this causes urlencode to be angry
+        post_args['message'] = plaintxt.replace("#facebook", "").encode( 
+                                       'ascii', 'ignore')
+
+        # Need to use async proxy, please
+        url = "https://graph.facebook.com/me/feed?"
+        postdata = urllib.urlencode(post_args)
+        if self.has_football:
+            cf = webclient.getPage( url, method='POST', postdata=postdata)
+            cf.addCallback(self.fbsuccess, room, myjid, post_args['message'])
+            cf.addErrback(self.fbfail, room, myjid, post_args['message'], fbpage)            
+            cf.addErrback( log.err )
+        else:
+            log.msg("Skipping facebook relay as I don't have the football")
+            self.send_groupchat(room, "%s: Sorry, I am currently in non-production mode, so I am not sending facebook messages." % (res,))
