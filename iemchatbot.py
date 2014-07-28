@@ -7,7 +7,7 @@ from twisted.mail.smtp import SMTPSenderFactory
 SMTPSenderFactory.noisy = False
 
 from twisted.words.protocols.jabber import jid
-from twisted.words.xish import domish, xpath
+from twisted.words.xish import xpath
 from twisted.python import log
 from twisted.web import server, resource
 
@@ -16,15 +16,12 @@ from twisted.internet import reactor
 
 
 import PyRSS2Gen
-from oauth import oauth
 
 import datetime
 import re
 import pickle
 import os
 import json
-import traceback
-import StringIO
 
 from lib import basicbot
 
@@ -77,47 +74,6 @@ class JabberClient(basicbot.basicbot):
         # We use a sequence number on the messages to track things
         self.seqnum = SEQNUM0
 
-
-    def load_chatrooms(self, always_join):
-        df = self.dbpool.runInteraction(self.load_chatrooms_from_db, always_join)
-        df.addErrback( log.err )
-        
-    def load_chatrooms_from_db(self, txn, always_join):
-        
-        txn.execute("""SELECT roomname from iembot_rooms""")
-        cnt = 0
-        for row in txn:
-            rm = row['roomname']
-            if self.rooms.has_key(rm):
-                continue
-            self.rooms[ rm ] = {'fbpage': None, 'twitter': None, 
-                                'occupants': {}}
-            presence = domish.Element(('jabber:client','presence'))
-            presence['to'] = "%s@%s/iembot" % (rm, 
-                                        self.config['bot.mucservice'] )
-            reactor.callLater(cnt % 20, self.xmlstream.send, presence)
-            cnt += 1
-        log.msg("Attempted to join %s rooms" % (cnt,))
-
-        txn.execute("""
-            SELECT roomname, channel from iembot_room_subscriptions
-        """)
-        self.routingtable = {}
-        rooms = {}
-        for row in txn:
-            rm = row['roomname']
-            rooms[rm] = 1
-            channel = row['channel']
-            if not self.routingtable.has_key(channel):
-                self.routingtable[channel] = []
-            self.routingtable[channel].append( rm )
-        log.msg("Loaded %s channels subscriptions for %s total rooms" % (
-                                                txn.rowcount, len(rooms)))
-
-    def nextSeqnum(self,):
-        self.seqnum += 1
-        return self.seqnum
-
     def processMessageGC(self, elem):
         ''' Process a stanza element that is from a chatroom '''
         # Ignore all messages that are x-stamp (delayed / room history)
@@ -162,28 +118,12 @@ class JabberClient(basicbot.basicbot):
             logEntry = html[0].toXml()
 
             
-        CHATLOG[room]['seqnum'] = CHATLOG[room]['seqnum'][1:] + [self.nextSeqnum(),]
+        CHATLOG[room]['seqnum'] = CHATLOG[room]['seqnum'][1:] + [self.next_seqnum(),]
         CHATLOG[room]['timestamps'] = CHATLOG[room]['timestamps'][1:] + [ts.strftime("%Y%m%d%H%M%S"),]
         CHATLOG[room]['author'] = CHATLOG[room]['author'][1:] + [res,]
         CHATLOG[room]['product_id'] = CHATLOG[room]['product_id'][1:] + [product_id,]
         CHATLOG[room]['log'] = CHATLOG[room]['log'][1:] + [logEntry,]
         CHATLOG[room]['txtlog'] = CHATLOG[room]['txtlog'][1:] + [body,]
-
-
-    def processMessage(self, elem):
-
-        if not elem.hasAttribute("type") or elem['type'] not in ['chat',
-                                                                 'groupchat']:
-            return
-
-        bstring = xpath.queryForString('/message/body', elem)
-        if bstring == "":
-            return
-
-        if elem['type'] == "groupchat":
-            self.processMessageGC(elem)
-        if elem['type'] == "chat":
-            self.processMessagePC(elem)
         
     def processMessagePC(self, elem):
         #log.msg("processMessagePC() called from %s...." % (elem['from'],))

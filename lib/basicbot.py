@@ -31,6 +31,70 @@ import glob
 from twittytwister import twitter
 locale.setlocale(locale.LC_ALL, 'en_US')
 
+def load_chatrooms_from_db(txn, bot, always_join):
+    """ Load database configuration """
+    # Load up the channel keys
+    txn.execute("SELECT id, channel_key from %s_channels" % (bot.name,))
+    for row in txn:
+        bot.channelkeys[ row['channel_key'] ] = row['id']
+
+    # Load up the routingtable for bot products
+    rt = {}
+    txn.execute("SELECT roomname, channel from %s_room_subscriptions" % (
+                                                                bot.name,))
+    for row in txn:
+        rm = row['roomname']
+        channel = row['channel']
+        if not rt.has_key(channel):
+            rt[channel] = []
+        rt[channel].append( rm )
+    bot.routingtable = rt
+
+    # Now we need to load up the syndication
+    synd = {}
+    txn.execute("SELECT roomname, endpoint from %s_room_syndications" % (
+                                                                bot.name,))
+    for row in txn:
+        rm = row['roomname']
+        endpoint = row['endpoint']
+        if not synd.has_key(rm):
+            synd[rm] = []
+        synd[rm].append( endpoint )
+    bot.syndication = synd
+
+    # Load up a list of chatrooms
+    txn.execute("""SELECT roomname, fbpage, twitter from %s_rooms 
+        ORDER by roomname ASC""" % (bot.name, ))
+    oldrooms = bot.rooms.keys()
+    i = 0
+    for row in txn:
+        rm = row['roomname']
+            # Setup Room Config Dictionary
+        if not bot.rooms.has_key(rm):
+            bot.rooms[rm] = {'fbpage': None, 'twitter': None,
+                             'occupants': {}}
+        bot.rooms[rm]['fbpage'] = row['fbpage']
+        bot.rooms[rm]['twitter'] = row['twitter']
+            
+        if bot.rooms.has_key(rm) and rm in oldrooms:
+            oldrooms.remove(rm)
+        if always_join:
+            bot.rooms[rm]['occupants'] = {}
+            presence = domish.Element(('jabber:client','presence'))
+            presence['to'] = "%s@%s/%s" % (rm, bot.conference, 
+                                               bot.myjid.user)
+            i += 1
+            reactor.callLater(i % 300, bot.xmlstream.send, presence)
+
+    # Check old rooms for any rooms we need to vacate!
+    for rm in oldrooms:
+        presence = domish.Element(('jabber:client','presence'))
+        presence['to'] = "%s@%s/%s" % (rm, bot.conference, bot.myjid.user)
+        presence['type'] = 'unavailable'
+        bot.xmlstream.send(presence)
+
+        del( bot.rooms[rm] )
+
 def load_twitter_from_db(txn, bot):
     """ Load twitter config from database """
     txn.execute("SELECT screen_name, channel from %s_twitter_subs" % (
@@ -55,6 +119,25 @@ def load_twitter_from_db(txn, bot):
         ats = row['access_token_secret']
         bot.tw_access_tokens[sn] =  oauth.OAuthToken(at,ats)
     log.msg("load_twitter_from_db(): %s oauth tokens found" % (txn.rowcount,))
+
+def load_facebook_from_db(txn, bot):
+    """ Load facebook config from database """
+    txn.execute("SELECT fbpid, channel from %s_fb_subscriptions" % (bot.name,))
+    fbrt = {}
+    for row in txn:
+        page = row['fbpid']
+        channel = row['channel']
+        if not fbrt.has_key(channel):
+            fbrt[channel] = []
+        fbrt[channel].append( page )
+    bot.fb_routingtable = fbrt
+        
+    txn.execute("SELECT fbpid, access_token from %s_fb_access_tokens" % (bot.name,))
+    
+    for row in txn:
+        page = row['fbpid']
+        at = row['access_token']
+        bot.fb_access_tokens[page] =  at
 
 def safe_twitter_text( text ):
     """ Attempt to rip apart a message that is too long! 
@@ -106,6 +189,8 @@ class basicbot:
         self.has_football = True
         self.xmlstream = None
         self.firstlogin = False
+        self.channelkeys = {}
+        self.syndication = {}
         self.xmllog = DailyLogFile('xmllog', 'logs/')
         self.myjid = None
         self.conference = None
@@ -145,6 +230,23 @@ class basicbot:
         lc.start(60)
         self.xmlstream.addObserver(STREAM_END_EVENT, lambda _: lc.stop())
 
+    def next_seqnum( self ):
+        """
+        Simple tool to generate a sequence number for message logging
+        """
+        self.seqnum += 1
+        return self.seqnum
+
+    def load_chatrooms(self, always_join):
+        """
+        Load up the chatrooms and subscriptions from the database!, I also
+        support getting called at a later date for any changes
+        """
+        log.msg("load_chatrooms() called...")
+        df = self.dbpool.runInteraction(load_chatrooms_from_db, self, 
+                                            always_join)
+        df.addErrback( self.email_error, "load_chatrooms() failure" )
+        
     def load_twitter(self):
         ''' Load the twitter subscriptions and access tokens '''
         log.msg("load_twitter() called...")
@@ -152,7 +254,12 @@ class basicbot:
         df.addErrback( self.email_error, "load_twitter() failure" )
 
     def load_facebook(self):
-        pass
+        """
+        Load up the facebook configuration page/channel subscriptions
+        """
+        log.msg("load_facebook() called...")
+        df = self.dbpool.runInteraction(load_facebook_from_db, self)
+        df.addErrback( self.email_error )
 
     def email_error(self, exp, message=''):
         """
