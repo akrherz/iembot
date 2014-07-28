@@ -111,11 +111,11 @@ class JabberClient(basicbot.basicbot):
         df.addErrback( log.err )
 
 
-    def join_chatrooms(self):
-        df = self.dbpool.runInteraction(self.load_chatrooms)
+    def load_chatrooms(self, always_join):
+        df = self.dbpool.runInteraction(self.load_chatrooms_from_db, always_join)
         df.addErrback( log.err )
         
-    def load_chatrooms(self, txn):
+    def load_chatrooms_from_db(self, txn, always_join):
         
         txn.execute("""SELECT roomname from iembot_rooms""")
         cnt = 0
@@ -202,14 +202,6 @@ class JabberClient(basicbot.basicbot):
         CHATLOG[room]['log'] = CHATLOG[room]['log'][1:] + [logEntry,]
         CHATLOG[room]['txtlog'] = CHATLOG[room]['txtlog'][1:] + [body,]
 
-
-    def message_processor(self, elem):
-        try:
-            self.processMessage(elem)
-        except Exception, exp:
-            io = StringIO.StringIO()
-            traceback.print_exc(file=io)
-            self.email_error(io.getvalue(), elem.toXml())
 
     def processMessage(self, elem):
 

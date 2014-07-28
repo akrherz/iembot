@@ -112,7 +112,7 @@ class basicbot:
         
         self.load_twitter()
         self.send_presence()
-        self.join_chatrooms()
+        self.load_chatrooms(True)
         self.load_facebook()
         
         lc = LoopingCall(self.housekeeping)
@@ -665,7 +665,7 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         else:
             self.processMessagePC(elem)
 
-    def processor(self, elem):
+    def message_processor(self, elem):
         try:
             self.processMessage(elem)
         except:
