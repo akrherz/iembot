@@ -13,7 +13,7 @@ from twisted.web import server, resource
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
 from twisted.internet.task import LoopingCall
 from twisted.internet import reactor
-from twisted.mail import smtp
+
 
 import PyRSS2Gen
 from oauth import oauth
@@ -23,10 +23,9 @@ import re
 import pickle
 import os
 import json
-import socket
 import traceback
 import StringIO
-from email.MIMEText import MIMEText
+
 from lib import basicbot
 
 CHATLOG = {}
@@ -89,36 +88,12 @@ class JabberClient(basicbot.basicbot):
         # We use a sequence number on the messages to track things
         self.seqnum = SEQNUM0
         
-        self.IQ = {}
-        self.routingtable = {}
-        self.tw_access_tokens = {}
-        self.tw_routingtable = {}
-        self.MAIL_COUNT = 20
         # Default value
         self.twitter_oauth_consumer = oauth.OAuthConsumer(
                             self.config['bot.twitter.consumerkey'],
                             self.config['bot.twitter.consumersecret'])
 
         self.compute_daily_caller()
-
-
-    def email_error(self, err, raw=''):
-        """
-        Something to email errors when something fails
-        """
-        self.MAIL_COUNT -= 1
-        if self.MAIL_COUNT < 0:
-            log.msg("MAIL_COUNT limit breached, no email sent")
-            return
-        msg = MIMEText("EMAILS LEFT:%s\n\n%s\n\n%s\n\n" % (self.MAIL_COUNT,
-                                                           raw, err) )
-        msg['subject'] = '%s NOTICE - %s' % (self.myjid.user,
-                                        socket.gethostname() )
-        # TODO: remove hard codes
-        msg['From'] = self.config['bot.email_errors_from']
-        msg['To'] = self.config['bot.email_errors_to']
-
-        smtp.sendmail("localhost", msg["From"], msg["To"], msg)
         
     def authd(self, xmlstream):
         log.msg("Logged into local jabber server")

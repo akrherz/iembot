@@ -10,14 +10,17 @@ from twisted.application import internet
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
 import twisted.web.error as weberror
+from twisted.mail import smtp
 
 import datetime
 import pytz
 import json
 import traceback
+from email.MIMEText import MIMEText
 import StringIO
 import random
 import os
+import socket
 import locale
 import re
 import glob
@@ -67,14 +70,76 @@ class basicbot:
         self.config = {}
         self.IQ = {}
         self.rooms = {}
+        self.routingtable = {}
+        self.tw_access_tokens = {}
+        self.tw_routingtable = {}
         self.has_football = True
         self.xmlstream = None
         self.firstrun = False
         self.xmllog = DailyLogFile('xmllog', 'logs/')
         self.myjid = None
         self.conference = None
-
+        self.email_timestamps = []
         self.fortunes = open('startrek', 'r').read().split("\n%\n")
+
+    def email_error(self, exp, message=''):
+        """
+        Something to email errors when something fails
+        """
+        # Always log a message about our fun
+        cstr = StringIO.StringIO()
+        
+        if exp is not None:
+            traceback.print_exc(file=cstr)
+            cstr.seek(0)
+            if isinstance(exp, Exception):
+                log.err( exp )
+            else:
+                log.msg( exp )
+        log.msg( message )
+
+        
+        def should_email():
+            utcnow = datetime.datetime.utcnow()
+            self.email_timestamps.insert(0, utcnow )
+            delta = self.email_timestamps[0] - self.email_timestamps[-1]
+            if len(self.email_timestamps) < 10:
+                return True
+            while len(self.email_timestamps) > 10:
+                self.email_timestamps.pop()
+
+            return (delta > datetime.timedelta(hours=1))
+
+        # Logic to prevent email bombs
+        if not should_email():
+            log.msg("Email threshold exceeded, so no email sent!")
+            return False
+
+        msg = MIMEText("""
+System          : %s@%s [CWD: %s]
+System UTC date : %s
+process id      : %s
+system load     : %s
+Exception       :
+%s
+%s
+
+Message:
+%s""" % (os.getlogin(), socket.gethostname(), os.getcwd(),
+         datetime.datetime.utcnow(),
+         os.getpid(), ' '.join(['%.2f' % (_,) for _ in os.getloadavg()]),
+         cstr.read(), exp, message))
+
+        # TODO: add his local name
+        msg['subject'] = '[bot] Traceback -- %s' % (socket.gethostname(),)
+
+        msg['From'] = self.config['bot.email_errors_from']
+        msg['To'] = self.config['bot.email_errors_to']
+
+        df = smtp.sendmail(self.config['bot.smtp_server'], msg["From"], msg["To"], 
+                           msg)
+        df.addErrback( log.err )
+        return True
 
     def check_for_football(self):
         """ Logic to check if we have the football or not, this should
