@@ -183,9 +183,13 @@ class basicbot:
         self.config = {}
         self.IQ = {}
         self.rooms = {}
+        self.chatlog = {}
+        self.seqnum = 0
         self.routingtable = {}
         self.tw_access_tokens = {}
         self.tw_routingtable = {}
+        self.fb_access_tokens = {}
+        self.fb_routingtable = {}
         self.has_football = True
         self.xmlstream = None
         self.firstlogin = False
@@ -193,11 +197,19 @@ class basicbot:
         self.syndication = {}
         self.xmllog = DailyLogFile('xmllog', 'logs/')
         self.myjid = None
+        self.ingestjid = None
         self.conference = None
         self.email_timestamps = []
         self.fortunes = open('startrek', 'r').read().split("\n%\n")
         self.twitter_oauth_consumer = None
         self.logins = 0
+        
+        lc2 = LoopingCall( self.purge_logs )
+        lc2.start(60*60*24)
+
+    def on_firstlogin(self):
+        """ callbacked when we are first logged in """
+        pass
 
     def authd(self, xmlstream):
         """ callback when we are logged into the server! """
@@ -260,6 +272,74 @@ class basicbot:
         log.msg("load_facebook() called...")
         df = self.dbpool.runInteraction(load_facebook_from_db, self)
         df.addErrback( self.email_error )
+
+    def tweet_cb(self, response, twttxt, room, myjid, twituser):
+        """
+        Called after success going to twitter
+        """
+        if response is None:
+            return 
+        url = "https://twitter.com/%s/status/%s" % (twituser, response)
+        html = "Posted twitter message! View it <a href=\"%s\">here</a>." % (
+                                                url,)
+        plain = "Posted twitter message! %s" % (url,)
+        if room is not None:
+            self.send_groupchat(room, plain, html)
+
+        # Log
+        df = self.dbpool.runOperation(""" 
+            INSERT into """+self.name+"""_social_log(medium, source, 
+            resource_uri, message, response, response_code) 
+            values (%s,%s,%s,%s,%s,%s)
+            """, ('twitter', myjid, url, twttxt, response, 200))
+        df.addErrback( log.err )
+        return response
+
+    def tweet_eb(self, err, twttxt, room, myjid, twituser):
+        """
+        Called after error going to twitter
+        """
+        log.msg("====== Twitter Error! ======")
+        log.err( err )
+
+        # Make sure we only are trapping API errors
+        err.trap( weberror.Error )
+        # Don't email duplication errors
+        j = {}
+        try:
+            j = json.loads(err.value.response)
+        except:
+            log.msg("Unable to parse response |%s| as JSON" % (
+                                                        err.value.response,))
+        if (len(j.get('errors', [])) > 0 and 
+            j['errors'][0].get('code', 0) !=  187):
+            self.email_error(err, ("Room: %s\nmyjid: %s\ntwituser: %s\n"
+                                   +"tweet: %s\nError:%s\n") % (
+                                room, myjid, twituser, twttxt,
+                                err.value.response))
+
+        log.msg( err.getErrorMessage() )
+        log.msg( err.value.response )
+
+        msg = "Sorry, an error was encountered with the tweet."
+        htmlmsg = "Sorry, an error was encountered with the tweet."
+        if err.value.status == "401":
+            msg = "Post to twitter failed. Access token for %s " % (twituser,)
+            msg += "is no longer valid."
+            htmlmsg = msg + " Please refresh access tokens "
+            htmlmsg += "<a href='https://nwschat.weather.gov/nws/twitter.php'>here</a>."
+        if room is not None:    
+            self.send_groupchat(room, msg, htmlmsg)
+
+        # Log this
+        deffered = self.dbpool.runOperation(""" 
+            INSERT into """+self.name+"""_social_log(medium, source, message,
+            response, response_code, resource_uri) values (%s,%s,%s,%s,%s,%s)
+            """, ('twitter', myjid, twttxt, err.value.response, 
+                 err.value.status, "https://twitter.com/%s" % (twituser,) ))
+        deffered.addErrback( log.err )        
+
+        return err.value.response
 
     def email_error(self, exp, message=''):
         """
@@ -335,26 +415,15 @@ Message:
         self.myjid = jid.JID("%s@%s/twisted_words" % (
                                                 self.config["bot.username"],
                                                 self.config["bot.xmppdomain"]))
+        self.ingestjid = jid.JID("%s@%s" % (
+                                            self.config["bot.ingest_username"],
+                                            self.config["bot.xmppdomain"]))
         self.conference = self.config['bot.mucservice']
 
         self.twitter_oauth_consumer = oauth.OAuthConsumer(
                             self.config['bot.twitter.consumerkey'],
                             self.config['bot.twitter.consumersecret'])
 
-        # We need to clean up after ourselves and do stuff while running
-        #lc = LoopingCall( self.housekeeping )
-        #lc.start(60)
-        
-        # We need to clean up after ourselves and do stuff while running
-        #lc2 = LoopingCall( self.purge_logs )
-        #lc2.start(60*60*24)
-        
-        # Start up task to spam rooms at the 0z time
-        #tnext =  mx.DateTime.gmt() + mx.DateTime.RelativeDateTime(hour=0,
-        #                                        days=1, minute=0, second=0)
-        #secs = (tnext - mx.DateTime.gmt()).seconds
-        #reactor.callLater(secs, self.daily_timestamp)
-        
         factory = client.basicClientFactory(self.myjid, 
                                             self.config['bot.password'])
         factory.addBootstrap('//event/stream/authd', self.authd)
