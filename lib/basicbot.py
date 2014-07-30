@@ -478,11 +478,6 @@ Message:
         gmtnow = datetime.datetime.utcnow()
         self.check_for_football()
 
-        # Reset MAIL_COUNT at the top of the new day
-        if gmtnow.hour == 0 and gmtnow.minute < 5 and self.MAIL_COUNT != 24:
-            log.msg("Resetting MAIL_COUNT, old was %s" % (self.MAIL_COUNT,))
-            self.MAIL_COUNT = 24
-
         if len( self.IQ.keys() ) > 0:
             log.msg("ERROR: missing IQs %s" % (self.IQ.keys(),))
         if len( self.IQ.keys() ) > 5:
