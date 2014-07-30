@@ -175,7 +175,7 @@ class JabberClient(basicbot.basicbot):
                 # Require the x.twitter attribute to be set to prevent 
                 # confusion with some ingestors still sending tweets themself
                 if not elem.x.hasAttribute("twitter"):
-                    log.msg("skip message due to no twitter attr")
+                    #log.msg("skip message due to no twitter attr")
                     continue
                 twtextra = {}
                 if (elem.x and elem.x.hasAttribute("lat") and 
