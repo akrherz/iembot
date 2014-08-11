@@ -361,7 +361,7 @@ class AdminChannel(resource.Resource):
         
     def render(self, request):
         log.msg("Reloading iembot room configuration....")
-        self.iembot.join_chatrooms()
+        self.iembot.load_chatrooms(False)
         self.iembot.load_twitter()
         request.write( json.dumps({}) )
         request.finish()
