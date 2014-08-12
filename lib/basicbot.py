@@ -68,8 +68,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
     txn.execute("""SELECT roomname, fbpage, twitter from %s_rooms 
         ORDER by roomname ASC""" % (bot.name, ))
     oldrooms = bot.rooms.keys()
-    i = 0
-    for row in txn:
+    for i, row in enumerate(txn):
         rm = row['roomname']
             # Setup Room Config Dictionary
         if not bot.rooms.has_key(rm):
@@ -80,13 +79,12 @@ def load_chatrooms_from_db(txn, bot, always_join):
             
         if bot.rooms.has_key(rm) and rm in oldrooms:
             oldrooms.remove(rm)
-        if always_join:
+        if always_join or rm not in oldrooms:
             bot.rooms[rm]['occupants'] = {}
             presence = domish.Element(('jabber:client','presence'))
             presence['to'] = "%s@%s/%s" % (rm, bot.conference, 
                                                bot.myjid.user)
-            i += 1
-            reactor.callLater(i % 300, bot.xmlstream.send, presence)
+            reactor.callLater(i % 30, bot.xmlstream.send, presence)
 
     # Check old rooms for any rooms we need to vacate!
     for rm in oldrooms:
