@@ -25,6 +25,7 @@ from email.MIMEText import MIMEText
 import StringIO
 import random
 import os
+import pwd
 import urllib
 import socket
 import locale
@@ -384,7 +385,7 @@ Exception       :
 %s
 
 Message:
-%s""" % (os.getlogin(), socket.gethostname(), os.getcwd(),
+%s""" % (pwd.getpwuid(os.getuid())[0], socket.gethostname(), os.getcwd(),
          datetime.datetime.utcnow(),
          os.getpid(), ' '.join(['%.2f' % (_,) for _ in os.getloadavg()]),
          cstr.read(), exp, message))
