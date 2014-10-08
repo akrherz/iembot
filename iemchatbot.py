@@ -363,7 +363,7 @@ class AdminChannel(resource.Resource):
         log.msg("Reloading iembot room configuration....")
         self.iembot.load_chatrooms(False)
         self.iembot.load_twitter()
-        request.write( json.dumps({}) )
+        request.write( json.dumps("OK") )
         request.finish()
         return server.NOT_DONE_YET
 
