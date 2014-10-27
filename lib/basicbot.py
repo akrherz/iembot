@@ -427,6 +427,8 @@ Message:
 
         factory = client.basicClientFactory(self.myjid, 
                                             self.config['bot.password'])
+        # Limit reconnection delay to 60 seconds
+        factory.maxDelay = 60
         factory.addBootstrap('//event/stream/authd', self.authd)
 
         i = internet.TCPClient(self.config['bot.connecthost'], 5222, 
