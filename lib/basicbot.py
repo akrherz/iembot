@@ -1,4 +1,4 @@
-""" Basic iembot/nwsbot implementation, upstream for this code is 
+""" Basic iembot/nwsbot implementation, upstream for this code is
     on github: https://github.com/akrherz/iembot
 """
 
@@ -34,67 +34,88 @@ import glob
 from twittytwister import twitter
 locale.setlocale(locale.LC_ALL, 'en_US')
 
+PRESENCE_MUC_ITEM = (
+    "/presence/x[@xmlns='http://jabber.org/protocol/muc#user']/item")
+
+
 def load_chatrooms_from_db(txn, bot, always_join):
-    """ Load database configuration """
+    """ Load database configuration and do work
+
+    Args:
+      txn (dbtransaction): database cursor
+      bot (basicbot): the running bot instance
+      always_join (boolean): do we force joining each room, regardless
+    """
     # Load up the channel keys
     txn.execute("SELECT id, channel_key from %s_channels" % (bot.name,))
     for row in txn:
-        bot.channelkeys[ row['channel_key'] ] = row['id']
+        bot.channelkeys[row['channel_key']] = row['id']
 
     # Load up the routingtable for bot products
     rt = {}
-    txn.execute("SELECT roomname, channel from %s_room_subscriptions" % (
-                                                                bot.name,))
+    txn.execute("""
+        SELECT roomname, channel from %s_room_subscriptions
+    """ % (bot.name,))
     for row in txn:
         rm = row['roomname']
         channel = row['channel']
-        if not rt.has_key(channel):
+        if channel not in rt:
             rt[channel] = []
-        rt[channel].append( rm )
+        rt[channel].append(rm)
     bot.routingtable = rt
+    log.msg(("... loaded %s channel subscriptions for %s rooms"
+             ) % (txn.rowcount, len(rt)))
 
     # Now we need to load up the syndication
     synd = {}
-    txn.execute("SELECT roomname, endpoint from %s_room_syndications" % (
-                                                                bot.name,))
+    txn.execute("""
+        SELECT roomname, endpoint from %s_room_syndications
+    """ % (bot.name,))
     for row in txn:
         rm = row['roomname']
         endpoint = row['endpoint']
-        if not synd.has_key(rm):
+        if rm not in synd:
             synd[rm] = []
-        synd[rm].append( endpoint )
+        synd[rm].append(endpoint)
     bot.syndication = synd
+    log.msg(("... loaded %s room syndications for %s rooms"
+             ) % (txn.rowcount, len(synd)))
 
     # Load up a list of chatrooms
-    txn.execute("""SELECT roomname, fbpage, twitter from %s_rooms 
-        ORDER by roomname ASC""" % (bot.name, ))
+    txn.execute("""
+        SELECT roomname, fbpage, twitter from %s_rooms ORDER by roomname ASC
+    """ % (bot.name,))
     oldrooms = bot.rooms.keys()
+    joined = 0
     for i, row in enumerate(txn):
         rm = row['roomname']
-            # Setup Room Config Dictionary
-        if not bot.rooms.has_key(rm):
+        # Setup Room Config Dictionary
+        if rm not in bot.rooms:
             bot.rooms[rm] = {'fbpage': None, 'twitter': None,
                              'occupants': {}}
         bot.rooms[rm]['fbpage'] = row['fbpage']
         bot.rooms[rm]['twitter'] = row['twitter']
-            
-        if bot.rooms.has_key(rm) and rm in oldrooms:
-            oldrooms.remove(rm)
+
         if always_join or rm not in oldrooms:
-            bot.rooms[rm]['occupants'] = {}
-            presence = domish.Element(('jabber:client','presence'))
-            presence['to'] = "%s@%s/%s" % (rm, bot.conference, 
-                                               bot.myjid.user)
+            presence = domish.Element(('jabber:client', 'presence'))
+            presence['to'] = "%s@%s/%s" % (rm, bot.conference,
+                                           bot.myjid.user)
             reactor.callLater(i % 30, bot.xmlstream.send, presence)
+            joined += 1
+        if rm in oldrooms:
+            oldrooms.remove(rm)
 
     # Check old rooms for any rooms we need to vacate!
     for rm in oldrooms:
-        presence = domish.Element(('jabber:client','presence'))
+        presence = domish.Element(('jabber:client', 'presence'))
         presence['to'] = "%s@%s/%s" % (rm, bot.conference, bot.myjid.user)
         presence['type'] = 'unavailable'
         bot.xmlstream.send(presence)
 
-        del( bot.rooms[rm] )
+        del(bot.rooms[rm])
+    log.msg(("... loaded %s chatrooms, joined %s of them, left %s of them"
+             ) % (txn.rowcount, joined, len(oldrooms)))
+
 
 def load_twitter_from_db(txn, bot):
     """ Load twitter config from database """
@@ -140,7 +161,8 @@ def load_facebook_from_db(txn, bot):
         at = row['access_token']
         bot.fb_access_tokens[page] =  at
 
-def safe_twitter_text( text ):
+
+def safe_twitter_text(text):
     """ Attempt to rip apart a message that is too long! 
     To be safe, the URL is counted as 24 chars
     """
@@ -157,7 +179,7 @@ def safe_twitter_text( text ):
             chars += (len(word) + 1 )
     if chars < 140:
         return text
-    
+
     urls = re.findall('https?://[^\s]+', text)
     if len(urls) == 1:
         text2 = text.replace(urls[0], '')
@@ -171,6 +193,7 @@ def safe_twitter_text( text ):
         if len(text) > 140:
             return "%s... %s" % (text2[:109], urls[0])
     return text[:140]
+
 
 class basicbot:
     """ Here lies the Jabber Bot """
@@ -204,7 +227,7 @@ class basicbot:
         self.fortunes = open('startrek', 'r').read().split("\n%\n")
         self.twitter_oauth_consumer = None
         self.logins = 0
-        
+
         lc2 = LoopingCall( self.purge_logs )
         lc2.start(60*60*24)
 
@@ -533,35 +556,41 @@ Message:
         @param plain: Plain Text variant
         @param html:  HTML version of what message to send, optional
         """
-        message = domish.Element(('jabber:client','message'))
+        message = domish.Element(('jabber:client', 'message'))
         message['to'] = "%s@%s" % (room, self.conference)
         message['type'] = "groupchat"
         message.addElement('body', None, plain)
-        html = message.addElement('html', 'http://jabber.org/protocol/xhtml-im')
-        body = html.addElement('body', 'http://www.w3.org/1999/xhtml')
+        html = message.addElement('html',
+                                  'http://jabber.org/protocol/xhtml-im')
+        body = html.addElement('body',
+                               'http://www.w3.org/1999/xhtml')
         if htmlstr:
-            body.addRawXml( htmlstr )
+            body.addRawXml(htmlstr)
         else:
-            body.addContent( plain )
-        self.send_groupchat_elem( message )
-        
+            body.addContent(plain)
+        self.send_groupchat_elem(message)
+
     def send_groupchat_elem(self, elem, to=None, secondtrip=False):
         """ Wrapper for sending groupchat elements """
         if to is not None:
             elem['to'] = to
         room = jid.JID(elem['to']).user
-        if not self.rooms[room]['occupants'].has_key( self.myjid.user ):
+        if room not in self.rooms:
+            self.email_error(("Attempted to send message to room [%s] "
+                              "we have not joined...") % (room,), elem)
+            return
+        if self.myjid.user not in self.rooms[room]['occupants']:
             if secondtrip:
                 log.msg("ABORT of send to room: %s, msg: %s, not in room" % (
                                                         room, elem))
                 return
-            log.msg("delaying send to room: %s, not in room" % (room,))
-            # Need to prevent elem['to'] object overwriting 
+            log.msg("delaying send to room: %s, not in room yet" % (room,))
+            # Need to prevent elem['to'] object overwriting
             reactor.callLater(300, self.send_groupchat_elem, elem, elem['to'],
                               True)
             return
         self.xmlstream.send(elem)
-        
+
     def send_presence(self):
         """
         Set a presence for my login
@@ -616,38 +645,45 @@ Message:
         delta = (tnext - utcnow).days * 86400. + (tnext - utcnow).seconds
         log.msg('Calling daily_timestamp in %.2f seconds' % (delta, ))
         reactor.callLater(delta, self.daily_timestamp)
-        
+
     def presence_processor(self, elem):
-        """
-<presence xmlns='jabber:client' to='nwsbot@laptop.local/twisted_words' 
+        """Process the presence stanza
+
+        The bot process keeps track of room occupants and their affiliations,
+        roles so to provide ACLs for room admin activities.
+
+        Args:
+          elem (domish.Element): stanza
+
+<presence xmlns='jabber:client' to='nwsbot@laptop.local/twisted_words'
     from='dmxchat@conference.laptop.local/nws-daryl.herzmann'>
     <priority>1</priority>
-    <c xmlns='http://jabber.org/protocol/caps' node='http://pidgin.im/' 
-        ver='AcN1/PEN8nq7AHD+9jpxMV4U6YM=' ext='voice-v1 camera-v1 video-v1' 
+    <c xmlns='http://jabber.org/protocol/caps' node='http://pidgin.im/'
+        ver='AcN1/PEN8nq7AHD+9jpxMV4U6YM=' ext='voice-v1 camera-v1 video-v1'
         hash='sha-1'/>
     <x xmlns='vcard-temp:x:update'><photo/></x>
     <x xmlns='http://jabber.org/protocol/muc#user'>
-        <item affiliation='owner' jid='nws-mortal@laptop.local/laptop' 
+        <item affiliation='owner' jid='nws-mortal@laptop.local/laptop'
         role='moderator'/>
     </x>
 </presence>
         """
-        #log.msg("presence_processor() called")
-        items = xpath.queryForNodes("/presence/x[@xmlns='http://jabber.org/protocol/muc#user']/item", elem)
+        # log.msg("presence_processor() called")
+        items = xpath.queryForNodes(PRESENCE_MUC_ITEM, elem)
         if items is None:
             return
-        
-        _room = jid.JID( elem["from"] ).user
-        _handle = jid.JID( elem["from"] ).resource
+
+        _room = jid.JID(elem["from"]).user
+        _handle = jid.JID(elem["from"]).resource
         for item in items:
             affiliation = item.getAttribute('affiliation')
             _jid = item.getAttribute('jid')
             role = item.getAttribute('role')
-            self.rooms[ _room ]['occupants'][ _handle ] = {
+            self.rooms[_room]['occupants'][_handle] = {
                   'jid': _jid,
                   'affiliation': affiliation,
-                  'role': role }
-            
+                  'role': role}
+
     def route_message(self, elem, source='nwsbot_ingest'):
         """
         Route XML messages to the appropriate room
