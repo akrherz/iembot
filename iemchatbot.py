@@ -182,23 +182,11 @@ class JabberClient(basicbot.basicbot):
                     elem.x.hasAttribute("long")):
                     twtextra['lat'] = elem.x['lat']
                     twtextra['long'] = elem.x['long']
-                log.msg("Sending tweet %s" % (elem.x['twitter'],))
+                log.msg("Sending tweet '%s' to page '%s'" % (elem.x['twitter'],
+                                                             page))
                 # Finally, actually tweet, this is in basicbot
                 self.tweet(elem.x['twitter'], self.tw_access_tokens[page],
                            twtextra=twtextra, twituser=page)
-
-    def tweet_eb(self, err, twttxt, room, myjid, twituser):
-        ''' twitter update errorback '''
-        log.msg('tweet_eb: [%s] on %s' % (twituser, twttxt))
-        log.err( err )
-
-    def tweet_cb(self, res, twttxt, room, myjid, twituser):
-        ''' twitter callback '''
-        log.msg('tweet_cb: [%s] Res: %s' % (twituser, res))
-        url = "https://twitter.com/%s/status/%s" % (twituser, res)
-        
-        self.send_groupchat("twitter", "%s %s" % (twttxt, url))
-
 
 xml_cache = {}
 xml_cache_expires = {}

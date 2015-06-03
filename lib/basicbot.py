@@ -301,8 +301,9 @@ class basicbot:
         """
         Called after success going to twitter
         """
+        log.msg("tweet_cb() called...")
         if response is None:
-            return 
+            return
         url = "https://twitter.com/%s/status/%s" % (twituser, response)
         html = "Posted twitter message! View it <a href=\"%s\">here</a>." % (
                                                 url,)
@@ -311,12 +312,12 @@ class basicbot:
             self.send_groupchat(room, plain, html)
 
         # Log
-        df = self.dbpool.runOperation(""" 
-            INSERT into """+self.name+"""_social_log(medium, source, 
-            resource_uri, message, response, response_code) 
+        df = self.dbpool.runOperation("""
+            INSERT into """ + self.name + """_social_log(medium, source,
+            resource_uri, message, response, response_code)
             values (%s,%s,%s,%s,%s,%s)
             """, ('twitter', myjid, url, twttxt, response, 200))
-        df.addErrback( log.err )
+        df.addErrback(log.err)
         return response
 
     def tweet_eb(self, err, twttxt, room, myjid, twituser):
@@ -324,7 +325,7 @@ class basicbot:
         Called after error going to twitter
         """
         log.msg("====== Twitter Error! ======")
-        log.err( err )
+        log.err(err)
 
         # Make sure we only are trapping API errors
         err.trap( weberror.Error )
@@ -342,8 +343,8 @@ class basicbot:
                                 room, myjid, twituser, twttxt,
                                 err.value.response))
 
-        log.msg( err.getErrorMessage() )
-        log.msg( err.value.response )
+        log.msg(err.getErrorMessage())
+        log.msg(err.value.response)
 
         msg = "Sorry, an error was encountered with the tweet."
         htmlmsg = "Sorry, an error was encountered with the tweet."
@@ -352,18 +353,18 @@ class basicbot:
             msg += "is no longer valid."
             htmlmsg = msg + " Please refresh access tokens "
             htmlmsg += "<a href='https://nwschat.weather.gov/nws/twitter.php'>here</a>."
-        if room is not None:    
+        if room is not None:
             self.send_groupchat(room, msg, htmlmsg)
 
         # Log this
-        deffered = self.dbpool.runOperation(""" 
+        deffered = self.dbpool.runOperation("""
             INSERT into """+self.name+"""_social_log(medium, source, message,
             response, response_code, resource_uri) values (%s,%s,%s,%s,%s,%s)
             """, ('twitter', myjid, twttxt, err.value.response, 
                  err.value.status, "https://twitter.com/%s" % (twituser,) ))
-        deffered.addErrback( log.err )        
+        deffered.addErrback(log.err)
 
-        return err.value.response
+        # return err.value.response
 
     def email_error(self, exp, message=''):
         """
@@ -604,7 +605,7 @@ Message:
         presence.addElement('status').addContent(msg)
         if self.xmlstream is not None:
             self.xmlstream.send(presence)
-            
+
     def tweet(self, twttxt, access_token, room=None, myjid=None, twituser=None,
               twtextra=dict()):
         """
@@ -612,14 +613,14 @@ Message:
         """
         twt = twitter.Twitter(consumer=self.twitter_oauth_consumer, 
                               token=access_token)
-        twttxt = safe_twitter_text( twttxt )
-        df = twt.update( twttxt, None, twtextra )
+        twttxt = safe_twitter_text(twttxt)
+        df = twt.update(twttxt, None, twtextra)
         df.addCallback(self.tweet_cb, twttxt, room, myjid, twituser)
         df.addErrback(self.tweet_eb, twttxt, room, myjid, twituser)
-        df.addErrback( log.err )
+        df.addErrback(log.err)
 
         return df
-    
+
     def compute_daily_caller(self):
         log.msg("compute_daily_caller() called...")
         # Figure out when to spam all rooms with a timestamp
