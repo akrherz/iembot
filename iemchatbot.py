@@ -80,24 +80,27 @@ class JabberClient(basicbot.basicbot):
         if xpath.queryForNodes("/message/x[@xmlns='jabber:x:delay']", elem):
             return
 
-        _from = jid.JID( elem["from"] )
+        _from = jid.JID(elem["from"])
         room = _from.user
         res = _from.resource
-        
-        
+
         body = xpath.queryForString('/message/body', elem)
         if body is not None and len(body) >= 4 and body[:4] == "ping":
-            self.send_groupchat(room, "%s: %s" % (res, self.get_fortune() ) )
+            self.send_groupchat(room, "%s: %s" % (res, self.get_fortune()))
+
+        # Look for bot commands
+        if re.match(r"^%s:" % (self.name,), body):
+            self.process_groupchat_cmd(room, res, body[7:].strip())
 
         # In order for the message to be logged, it needs to be from iembot
         # and have a channels attribute
         if res is None or res != 'iembot':
             return
-        
+
         a = xpath.queryForNodes("/message/x[@xmlns='nwschat:nwsbot']", elem)
         if a is None or len(a) == 0:
             return
-        
+
         if not CHATLOG.has_key(room):
             CHATLOG[room] = {'seqnum': [-1]*40, 'timestamps': [0]*40, 
                              'log': ['']*40, 'author': ['']*40,

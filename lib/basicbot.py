@@ -935,7 +935,7 @@ with me outside of a groupchat.  I have initated such a chat for you.")
             self.handle_flood_request( elem, bstring)
         else:
             self.send_help_message( elem["from"] )
-            
+
     def process_groupchat_cmd(self, room, res, cmd):
         """
         Logic to process any groupchat commands proferred to nwsbot
@@ -945,8 +945,12 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         @param cmd String command that the resource sent
         """
         # Make sure we know who the real JID of this user is....
-        if not self.rooms[room]['occupants'].has_key(res):
-            self.send_groupchat(room, "%s: Sorry, I am unable to process your request due to a lookup failure.  Please consider rejoining the chatroom if you really wish to speak with me." % (res, ))
+        if res not in self.rooms[room]['occupants']:
+            self.send_groupchat(room, ("%s: Sorry, I am unable to process "
+                                       "your request due to a lookup failure."
+                                       "  Please consider rejoining the "
+                                       "chatroom if you really wish to "
+                                       "speak with me.") % (res, ))
             return
 
         # Figure out the user's affiliation
@@ -964,7 +968,9 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         # Add a channel to the room's subscriptions
         elif re.match(r"^channels add", cmd, re.I):
             if aff in ['owner', 'admin']:
-                self.channels_room_add(room, cmd[12:])
+                df = self.dbpool.runInteraction(self.channels_room_add,
+                                                room, cmd[12:])
+                df.addErrback(self.email_error, room + " -> " + cmd)
             else:
                 err = "%s: Sorry, you must be a room admin to add a channel" \
                        % (res,)
@@ -973,7 +979,9 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         # Del a channel to the room's subscriptions
         elif re.match(r"^channels del", cmd, re.I):
             if aff in ['owner', 'admin']:
-                self.channels_room_del(room, cmd[12:])
+                df = self.dbpool.runInteraction(self.channels_room_del,
+                                                room, cmd[12:])
+                df.addErrback(self.email_error, room + " -> " + cmd)
             else:
                 err = "%s: Sorry, you must be a room admin to add a channel" \
                        % (res,)
@@ -1015,68 +1023,88 @@ with me outside of a groupchat.  I have initated such a chat for you.")
                                                 ", ".join(channels) )
         self.send_groupchat(room, msg)
 
-    def channels_room_add(self, room, channel):
+    def channels_room_add(self, txn, room, channel):
+        """Add a channel subscription to a chatroom
+
+        Args:
+          room (str): the chatroom to add the subscription to
+          txn (psycopg2.transaction): database transaction
+          channel (str): the channel to subscribe to for the room
         """
-        Logic to add a channel to a given room, this may get tricky
-        """
+        # Remove extraneous fluff, all channels are uppercase
         channel = channel.upper().strip().replace(" ", "")
-        if len(channel) == 0:
-            self.send_groupchat(room, "Blank or missing channel")
+        if channel == '':
+            self.send_groupchat(room, ("Failed to add channel to room "
+                                       "subscription, you supplied a "
+                                       "blank channel?"))
             return
-        if channel.find(",") > -1:
-            self.send_groupchat(room, "commas not permitted, using first entry")
-            channel = channel.split(",")[0]
+        # Allow channels to be comma delimited
+        for ch in channel.split(","):
+            if ch not in self.routingtable:
+                self.routingtable[ch] = []
+            # If we are already subscribed, let em know!
+            if room in self.routingtable[ch]:
+                self.send_groupchat(room, ("Error adding subscription, your "
+                                           "room is already subscribed to the"
+                                           "'%s' channel") % (ch,))
+                continue
+            # Add a channels entry for this channel, if one currently does
+            # not exist
+            txn.execute("""
+                SELECT * from """+self.name+"""_channels
+                WHERE id = %s
+                """, (ch,))
+            if txn.rowcount == 0:
+                txn.execute("""
+                    INSERT into """+self.name+"""_channels(id, name)
+                    VALUES (%s, %s)
+                    """, (ch, ch))
 
-        if not self.routingtable.has_key(channel):
-            # Add to the database
-            sql = "INSERT into nwsbot_channels(id, name)\
-                values ('%s','%s')" % (channel, channel)
-            self.dbpool.runOperation(sql).addErrback( self.email_error, sql)
-            # Add to the routing table blank array
-            self.routingtable[channel] = []
-
-        if room not in self.routingtable[channel]:
             # Add to routing table
-            self.routingtable[channel].append( room )
+            self.routingtable[ch].append(room)
             # Add to database
-            sql = "INSERT into nwsbot_room_subscriptions \
-                (roomname, channel) VALUES ('%s', '%s')" % (room, channel)
-            self.dbpool.runOperation(sql).addErrback( self.email_error, sql)
-            self.send_groupchat(room, "Subscribed %s to channel %s" % \
-                (room, channel))
-        else:
-            self.send_groupchat(room, "%s was already subscribed to \
-channel %s" % (room, channel))
-
+            txn.execute("""
+                INSERT into """+self.name+"""_room_subscriptions
+                (roomname, channel) VALUES (%s, %s)
+                """, (room, ch))
+            self.send_groupchat(room, ("Subscribed %s to channel '%s'"
+                                       ) % (room, ch))
+        # Send room a listing of channels!
         self.channels_room_list(room)
 
-    def channels_room_del(self, room, channel):
-        """
-        Remove a certain channel from the room!
+    def channels_room_del(self, txn, room, channel):
+        """Removes a channel subscription for a given room
+
+        Args:
+          txn (psycopg2.transaction): database cursor
+          room (str): room to unsubscribe
+          channel (str): channel to unsubscribe from
         """
         channel = channel.upper().strip().replace(" ", "")
-        if len(channel) == 0:
+        if channel == '':
             self.send_groupchat(room, "Blank or missing channel")
             return
 
+        for ch in channel.split(","):
+            if ch not in self.routingtable:
+                self.send_groupchat(room, "Unknown channel: '%s'" % (ch,))
+                continue
 
-        if not self.routingtable.has_key(channel):
-            self.send_groupchat(room, "Unknown channel: %s" % (channel,))
-            return
+            if room not in self.routingtable[ch]:
+                self.send_groupchat(room, ("Room not subscribed to "
+                                           "channel: '%s'"
+                                           ) % (ch,))
+                continue
 
-        if room not in self.routingtable[channel]:
-            self.send_groupchat(room, "Room not subscribed to channel: %s" \
-                  % (channel,))
-            return
-
-        # Remove from routing table
-        self.routingtable[channel].remove(room)
-        # Remove from database
-        sql = "DELETE from nwsbot_room_subscriptions WHERE \
-            roomname = '%s' and channel = '%s'" % (room, channel)
-        self.dbpool.runOperation(sql).addErrback( self.email_error, sql)
-        self.send_groupchat(room, "Unscribed %s to channel %s" % \
-            (room, channel))
+            # Remove from routing table
+            self.routingtable[ch].remove(room)
+            # Remove from database
+            txn.execute("""
+                DELETE from """+self.name+"""_room_subscriptions WHERE
+                roomname = %s and channel = %s
+                """, (room, ch))
+            self.send_groupchat(room, ("Unscribed %s to channel '%s'"
+                                       ) % (room, ch))
         self.channels_room_list(room)
 
     def send_groupchat_help(self, room):
@@ -1084,12 +1112,12 @@ channel %s" % (room, channel))
         Send a message to a given chatroom about what commands I support
         """
         msg = """Current Supported Commands:
-  %(i)s: channels add channelname ### Add single channel to this room 
-  %(i)s: channels del channelname ### Delete single channel to this room 
+  %(i)s: channels add channelname[,channelname] ### Add channel subscription(s) for this room
+  %(i)s: channels del channelname[,channelname] ### Delete channel subscriptions(s) for this room
   %(i)s: channels list ### List channels this room is subscribed to
   %(i)s: ping          ### Test connectivity with a 'pong' response
   %(i)s: users         ### Generates list of users in room""" % {
-                                                    'i': self.myjid.user }
+                                                    'i': self.myjid.user}
 
         htmlmsg = msg.replace("\n", "<br />")
         self.send_groupchat(room, msg, htmlmsg)
