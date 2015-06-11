@@ -119,55 +119,63 @@ def load_chatrooms_from_db(txn, bot, always_join):
 
 def load_twitter_from_db(txn, bot):
     """ Load twitter config from database """
-    txn.execute("SELECT screen_name, channel from %s_twitter_subs" % (
-                                                                bot.name,))
+    txn.execute("""
+        SELECT screen_name, channel from """+bot.name+"""_twitter_subs
+        """)
     twrt = {}
     for row in txn:
         sn = row['screen_name']
         channel = row['channel']
         if sn == '' or channel == '':
             continue
-        if not twrt.has_key(channel):
+        if channel not in twrt:
             twrt[channel] = []
-        twrt[channel].append( sn )
+        twrt[channel].append(sn)
     bot.tw_routingtable = twrt
     log.msg("load_twitter_from_db(): %s subs found" % (txn.rowcount,))
-        
-    txn.execute("""SELECT screen_name, access_token, access_token_secret 
-        from %s_twitter_oauth""" % (bot.name,))
+
+    txn.execute("""
+        SELECT screen_name, access_token, access_token_secret
+        from """+bot.name+"""_twitter_oauth
+        """)
     for row in txn:
         sn = row['screen_name']
         at = row['access_token']
         ats = row['access_token_secret']
-        bot.tw_access_tokens[sn] =  oauth.OAuthToken(at,ats)
+        bot.tw_access_tokens[sn] = oauth.OAuthToken(at, ats)
     log.msg("load_twitter_from_db(): %s oauth tokens found" % (txn.rowcount,))
+
 
 def load_facebook_from_db(txn, bot):
     """ Load facebook config from database """
-    txn.execute("SELECT fbpid, channel from %s_fb_subscriptions" % (bot.name,))
+    txn.execute("""
+        SELECT fbpid, channel from """+bot.name+"""_fb_subscriptions
+        """)
     fbrt = {}
     for row in txn:
         page = row['fbpid']
         channel = row['channel']
-        if not fbrt.has_key(channel):
+        if channel not in fbrt:
             fbrt[channel] = []
-        fbrt[channel].append( page )
+        fbrt[channel].append(page)
     bot.fb_routingtable = fbrt
-        
-    txn.execute("SELECT fbpid, access_token from %s_fb_access_tokens" % (bot.name,))
-    
+
+    txn.execute("""
+        SELECT fbpid, access_token from """+bot.name+"""_fb_access_tokens
+        """)
+
     for row in txn:
         page = row['fbpid']
         at = row['access_token']
-        bot.fb_access_tokens[page] =  at
+        bot.fb_access_tokens[page] = at
 
 
 def safe_twitter_text(text):
-    """ Attempt to rip apart a message that is too long! 
+    """ Attempt to rip apart a message that is too long!
     To be safe, the URL is counted as 24 chars
     """
     # Convert two or more spaces into one
-    text = ' '.join( text.split() )
+    text = ' '.join(text.split())
     # If we are already below 140, we don't have any more work to do...
     if len(text) < 140:
         return text
@@ -176,7 +184,7 @@ def safe_twitter_text(text):
         if word.find('http') == 0:
             chars += 25
         else:
-            chars += (len(word) + 1 )
+            chars += (len(word) + 1)
     if chars < 140:
         return text
 
@@ -188,7 +196,8 @@ def safe_twitter_text(text):
             text = "%s%s%s" % (sections[0][0], sections[0][2], urls[0])
             if len(text) > 140:
                 sz = 112 - len(sections[0][2])
-                text = "%s%s%s" % (sections[0][0][:sz], sections[0][2], urls[0])
+                text = "%s%s%s" % (sections[0][0][:sz], sections[0][2],
+                                   urls[0])
             return text
         if len(text) > 140:
             return "%s... %s" % (text2[:109], urls[0])
@@ -228,7 +237,7 @@ class basicbot:
         self.twitter_oauth_consumer = None
         self.logins = 0
 
-        lc2 = LoopingCall( self.purge_logs )
+        lc2 = LoopingCall(self.purge_logs)
         lc2.start(60*60*24)
 
     def on_firstlogin(self):
@@ -243,11 +252,11 @@ class basicbot:
             self.compute_daily_caller()
             self.on_firstlogin()
             self.firstlogin = True
-        
+
         # Resets associated with the previous login session, perhaps
         self.rooms = {}
         self.IQ = {}
-        
+
         # Assignment of xmlstream!
         self.xmlstream = xmlstream
         self.xmlstream.rawDataInFn = self.rawDataInFn
@@ -255,18 +264,18 @@ class basicbot:
 
         self.xmlstream.addObserver('/message',  self.message_processor)
         self.xmlstream.addObserver('/iq',  self.iq_processor)
-        self.xmlstream.addObserver('/presence/x/item',  self.presence_processor)
-        
+        self.xmlstream.addObserver('/presence/x/item', self.presence_processor)
+
         self.load_twitter()
         self.send_presence()
         self.load_chatrooms(True)
         self.load_facebook()
-        
+
         lc = LoopingCall(self.housekeeping)
         lc.start(60)
         self.xmlstream.addObserver(STREAM_END_EVENT, lambda _: lc.stop())
 
-    def next_seqnum( self ):
+    def next_seqnum(self):
         """
         Simple tool to generate a sequence number for message logging
         """
