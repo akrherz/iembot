@@ -577,7 +577,9 @@ Message:
         if htmlstr:
             body.addRawXml(htmlstr)
         else:
-            body.addContent(plain)
+            # Careful here, we always want to have valid xhtml, so we should
+            # wrap plain text in a paragraph tag
+            body.addRawXml("<p>%s</p>" % (plain,))
         self.send_groupchat_elem(message)
 
     def send_groupchat_elem(self, elem, to=None, secondtrip=False):
