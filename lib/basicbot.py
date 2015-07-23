@@ -552,10 +552,11 @@ Message:
         message.addElement('body', None, mess)
         html = message.addElement('html', 'http://jabber.org/protocol/xhtml-im')
         body = html.addElement('body', 'http://www.w3.org/1999/xhtml')
-        if htmlstr:
-            body.addRawXml( htmlstr )
+        if htmlstr is not None:
+            body.addRawXml(htmlstr)
         else:
-            body.addContent( mess )
+            p = body.addElement('p')
+            p.addContent(mess)
         self.xmlstream.send(message)
 
     def send_groupchat(self, room, plain, htmlstr=None, secondtrip=False):
@@ -574,12 +575,13 @@ Message:
                                   'http://jabber.org/protocol/xhtml-im')
         body = html.addElement('body',
                                'http://www.w3.org/1999/xhtml')
-        if htmlstr:
+        if htmlstr is not None:
             body.addRawXml(htmlstr)
         else:
             # Careful here, we always want to have valid xhtml, so we should
             # wrap plain text in a paragraph tag
-            body.addRawXml("<p>%s</p>" % (plain,))
+            p = body.addElement('p')
+            p.addContent(plain)
         self.send_groupchat_elem(message)
 
     def send_groupchat_elem(self, elem, to=None, secondtrip=False):
