@@ -23,7 +23,7 @@ import pickle
 import os
 import json
 
-from lib import basicbot
+from iembot import basicbot
 
 CHATLOG = {}
 

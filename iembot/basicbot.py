@@ -426,12 +426,14 @@ Message:
         # TODO: add his local name
         msg['subject'] = '[bot] Traceback -- %s' % (socket.gethostname(),)
 
-        msg['From'] = self.config['bot.email_errors_from']
-        msg['To'] = self.config['bot.email_errors_to']
+        msg['From'] = self.config.get('bot.email_errors_from',
+                                      'root@localhost')
+        msg['To'] = self.config.get('bot.email_errors_to',
+                                    'root@localhost')
 
-        df = smtp.sendmail(self.config['bot.smtp_server'], msg["From"], msg["To"], 
-                           msg)
-        df.addErrback( log.err )
+        df = smtp.sendmail(self.config.get('bot.smtp_server', 'localhost'),
+                           msg["From"], msg["To"], msg)
+        df.addErrback(log.err)
         return True
 
     def check_for_football(self):
@@ -445,7 +447,7 @@ Message:
 
         for row in res:
             self.config[ row['propname'] ] = row['propvalue']
-        
+
         self.myjid = jid.JID("%s@%s/twisted_words" % (
                                                 self.config["bot.username"],
                                                 self.config["bot.xmppdomain"]))
