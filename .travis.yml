@@ -6,6 +6,7 @@ python:
 install:
   - "pip install -q Twisted"
   - "pip install coveralls"
+  - "pip install oauth"
 
 script:
   "coverage run --source=iembot setup.py test"
