@@ -17,6 +17,8 @@ from twisted.web import client as webclient
 
 from oauth import oauth
 
+from xml.etree import ElementTree as ET
+
 import datetime
 import pytz
 import json
@@ -31,6 +33,7 @@ import socket
 import locale
 import re
 import glob
+
 from twittytwister import twitter
 locale.setlocale(locale.LC_ALL, 'en_US')
 
@@ -562,12 +565,16 @@ Message:
         self.xmlstream.send(message)
 
     def send_groupchat(self, room, plain, htmlstr=None, secondtrip=False):
-        """
-        Helper method to send messages to chatrooms
+        """Send a groupchat message to a given room
 
-        @param room: String name of the chatroom name
-        @param plain: Plain Text variant
-        @param html:  HTML version of what message to send, optional
+        Args:
+          room (str): The roomname (which we should have already joined)
+          plain (str): The message to send to the room, no escaping necessary
+          htmlstr (str, optional): The HTML variant of the message
+          secondtrip (bool, optional): Is this the second attempt to deliver
+
+        Returns:
+          twisted.words.xish.domish.Element: the element that was sent
         """
         message = domish.Element(('jabber:client', 'message'))
         message['to'] = "%s@%s" % (room, self.conference)
@@ -584,7 +591,15 @@ Message:
             # wrap plain text in a paragraph tag
             p = body.addElement('p')
             p.addContent(plain)
-        self.send_groupchat_elem(message)
+        # Ensure that we have well formed XML before sending it
+        try:
+            _ = ET.fromstring(message.toXml())
+        except Exception, exp:
+            self.email_error(exp, message.toXml())
+            return None
+        else:
+            self.send_groupchat_elem(message)
+        return message
 
     def send_groupchat_elem(self, elem, to=None, secondtrip=False):
         """ Wrapper for sending groupchat elements """
