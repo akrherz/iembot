@@ -30,12 +30,10 @@ import os
 import pwd
 import urllib
 import socket
-import locale
 import re
 import glob
 
 from twittytwister import twitter
-locale.setlocale(locale.LC_ALL, 'en_US')
 
 PRESENCE_MUC_ITEM = (
     "/presence/x[@xmlns='http://jabber.org/protocol/muc#user']/item")
@@ -630,8 +628,7 @@ Message:
         msg = "Booted: %s Updated: %s UTC, Rooms: %s, Messages: %s" % (
                                         self.startup_time.strftime("%d %b"),
                                         datetime.datetime.utcnow().strftime("%H%M"),
-                                        len(self.rooms), 
-                                        locale.format("%d", self.seqnum, grouping=True) )
+                                        len(self.rooms), self.seqnum)
         presence.addElement('status').addContent(msg)
         if self.xmlstream is not None:
             self.xmlstream.send(presence)
