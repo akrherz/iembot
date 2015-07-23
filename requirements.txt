@@ -1,2 +1,4 @@
 Twisted
 oauth
+pytz
+git+https://github.com/akrherz/twitty-twister.git#egg=twitty-twister

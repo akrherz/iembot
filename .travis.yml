@@ -7,6 +7,8 @@ install:
   - "pip install -q Twisted"
   - "pip install coveralls"
   - "pip install oauth"
+  - "pip install pytz"
+  - "pip install git+https://github.com/akrherz/twitty-twister.git#egg=twitty-twister"
 
 script:
   "coverage run --source=iembot setup.py test"
