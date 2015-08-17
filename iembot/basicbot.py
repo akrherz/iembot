@@ -135,6 +135,7 @@ def load_twitter_from_db(txn, bot):
     bot.tw_routingtable = twrt
     log.msg("load_twitter_from_db(): %s subs found" % (txn.rowcount,))
 
+    twtokens = {}
     txn.execute("""
         SELECT screen_name, access_token, access_token_secret
         from """+bot.name+"""_twitter_oauth
@@ -143,7 +144,8 @@ def load_twitter_from_db(txn, bot):
         sn = row['screen_name']
         at = row['access_token']
         ats = row['access_token_secret']
-        bot.tw_access_tokens[sn] = oauth.OAuthToken(at, ats)
+        twtokens[sn] = oauth.OAuthToken(at, ats)
+    bot.tw_access_tokens = twtokens
     log.msg("load_twitter_from_db(): %s oauth tokens found" % (txn.rowcount,))
 
 
