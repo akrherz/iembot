@@ -180,10 +180,11 @@ def safe_twitter_text(text):
     # Convert two or more spaces into one
     text = ' '.join(text.split())
     # If we are already below 140, we don't have any more work to do...
-    if len(text) < 140:
+    if len(text) < 140 and text.find("http") == -1:
         return text
     chars = 0
-    for word in text.split():
+    words = text.split()
+    for word in words:
         if word.find('http') == 0:
             chars += 25
         else:
@@ -204,6 +205,12 @@ def safe_twitter_text(text):
             return text
         if len(text) > 140:
             return "%s... %s" % (text2[:109], urls[0])
+    if chars > 140:
+        if words[-1].startswith('http'):
+            i = -2
+            while len(' '.join(words[:i])) > (137-25):
+                i -= 1
+            return ' '.join(words[:i]) + '... ' + words[-1]
     return text[:140]
 
 
