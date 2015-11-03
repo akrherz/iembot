@@ -298,15 +298,15 @@ class basicbot:
         support getting called at a later date for any changes
         """
         log.msg("load_chatrooms() called...")
-        df = self.dbpool.runInteraction(load_chatrooms_from_db, self, 
-                                            always_join)
-        df.addErrback( self.email_error, "load_chatrooms() failure" )
-        
+        df = self.dbpool.runInteraction(load_chatrooms_from_db, self,
+                                        always_join)
+        df.addErrback(self.email_error, "load_chatrooms() failure")
+
     def load_twitter(self):
         ''' Load the twitter subscriptions and access tokens '''
         log.msg("load_twitter() called...")
         df = self.dbpool.runInteraction(load_twitter_from_db, self)
-        df.addErrback( self.email_error, "load_twitter() failure" )
+        df.addErrback(self.email_error, "load_twitter() failure")
 
     def load_facebook(self):
         """
@@ -314,7 +314,7 @@ class basicbot:
         """
         log.msg("load_facebook() called...")
         df = self.dbpool.runInteraction(load_facebook_from_db, self)
-        df.addErrback( self.email_error )
+        df.addErrback(self.email_error)
 
     def tweet_cb(self, response, twttxt, room, myjid, twituser):
         """
@@ -347,7 +347,7 @@ class basicbot:
         log.err(err)
 
         # Make sure we only are trapping API errors
-        err.trap( weberror.Error )
+        err.trap(weberror.Error)
         # Don't email duplication errors
         j = {}
         try:
@@ -355,12 +355,12 @@ class basicbot:
         except:
             log.msg("Unable to parse response |%s| as JSON" % (
                                                         err.value.response,))
-        if (len(j.get('errors', [])) > 0 and 
-            j['errors'][0].get('code', 0) !=  187):
+        if (len(j.get('errors', [])) > 0 and
+                j['errors'][0].get('code', 0) != 187):
             self.email_error(err, ("Room: %s\nmyjid: %s\ntwituser: %s\n"
-                                   +"tweet: %s\nError:%s\n") % (
-                                room, myjid, twituser, twttxt,
-                                err.value.response))
+                                   "tweet: %s\nError:%s\n"
+                                   ) % (room, myjid, twituser, twttxt,
+                                        err.value.response))
 
         log.msg(err.getErrorMessage())
         log.msg(err.value.response)
@@ -371,7 +371,8 @@ class basicbot:
             msg = "Post to twitter failed. Access token for %s " % (twituser,)
             msg += "is no longer valid."
             htmlmsg = msg + " Please refresh access tokens "
-            htmlmsg += "<a href='https://nwschat.weather.gov/nws/twitter.php'>here</a>."
+            htmlmsg += ('<a href="https://nwschat.weather.gov/'
+                        'nws/twitter.php">here</a>.')
         if room is not None:
             self.send_groupchat(room, msg, htmlmsg)
 
@@ -379,8 +380,8 @@ class basicbot:
         deffered = self.dbpool.runOperation("""
             INSERT into """+self.name+"""_social_log(medium, source, message,
             response, response_code, resource_uri) values (%s,%s,%s,%s,%s,%s)
-            """, ('twitter', myjid, twttxt, err.value.response, 
-                 err.value.status, "https://twitter.com/%s" % (twituser,) ))
+            """, ('twitter', myjid, twttxt, err.value.response,
+                  err.value.status, "https://twitter.com/%s" % (twituser,)))
         deffered.addErrback(log.err)
 
         # return err.value.response
@@ -391,20 +392,19 @@ class basicbot:
         """
         # Always log a message about our fun
         cstr = StringIO.StringIO()
-        
+
         if exp is not None:
             traceback.print_exc(file=cstr)
             cstr.seek(0)
             if isinstance(exp, Exception):
-                log.err( exp )
+                log.err(exp)
             else:
-                log.msg( exp )
-        log.msg( message )
+                log.msg(exp)
+        log.msg(message)
 
-        
         def should_email():
             utcnow = datetime.datetime.utcnow()
-            self.email_timestamps.insert(0, utcnow )
+            self.email_timestamps.insert(0, utcnow)
             delta = self.email_timestamps[0] - self.email_timestamps[-1]
             if len(self.email_timestamps) < 10:
                 return True
@@ -456,7 +456,7 @@ Message:
         log.msg("fire_client_with_config() called ...")
 
         for row in res:
-            self.config[ row['propname'] ] = row['propvalue']
+            self.config[row['propname']] = row['propvalue']
 
         self.myjid = jid.JID("%s@%s/twisted_words" % (
                                                 self.config["bot.username"],
@@ -470,36 +470,36 @@ Message:
                             self.config['bot.twitter.consumerkey'],
                             self.config['bot.twitter.consumersecret'])
 
-        factory = client.basicClientFactory(self.myjid, 
+        factory = client.basicClientFactory(self.myjid,
                                             self.config['bot.password'])
         # Limit reconnection delay to 60 seconds
         factory.maxDelay = 60
         factory.addBootstrap('//event/stream/authd', self.authd)
 
-        i = internet.TCPClient(self.config['bot.connecthost'], 5222, 
+        i = internet.TCPClient(self.config['bot.connecthost'], 5222,
                                factory)
         i.setServiceParent(serviceCollection)
 
     def get_fortune(self):
         """ Get a random value from the array """
         offset = int((len(self.fortunes)-1) * random.random())
-        return " ".join( self.fortunes[offset].replace("\n","").split() )
+        return " ".join(self.fortunes[offset].replace("\n", "").split())
 
     def failure(self, f):
-        log.err( f )
+        log.err(f)
 
     def debug(self, elem):
-        log.msg( elem )
+        log.msg(elem)
 
     def rawDataInFn(self, data):
         self.xmllog.write("%s RECV %s\n" % (
-                    datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), 
-                                            data))
+                    datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                    data))
 
     def rawDataOutFn(self, data):
         self.xmllog.write("%s SEND %s\n" % (
                     datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                                            data))
+                    data))
 
     def purge_logs(self):
         """ Remove chat logs on a 24 HR basis """
@@ -508,15 +508,15 @@ Message:
                 days=int(self.config.get('bot.purge_xmllog_days', 7)))
         basets = basets.replace(tzinfo=pytz.timezone("UTC"))
         for fn in glob.glob("logs/xmllog.*"):
-            ts = datetime.datetime.strptime(fn,'logs/xmllog.%Y_%m_%d')
+            ts = datetime.datetime.strptime(fn, 'logs/xmllog.%Y_%m_%d')
             ts = ts.replace(tzinfo=pytz.timezone("UTC"))
             if ts < basets:
                 log.msg("Purging logfile %s" % (fn,))
                 os.remove(fn)
 
     def housekeeping(self):
-        """ 
-        This gets exec'd every minute to keep up after ourselves 
+        """
+        This gets exec'd every minute to keep up after ourselves
         1. XMPP Server Ping
         2. Check if we have the football
         3. Update presence
@@ -524,29 +524,29 @@ Message:
         gmtnow = datetime.datetime.utcnow()
         self.check_for_football()
 
-        if len( self.IQ.keys() ) > 0:
+        if len(self.IQ.keys()) > 0:
             log.msg("ERROR: missing IQs %s" % (self.IQ.keys(),))
-        if len( self.IQ.keys() ) > 5:
+        if len(self.IQ.keys()) > 5:
             self.IQ = {}
-            self.email_error("Logging out of Chat!", "IQ error limit reached...")
+            self.email_error("Logging out of Chat!",
+                             "IQ error limit reached...")
             if self.xmlstream is not None:
                 self.xmlstream.sendFooter()
                 self.xmlstream.connectionLost('BAD')
             return
-        ping = domish.Element((None,'iq'))
+        ping = domish.Element((None, 'iq'))
         ping['to'] = self.myjid.host
         ping['type'] = 'get'
         pingid = "%s" % (gmtnow.strftime("%Y%m%d%H%M"), )
         ping['id'] = pingid
-        ping.addChild( domish.Element(('urn:xmpp:ping', 'ping')) )
+        ping.addChild(domish.Element(('urn:xmpp:ping', 'ping')))
         if self.xmlstream is not None:
-            self.IQ[ pingid ] = 1
-            self.xmlstream.send( ping )
+            self.IQ[pingid] = 1
+            self.xmlstream.send(ping)
             if gmtnow.minute % 10 == 0:
                 self.send_presence()
                 # Reset our service guard
                 self.logins = 1
-
 
     def send_privatechat(self, to, mess, htmlstr=None):
         """
@@ -554,15 +554,16 @@ Message:
 
         @param to: String jabber ID to send the message too
         @param mess: String plain text version to send
-        @param html: Optional String html version 
+        @param html: Optional String html version
         """
-        message = domish.Element(('jabber:client','message'))
-        if to.find("@") == -1: # base username, add domain
+        message = domish.Element(('jabber:client', 'message'))
+        if to.find("@") == -1:  # base username, add domain
             to = "%s@%s" % (to, self.config["bot.xmppdomain"])
         message['to'] = to
         message['type'] = "chat"
         message.addElement('body', None, mess)
-        html = message.addElement('html', 'http://jabber.org/protocol/xhtml-im')
+        html = message.addElement('html',
+                                  'http://jabber.org/protocol/xhtml-im')
         body = html.addElement('body', 'http://www.w3.org/1999/xhtml')
         if htmlstr is not None:
             body.addRawXml(htmlstr)
@@ -633,11 +634,11 @@ Message:
         """
         Set a presence for my login
         """
-        presence = domish.Element(('jabber:client','presence'))
-        msg = "Booted: %s Updated: %s UTC, Rooms: %s, Messages: %s" % (
-                                        self.startup_time.strftime("%d %b"),
-                                        datetime.datetime.utcnow().strftime("%H%M"),
-                                        len(self.rooms), self.seqnum)
+        presence = domish.Element(('jabber:client', 'presence'))
+        msg = ("Booted: %s Updated: %s UTC, Rooms: %s, Messages: %s"
+               ) % (self.startup_time.strftime("%d %b"),
+                    datetime.datetime.utcnow().strftime("%H%M"),
+                    len(self.rooms), self.seqnum)
         presence.addElement('status').addContent(msg)
         if self.xmlstream is not None:
             self.xmlstream.send(presence)
@@ -645,9 +646,9 @@ Message:
     def tweet(self, twttxt, access_token, room=None, myjid=None, twituser=None,
               twtextra=dict()):
         """
-        Tweet a message 
+        Tweet a message
         """
-        twt = twitter.Twitter(consumer=self.twitter_oauth_consumer, 
+        twt = twitter.Twitter(consumer=self.twitter_oauth_consumer,
                               token=access_token)
         twttxt = safe_twitter_text(twttxt)
         df = twt.update(twttxt, None, twtextra)
@@ -661,10 +662,10 @@ Message:
         log.msg("compute_daily_caller() called...")
         # Figure out when to spam all rooms with a timestamp
         utc = datetime.datetime.utcnow() + datetime.timedelta(days=1)
-        tnext =  utc.replace(hour=0,minute=0,second=0)
+        tnext = utc.replace(hour=0, minute=0, second=0)
         log.msg('Initial Calling daily_timestamp in %s seconds' % (
                             (tnext - datetime.datetime.utcnow()).seconds, ))
-        reactor.callLater((tnext - datetime.datetime.utcnow()).seconds, 
+        reactor.callLater((tnext - datetime.datetime.utcnow()).seconds,
                           self.daily_timestamp)
 
     def daily_timestamp(self):
@@ -728,33 +729,33 @@ Message:
         @param elem: domish.Element stanza to process
         @param source optional source of this message, assume nwsbot_ingest
         """
-        # Go look for body to see routing info! 
+        # Go look for body to see routing info!
         # Get the body string
         if not elem.body:
             log.msg("Unprocessable message:")
-            log.msg(elem )
+            log.msg(elem)
             return
 
         bstring = unicode(elem.body)
         if not bstring:
             log.msg("Nothing found in body?")
-            log.msg( elem )
+            log.msg(elem)
             return
 
         # Send message to botstalk, unmodified
         elem['type'] = "groupchat"
         elem['to'] = "botstalk@%s" % (self.conference,)
-        self.send_groupchat_elem( elem )
+        self.send_groupchat_elem(elem)
 
         if elem.x and elem.x.hasAttribute("channels"):
             channels = elem.x['channels'].split(",")
         else:
             # The body string contains
             (channel, meat) = bstring.split(":", 1)
-            channels = [channel,]
+            channels = [channel, ]
             # Send to chatroom, clip body of channel notation
             elem.body.children[0] = meat
-            
+
         # Look for custom twitter formatting
         twt = bstring
         if elem.x and elem.x.hasAttribute("twitter"):
@@ -763,11 +764,11 @@ Message:
         # Route to subscription channels
         alertedRooms = []
         for channel in channels:
-            if self.routingtable.has_key(channel):
+            if channel in self.routingtable:
                 for room in self.routingtable[channel]:
                     if room in alertedRooms:
                         continue
-                    alertedRooms.append( room )
+                    alertedRooms.append(room)
                     elem['to'] = "%s@%s" % (room, self.conference)
                     if elem.x and elem.x.hasAttribute("facebookonly"):
                         continue
@@ -780,23 +781,23 @@ Message:
         for channel in channels:
             if channel == '':
                 continue
-            if self.tw_routingtable.has_key(channel):
+            if channel in self.tw_routingtable:
                 log.msg('Twitter wants channel: %s' % (channel,))
                 for page in self.tw_routingtable[channel]:
                     if page in alertedTwitter:
                         continue
                     log.msg('Twitter Page: %s wants channel: %s' % (page,
                                                                     channel))
-                    alertedTwitter.append( page )
+                    alertedTwitter.append(page)
                     if elem.x and elem.x.hasAttribute("nwschatonly"):
                         continue
-                    if self.tw_access_tokens.has_key(page):
+                    if page in self.tw_access_tokens:
                         log.msg('Channel: [%s] Page: [%s] Tweet: [%s]' % (
                                                         channel, page, twt))
                         if self.has_football:
                             twtextra = {}
-                            if (elem.x and elem.x.hasAttribute("lat") and 
-                                elem.x.hasAttribute("long")):
+                            if (elem.x and elem.x.hasAttribute("lat") and
+                                    elem.x.hasAttribute("long")):
                                 twtextra['lat'] = elem.x['lat']
                                 twtextra['long'] = elem.x['long']
                             self.tweet(twt, self.tw_access_tokens[page],
@@ -806,16 +807,17 @@ Message:
                             self.send_groupchat('twitter', twt)
                         else:
                             log.msg("No Twitter since we have no football")
-                            self.send_groupchat('twitter', "NO FOOTBALL %s" % (twt,) )
+                            self.send_groupchat('twitter',
+                                                "NO FOOTBALL %s" % (twt,))
 
-            if self.fb_routingtable.has_key(channel):
+            if channel in self.fb_routingtable:
                 log.msg('Facebook wants channel: %s' % (channel,))
                 for page in self.fb_routingtable[channel]:
                     log.msg('Facebook Page: %s wants channel: %s' % (page,
-                                                                    channel))
+                                                                     channel))
                     if page in alertedPages:
                         continue
-                    alertedPages.append( page )
+                    alertedPages.append(page)
                     if elem.x and elem.x.hasAttribute("nwschatonly"):
                         continue
                     self.send_fb_fanpage(elem, page)
@@ -823,35 +825,36 @@ Message:
     def fbfail(self, err, room, myjid, message, fbpage):
         """ We got a failure from facebook API!"""
         log.msg("=== Facebook API Failure ===")
-        log.err( err )
-        err.trap( weberror.Error )
+        log.err(err)
+        err.trap(weberror.Error)
         j = None
         try:
             j = json.loads(err.value.response)
         except:
             pass
-        log.msg( err.getErrorMessage() )
-        log.msg( err.value.response )
-        self.email_error(err, "FBError room: %s\nmyjid: %s\nmessage: %s\nError:%s" % (
-                        room, myjid, message, err.value.response))
-    
-        msg = 'Posting to facebook failed! Got this message: %s' % ( 
+        log.msg(err.getErrorMessage())
+        log.msg(err.value.response)
+        self.email_error(err, ("FBError room: %s\nmyjid: %s\nmessage: %s\n"
+                               "Error:%s"
+                               ) % (room, myjid, message, err.value.response))
+
+        msg = 'Posting to facebook failed! Got this message: %s' % (
                             err.getErrorMessage(),)
         if j is not None:
             msg = 'Posting to facebook failed with this message: %s' % (
                             j.get('error', {}).get('message', 'Missing'),)
-    
+
         if room is not None:
             self.send_groupchat(room, msg)
 
         # Log this
-        df = self.dbpool.runOperation(""" 
+        df = self.dbpool.runOperation("""
             INSERT into nwsbot_social_log(medium, source, message,
             response, response_code, resource_uri) values (%s,%s,%s,%s,%s,%s)
-            """, ('facebook', myjid, message, err.value.response, 
-                 err.value.status, fbpage ))
-        df.addErrback( log.err )
-        
+            """, ('facebook', myjid, message, err.value.response,
+                  err.value.status, fbpage))
+        df.addErrback(log.err)
+
     def fbsuccess(self, response, room, myjid, message):
         """ Got a response from facebook! """
         d = json.loads(response)
@@ -863,35 +866,35 @@ Message:
         plain = "Posted Facebook Message! %s" % (url,)
         if room is not None:
             self.send_groupchat(room, plain, html)
-        
+
         # Log this
-        df = self.dbpool.runOperation(""" 
-            INSERT into nwsbot_social_log(medium, source, resource_uri, message,
-            response, response_code) values (%s,%s,%s,%s,%s,%s)
+        df = self.dbpool.runOperation("""
+            INSERT into nwsbot_social_log(medium, source, resource_uri,
+            message, response, response_code) values (%s,%s,%s,%s,%s,%s)
             """, ('facebook', myjid, url, message, response, 200))
-        df.addErrback( log.err )
- 
+        df.addErrback(log.err)
+
     def iq_processor(self, elem):
         """
         Something to process IQ messages
         """
-        if elem.hasAttribute("id") and self.IQ.has_key( elem["id"] ):
-            del( self.IQ[ elem["id"] ] )
-    
+        if elem.hasAttribute("id") and elem['id'] in self.IQ:
+            del(self.IQ[elem["id"]])
+
     def processMessagePC(self, elem):
         """
         Process a XML stanza that is a private chat
 
         @param elem: domish.Element stanza to process
         """
-        _from = jid.JID( elem["from"] )
+        _from = jid.JID(elem["from"])
         # Don't react to broadcast messages
         if _from.user is None:
             return
 
         # Intercept private messages via a chatroom, can't do that :)
         if _from.host == self.conference:
-            self.convert_to_privatechat( _from )
+            self.convert_to_privatechat(_from)
             return
 
         if _from.userhost() == self.ingestjid.userhost():
@@ -905,9 +908,10 @@ Message:
         """
         msg = """Hi, I am %s.  You can try talking directly with me.
 I currently do not support any commands, sorry.""" % (self.myjid.user,)
-        htmlmsg = msg.replace("\n","<br />").replace(self.myjid.user, 
-                 "<a href=\"https://%s/%sfaq.php\">%s</a>" % (self.myjid.host, 
-                                            self.myjid.user, self.myjid.user) )
+        htmlmsg = msg.replace("\n", "<br />").replace(
+            self.myjid.user, ("<a href=\"https://%s/%sfaq.php\">%s</a>"
+                              ) % (self.myjid.host, self.myjid.user,
+                                   self.myjid.user))
         self.send_privatechat(user, msg, htmlmsg)
 
     def convert_to_privatechat(self, myjid):
@@ -919,17 +923,19 @@ I currently do not support any commands, sorry.""" % (self.myjid.user,)
         """
         _handle = myjid.resource
         _room = myjid.user
-        if (not self.rooms[_room]['occupants'].has_key(_handle)):
+        if _handle not in self.rooms[_room]['occupants']:
             return
         realjid = self.rooms[_room]['occupants'][_handle]["jid"]
 
-        self.send_help_message( realjid )
+        self.send_help_message(realjid)
 
-        message = domish.Element(('jabber:client','message'))
+        message = domish.Element(('jabber:client', 'message'))
         message['to'] = myjid.full()
         message['type'] = "chat"
-        message.addElement('body', None, "I can't help you here, please chat \
-with me outside of a groupchat.  I have initated such a chat for you.")
+        message.addElement('body', None, ("I can't help you here, please chat "
+                                          "with me outside of a groupchat.  "
+                                          "I have initated such a chat for "
+                                          "you."))
         self.xmlstream.send(message)
 
     def processMessage(self, elem):
@@ -958,19 +964,15 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         @param elem domish.Element to process
         """
         if not elem.body:
-            log.msg("Empty conversation?") 
-            log.msg( elem.toXml() )
-            return 
+            log.msg("Empty conversation?")
+            log.msg(elem.toXml())
+            return
 
         bstring = unicode(elem.body).lower()
-        #if re.match(r"^set sms#", bstring):
-        #    self.handle_sms_request( elem, bstring)
-        #if re.match(r"^cs[0-9]+", bstring):
-        #    self.confirm_sms( elem, bstring)
         if re.match(r"^flood", bstring):
-            self.handle_flood_request( elem, bstring)
+            self.handle_flood_request(elem, bstring)
         else:
-            self.send_help_message( elem["from"] )
+            self.send_help_message(elem["from"])
 
     def process_groupchat_cmd(self, room, res, cmd):
         """
@@ -995,7 +997,7 @@ with me outside of a groupchat.  I have initated such a chat for you.")
 
         # Support legacy ping, return as done
         if re.match(r"^ping", cmd, re.I):
-            self.send_groupchat(room, "%s: %s"%(res, "pong"))
+            self.send_groupchat(room, "%s: %s" % (res, "pong"))
 
         # Listing of channels is not admin privs
         elif re.match(r"^channels list", cmd, re.I):
@@ -1008,8 +1010,8 @@ with me outside of a groupchat.  I have initated such a chat for you.")
                                                 room, cmd[12:])
                 df.addErrback(self.email_error, room + " -> " + cmd)
             else:
-                err = "%s: Sorry, you must be a room admin to add a channel" \
-                       % (res,)
+                err = ("%s: Sorry, you must be a room admin to add a channel"
+                       ) % (res,)
                 self.send_groupchat(room, err)
 
         # Del a channel to the room's subscriptions
@@ -1019,8 +1021,8 @@ with me outside of a groupchat.  I have initated such a chat for you.")
                                                 room, cmd[12:])
                 df.addErrback(self.email_error, room + " -> " + cmd)
             else:
-                err = "%s: Sorry, you must be a room admin to add a channel" \
-                       % (res,)
+                err = ("%s: Sorry, you must be a room admin to add a channel"
+                       ) % (res,)
                 self.send_groupchat(room, err)
 
         # Look for users request
@@ -1028,14 +1030,14 @@ with me outside of a groupchat.  I have initated such a chat for you.")
             if aff in ['owner', 'admin']:
                 rmess = ""
                 for hndle in self.rooms[room]['occupants'].keys():
-                    rmess += "%s (%s), " % (hndle, 
-                                          self.rooms[room]['occupants'][hndle]['jid'])
+                    rmess += ("%s (%s), "
+                              ) % (hndle,
+                                   self.rooms[room]['occupants'][hndle]['jid'])
                 self.send_privatechat(jid, "JIDs in room: %s" % (rmess,))
             else:
-                err = "%s: Sorry, you must be a room admin to query users" \
-                       % (res,)
+                err = ("%s: Sorry, you must be a room admin to query users"
+                       ) % (res,)
                 self.send_groupchat(room, err)
-
 
         # Else send error message about what I support
         else:
@@ -1051,12 +1053,12 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         channels = []
         for channel in self.routingtable.keys():
             if room in self.routingtable[channel]:
-                channels.append( channel )
+                channels.append(channel)
 
         # Need to add a space in the channels listing so that the string does
         # not get so long that it causes chat clients to bail
-        msg = "This room is subscribed to %s channels (%s)" % ( len(channels), 
-                                                ", ".join(channels) )
+        msg = "This room is subscribed to %s channels (%s)" % (
+                len(channels), ", ".join(channels))
         self.send_groupchat(room, msg)
 
     def channels_room_add(self, txn, room, channel):
@@ -1147,13 +1149,17 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         """
         Send a message to a given chatroom about what commands I support
         """
-        msg = """Current Supported Commands:
-  %(i)s: channels add channelname[,channelname] ### Add channel subscription(s) for this room
-  %(i)s: channels del channelname[,channelname] ### Delete channel subscriptions(s) for this room
-  %(i)s: channels list ### List channels this room is subscribed to
-  %(i)s: ping          ### Test connectivity with a 'pong' response
-  %(i)s: users         ### Generates list of users in room""" % {
-                                                    'i': self.myjid.user}
+        msg = ("Current Supported Commands:\n"
+               "%(i)s: channels add channelname[,channelname] "
+               "### Add channel subscription(s) for this room\n"
+               "%(i)s: channels del channelname[,channelname] "
+               "### Delete channel subscriptions(s) for this room\n"
+               "%(i)s: channels list "
+               "### List channels this room is subscribed to\n"
+               "%(i)s: ping          "
+               "### Test connectivity with a 'pong' response\n"
+               "%(i)s: users         ### Generates list of users in room"
+               ) % {'i': self.myjid.user}
 
         htmlmsg = msg.replace("\n", "<br />")
         self.send_groupchat(room, msg, htmlmsg)
@@ -1163,7 +1169,7 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         All a user to flood a chatroom with messages to flush it!
         with star trek quotes, yes!
         """
-        _from = jid.JID( elem["from"] )
+        _from = jid.JID(elem["from"])
         if not re.match(r"^nws-", _from.user):
             msg = "Sorry, you must be NWS to flood a chatroom!"
             self.send_privatechat(elem["from"], msg)
@@ -1183,7 +1189,9 @@ with me outside of a groupchat.  I have initated such a chat for you.")
             msg = fortunes[offset]
             self.send_groupchat(room, msg)
             i += 1
-        self.send_groupchat(room, "Room flooding complete, offending message should no longer appear")
+        self.send_groupchat(room,
+                            ("Room flooding complete, offending message "
+                             "should no longer appear"))
 
     def send_fb_fanpage(self, elem, page):
         """
@@ -1198,7 +1206,7 @@ with me outside of a groupchat.  I have initated such a chat for you.")
             post_args['message'] = bstring
         else:
             post_args['message'] = tokens[0]
-            post_args['link'] = "http"+ tokens[1]
+            post_args['link'] = "http" + tokens[1]
             post_args['name'] = 'Product Link'
         if elem.x:
             for key in ['picture', 'name', 'link', 'caption',
@@ -1209,15 +1217,15 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         url = "https://graph.facebook.com/me/feed?"
         postdata = urllib.urlencode(post_args)
         if self.has_football:
-            cf = webclient.getPage( url, method='POST', postdata=postdata)
+            cf = webclient.getPage(url, method='POST', postdata=postdata)
             cf.addCallback(self.fbsuccess, None, 'nwsbot_ingest',
                            post_args['message'])
-            cf.addErrback(self.fbfail, None, 'nwsbot_ingest', 
+            cf.addErrback(self.fbfail, None, 'nwsbot_ingest',
                           post_args['message'], page)
-            cf.addErrback( log.err )
+            cf.addErrback(log.err)
         else:
             log.msg("Skipping facebook relay as I don't have the football")
-   
+
     def process_twitter_cmd(self, room, res, plaintxt):
         """
         Process a command (#twitter or #social) generated within a chatroom
@@ -1229,7 +1237,7 @@ with me outside of a groupchat.  I have initated such a chat for you.")
             msg += 'a twitter account. Please contact Admin Team'
             self.send_groupchat(room, msg)
             return
-        
+
         myjid = "%s,%s" % (room, self.rooms[room]['occupants'][res]['jid'])
         if self.rooms[room]['occupants'][res]['jid'] is None:
             msg = "%s: Sorry, I am unable to process your facebook " % (res,)
@@ -1237,35 +1245,36 @@ with me outside of a groupchat.  I have initated such a chat for you.")
             msg += "rejoining the chatroom if you really wish to speak with me"
             self.send_groupchat(room, msg)
             return
-   
+
         aff = self.rooms[room]['occupants'][res]['affiliation']
-        
+
         if aff not in ['owner', 'admin']:
             msg = "%s: Sorry, you need to be a local room admin " % (res,)
             msg += "or owner to use twitter feature!"
             self.send_groupchat(room, msg)
             return
-        
+
         access_token = self.tw_access_tokens.get(twitter, None)
         if access_token is None:
-            msg = "%s: Sorry, I don't have permission to post to your " % (res,)
+            msg = "%s: Sorry, I don't have permission to post to your " % (
+                    res,)
             msg += "page."
             self.send_groupchat(room, msg)
             return
-        
+
         if len(plaintxt) > 139:
             msg = "%s: Sorry, your message is longer than 140 " % (res,)
             msg += "characters, so I can not relay to twitter!"
             self.send_groupchat(room, msg)
-            return 
-        
-        # We can finally tweet! 
-        self.tweet(plaintxt, access_token, room=room, myjid=myjid, 
-                   twituser=twitter )
-   
+            return
+
+        # We can finally tweet!
+        self.tweet(plaintxt, access_token, room=room, myjid=myjid,
+                   twituser=twitter)
+
     def process_facebook_cmd(self, room, res, plaintxt):
         """
-        Process a command (#facebook) generated within a chatroom requesting 
+        Process a command (#facebook) generated within a chatroom requesting
         facebook posting
           1. User must be local admin
           2. Bot posts back a link to the post, tricky!
@@ -1275,13 +1284,21 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         """
         # Make sure the local room has a FB page associated with it
         if self.rooms[room]['fbpage'] is None:
-            self.send_groupchat(room, "%s: Sorry, this room is not associated with Facebook Page.  Please contact Admin Team." % (res, ))
+            self.send_groupchat(room,
+                                ("%s: Sorry, this room is not associated "
+                                 "with Facebook Page.  Please contact "
+                                 "Admin Team.") % (res, ))
             return
         fbpage = self.rooms[room]['fbpage']
-        
+
         # Make sure we know who the real JID of this user is....
-        if not self.rooms[room]['occupants'].has_key(res):
-            self.send_groupchat(room, "%s: Sorry, I am unable to process your facebook request due to a lookup failure.  Please consider rejoining the chatroom if you really wish to speak with me." % (res, ))
+        if res not in self.rooms[room]['occupants']:
+            self.send_groupchat(room,
+                                ("%s: Sorry, I am unable to process your "
+                                 "facebook request due to a lookup failure. "
+                                 " Please consider rejoining the chatroom if "
+                                 "you really wish to speak with me.") % (
+                                    res, ))
             return
 
         # Figure out the user's affiliation
@@ -1289,28 +1306,37 @@ with me outside of a groupchat.  I have initated such a chat for you.")
         myjid = "%s,%s" % (room, self.rooms[room]['occupants'][res]['jid'])
 
         if aff not in ['owner', 'admin']:
-            self.send_groupchat(room, "%s: Sorry, you need to be a local room admin or owner to use facebook feature!" % (res, ))
+            self.send_groupchat(room,
+                                ("%s: Sorry, you need to be a local room "
+                                 "admin or owner to use facebook feature!"
+                                 ) % (res, ))
             return
-        
-        if not self.fb_access_tokens.has_key(fbpage):
-            self.send_groupchat(room, "%s: Sorry, I don't have permission to post to your page." % (res, ))
+
+        if fbpage not in self.fb_access_tokens:
+            self.send_groupchat(room,
+                                ("%s: Sorry, I don't have permission to post "
+                                 "to your page.") % (res, ))
             return
 
         # Done with error checking!
         post_args = {}
         post_args['access_token'] = self.fb_access_tokens[fbpage]
         # Without encoding, this causes urlencode to be angry
-        post_args['message'] = plaintxt.replace("#facebook", "").encode( 
+        post_args['message'] = plaintxt.replace("#facebook", "").encode(
                                        'ascii', 'ignore')
 
         # Need to use async proxy, please
         url = "https://graph.facebook.com/me/feed?"
         postdata = urllib.urlencode(post_args)
         if self.has_football:
-            cf = webclient.getPage( url, method='POST', postdata=postdata)
+            cf = webclient.getPage(url, method='POST', postdata=postdata)
             cf.addCallback(self.fbsuccess, room, myjid, post_args['message'])
-            cf.addErrback(self.fbfail, room, myjid, post_args['message'], fbpage)            
-            cf.addErrback( log.err )
+            cf.addErrback(self.fbfail, room, myjid, post_args['message'],
+                          fbpage)
+            cf.addErrback(log.err)
         else:
             log.msg("Skipping facebook relay as I don't have the football")
-            self.send_groupchat(room, "%s: Sorry, I am currently in non-production mode, so I am not sending facebook messages." % (res,))
+            self.send_groupchat(room,
+                                ("%s: Sorry, I am currently in "
+                                 "non-production mode, so I am not sending "
+                                 "facebook messages.") % (res,))
