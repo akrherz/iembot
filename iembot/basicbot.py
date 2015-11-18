@@ -339,6 +339,15 @@ class basicbot:
         df.addErrback(log.err)
         return response
 
+    def disable_twitter_user(self, twituser):
+        """Disable the twitter subs for this twituser
+
+        Args:
+          twituser (str): The twitter user to disable
+        """
+        log.msg("Removing twitter access token for user: '%s'" % (twituser, ))
+        self.tw_access_tokens.pop(twituser, None)
+
     def tweet_eb(self, err, twttxt, room, myjid, twituser):
         """
         Called after error going to twitter
@@ -355,8 +364,11 @@ class basicbot:
         except:
             log.msg("Unable to parse response |%s| as JSON" % (
                                                         err.value.response,))
-        if (len(j.get('errors', [])) > 0 and
-                j['errors'][0].get('code', 0) != 187):
+        if len(j.get('errors', [])) > 0:
+            errcode = j['errors'][0].get('code', 0)
+            if errcode == 89:
+                # Expired token, so we shall revoke for now
+                self.disable_twitter_user(twituser)
             self.email_error(err, ("Room: %s\nmyjid: %s\ntwituser: %s\n"
                                    "tweet: %s\nError:%s\n"
                                    ) % (room, myjid, twituser, twttxt,
