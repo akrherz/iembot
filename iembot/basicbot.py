@@ -369,10 +369,12 @@ class basicbot:
             if errcode == 89:
                 # Expired token, so we shall revoke for now
                 self.disable_twitter_user(twituser)
-            self.email_error(err, ("Room: %s\nmyjid: %s\ntwituser: %s\n"
-                                   "tweet: %s\nError:%s\n"
-                                   ) % (room, myjid, twituser, twttxt,
-                                        err.value.response))
+            if errcode not in [187, ]:
+                # 187 duplicate message
+                self.email_error(err, ("Room: %s\nmyjid: %s\ntwituser: %s\n"
+                                       "tweet: %s\nError:%s\n"
+                                       ) % (room, myjid, twituser, twttxt,
+                                            err.value.response))
 
         log.msg(err.getErrorMessage())
         log.msg(err.value.response)
