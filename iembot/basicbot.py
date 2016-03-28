@@ -366,9 +366,10 @@ class basicbot:
                                                         err.value.response,))
         if len(j.get('errors', [])) > 0:
             errcode = j['errors'][0].get('code', 0)
-            if errcode in [89, 185]:
+            if errcode in [89, 185, 326]:
                 # 89: Expired token, so we shall revoke for now
                 # 185: User is over quota
+                # 326: User is temporarily locked out
                 self.disable_twitter_user(twituser)
             if errcode not in [187, ]:
                 # 187 duplicate message
