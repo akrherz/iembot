@@ -4,7 +4,7 @@
 
 from twisted.words.xish import domish
 from twisted.words.xish import xpath
-from twisted.words.protocols.jabber import jid, client
+from twisted.words.protocols.jabber import jid, client, error
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
 from twisted.internet import reactor
 from twisted.application import internet
@@ -540,15 +540,16 @@ Message:
         gmtnow = datetime.datetime.utcnow()
         self.check_for_football()
 
-        if len(self.IQ.keys()) > 0:
+        if len(self.IQ) > 0:
             log.msg("ERROR: missing IQs %s" % (self.IQ.keys(),))
-        if len(self.IQ.keys()) > 5:
+        if len(self.IQ) > 5:
             self.IQ = {}
             self.email_error("Logging out of Chat!",
                              "IQ error limit reached...")
             if self.xmlstream is not None:
-                self.xmlstream.sendFooter()
-                self.xmlstream.connectionLost('BAD')
+                # Unsure of the proper code that a client should generate
+                exc = error.StreamError('gone')
+                self.xmlstream.sendStreamError(exc)
             return
         ping = domish.Element((None, 'iq'))
         ping['to'] = self.myjid.host
