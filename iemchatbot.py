@@ -75,9 +75,12 @@ class JabberClient(basicbot.basicbot):
         self.seqnum = SEQNUM0
 
     def processMessageGC(self, elem):
-        ''' Process a stanza element that is from a chatroom '''
+        """Process a stanza element that is from a chatroom"""
         # Ignore all messages that are x-stamp (delayed / room history)
-        if xpath.queryForNodes("/message/x[@xmlns='jabber:x:delay']", elem):
+        # <delay xmlns='urn:xmpp:delay' stamp='2016-05-06T20:04:17.513Z'
+        #  from='nwsbot@laptop.local/twisted_words'/>
+        if xpath.queryForNodes("/message/delay[@xmlns='urn:xmpp:delay']",
+                               elem):
             return
 
         _from = jid.JID(elem["from"])
@@ -106,10 +109,6 @@ class JabberClient(basicbot.basicbot):
                              'log': ['']*40, 'author': ['']*40,
                              'product_id': ['']*40, 'txtlog': ['']*40}
         ts = datetime.datetime.utcnow()
-        x = xpath.queryForNodes("/message/x[@xmlns='jabber:x:delay']", elem)
-        if x is not None and x[0].hasAttribute("stamp"):
-            xdelay = x[0]['stamp']
-            ts = datetime.datetime.strptime(xdelay, "%Y%m%dT%H:%M:%S")
 
         product_id = ''
         if elem.x and elem.x.hasAttribute("product_id"):
