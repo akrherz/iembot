@@ -339,14 +339,22 @@ class basicbot:
         df.addErrback(log.err)
         return response
 
-    def disable_twitter_user(self, twituser):
+    def disable_twitter_user(self, twituser, errcode=0):
         """Disable the twitter subs for this twituser
 
         Args:
           twituser (str): The twitter user to disable
+          errcode (int): The twitter errorcode
         """
         log.msg("Removing twitter access token for user: '%s'" % (twituser, ))
         self.tw_access_tokens.pop(twituser, None)
+        # Remove entry from the database
+        if errcode in [89, ]:
+            df = self.dbpool.runOperation("""
+                DELETE from """+self.name+"""_twitter_oauth
+                WHERE screen_name = %s
+                """, (twituser,))
+            df.addErrback(log.err)
 
     def tweet_eb(self, err, twttxt, room, myjid, twituser):
         """
@@ -370,7 +378,7 @@ class basicbot:
                 # 89: Expired token, so we shall revoke for now
                 # 185: User is over quota
                 # 326: User is temporarily locked out
-                self.disable_twitter_user(twituser)
+                self.disable_twitter_user(twituser, errcode)
             if errcode not in [187, ]:
                 # 187 duplicate message
                 self.email_error(err, ("Room: %s\nmyjid: %s\ntwituser: %s\n"
