@@ -164,12 +164,12 @@ class JabberClient(basicbot.basicbot):
         # Always send to botstalk
         elem['to'] = "botstalk@%s" % (self.config['bot.mucservice'],)
         elem['type'] = "groupchat"
-        self.xmlstream.send(elem)
+        self.send_groupchat_elem(elem)
 
         for channel in channels:
             for room in self.routingtable.get(channel, []):
                 elem['to'] = "%s@%s" % (room, self.config['bot.mucservice'])
-                self.xmlstream.send(elem)
+                self.send_groupchat_elem(elem)
             for page in self.tw_routingtable.get(channel, []):
                 if page not in self.tw_access_tokens:
                     log.msg(("Failed to tweet due to no access_tokens for %s"

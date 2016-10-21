@@ -4,7 +4,7 @@
 
 from twisted.words.xish import domish
 from twisted.words.xish import xpath
-from twisted.words.protocols.jabber import jid, client, error
+from twisted.words.protocols.jabber import jid, client, error, xmlstream
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
 from twisted.internet import reactor
 from twisted.application import internet
@@ -37,6 +37,8 @@ from twittytwister import twitter
 
 PRESENCE_MUC_ITEM = (
     "/presence/x[@xmlns='http://jabber.org/protocol/muc#user']/item")
+PRESENCE_MUC_STATUS = (
+    "/presence/x[@xmlns='http://jabber.org/protocol/muc#user']/status")
 
 
 def load_chatrooms_from_db(txn, bot, always_join):
@@ -93,7 +95,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
         # Setup Room Config Dictionary
         if rm not in bot.rooms:
             bot.rooms[rm] = {'fbpage': None, 'twitter': None,
-                             'occupants': {}}
+                             'occupants': {}, 'joined': False}
         bot.rooms[rm]['fbpage'] = row['fbpage']
         bot.rooms[rm]['twitter'] = row['twitter']
 
@@ -268,13 +270,6 @@ class basicbot:
         self.IQ = {}
 
         # Assignment of xmlstream!
-        self.xmlstream = xmlstream
-        self.xmlstream.rawDataInFn = self.rawDataInFn
-        self.xmlstream.rawDataOutFn = self.rawDataOutFn
-
-        self.xmlstream.addObserver('/message',  self.message_processor)
-        self.xmlstream.addObserver('/iq',  self.iq_processor)
-        self.xmlstream.addObserver('/presence/x/item', self.presence_processor)
 
         self.load_twitter()
         self.send_presence()
@@ -481,6 +476,8 @@ Message:
 
         for row in res:
             self.config[row['propname']] = row['propvalue']
+        log.msg(("%s properties were loaded from the database"
+                 ) % (len(self.config), ))
 
         self.myjid = jid.JID("%s@%s/twisted_words" % (
                                                 self.config["bot.username"],
@@ -494,15 +491,34 @@ Message:
                             self.config['bot.twitter.consumerkey'],
                             self.config['bot.twitter.consumersecret'])
 
-        factory = client.basicClientFactory(self.myjid,
-                                            self.config['bot.password'])
+        factory = client.XMPPClientFactory(self.myjid,
+                                           self.config['bot.password'])
         # Limit reconnection delay to 60 seconds
         factory.maxDelay = 60
-        factory.addBootstrap('//event/stream/authd', self.authd)
+        factory.addBootstrap(xmlstream.STREAM_CONNECTED_EVENT, self.connected)
+        factory.addBootstrap(xmlstream.STREAM_AUTHD_EVENT, self.authd)
+        factory.addBootstrap(xmlstream.INIT_FAILED_EVENT, self.init_failed)
+        factory.addBootstrap(xmlstream.STREAM_END_EVENT, self.disconnected)
 
         i = internet.TCPClient(self.config['bot.connecthost'], 5222,
                                factory)
         i.setServiceParent(serviceCollection)
+
+    def connected(self, xs):
+        log.msg("Connected")
+        self.xmlstream = xs
+        self.xmlstream.rawDataInFn = self.rawDataInFn
+        self.xmlstream.rawDataOutFn = self.rawDataOutFn
+
+        self.xmlstream.addObserver('/message', self.on_message)
+        self.xmlstream.addObserver('/iq', self.on_iq)
+        self.xmlstream.addObserver('/presence/x/item', self.on_presence)
+
+    def disconnected(self, xs):
+        log.msg("Disconnected?")
+
+    def init_failed(self, failure):
+        log.err(failure)
 
     def get_fortune(self):
         """ Get a random value from the array """
@@ -643,10 +659,10 @@ Message:
             self.email_error(("Attempted to send message to room [%s] "
                               "we have not joined...") % (room,), elem)
             return
-        if self.myjid.user not in self.rooms[room]['occupants']:
+        if not self.rooms[room]['joined']:
             if secondtrip:
-                log.msg("ABORT of send to room: %s, msg: %s, not in room" % (
-                                                        room, elem))
+                log.msg(("ABORT of send to room: %s, msg: %s, not in room"
+                         ) % (room, elem))
                 return
             log.msg("delaying send to room: %s, not in room yet" % (room,))
             # Need to prevent elem['to'] object overwriting
@@ -737,11 +753,27 @@ Message:
             return
 
         _room = jid.JID(elem["from"]).user
+        if _room not in self.rooms:
+            self.email_error(
+                "Got MUC presence from unknown room '%s'" % (_room,),
+                elem)
+            return
         _handle = jid.JID(elem["from"]).resource
+        statuses = xpath.queryForNodes(PRESENCE_MUC_STATUS, elem)
+        muc_codes = []
+        if statuses is not None:
+            muc_codes = [status.getAttribute('code') for status in statuses]
+
         for item in items:
             affiliation = item.getAttribute('affiliation')
             _jid = item.getAttribute('jid')
             role = item.getAttribute('role')
+            left = affiliation == 'none' and role == 'none'
+            selfpres = '110' in muc_codes
+            if selfpres:
+                log.msg("MUC '%s' self presence left: %s" % (_room, left))
+                self.rooms[_room]['joined'] = not left
+
             self.rooms[_room]['occupants'][_handle] = {
                   'jid': _jid,
                   'affiliation': affiliation,
@@ -789,17 +821,21 @@ Message:
         # Route to subscription channels
         alertedRooms = []
         for channel in channels:
-            if channel in self.routingtable:
-                for room in self.routingtable[channel]:
-                    if room in alertedRooms:
-                        continue
-                    alertedRooms.append(room)
-                    elem['to'] = "%s@%s" % (room, self.conference)
-                    if elem.x and elem.x.hasAttribute("facebookonly"):
-                        continue
-                    self.send_groupchat_elem(elem)
-            else:
-                self.routingtable[channel] = []
+            for room in self.routingtable.setdefault(channel, []):
+                # hack attribute to avoid MUC relay alltogether
+                if elem.x and elem.x.hasAttribute("facebookonly"):
+                    continue
+                # Don't send a message twice, this may be from redundant subs
+                if room in alertedRooms:
+                    continue
+                alertedRooms.append(room)
+                # Don't send to a room we don't know about
+                if room not in self.rooms:
+                    log.msg(("Refusing to send MUC msg to unknown room: "
+                             "'%s' msg: %s") % (room, elem))
+                    continue
+                elem['to'] = "%s@%s" % (room, self.conference)
+                self.send_groupchat_elem(elem)
         # Facebook Routing
         alertedPages = []
         alertedTwitter = []
@@ -963,7 +999,7 @@ I currently do not support any commands, sorry.""" % (self.myjid.user,)
                                           "you."))
         self.xmlstream.send(message)
 
-    def processMessage(self, elem):
+    def message_processor(self, elem):
         """
         This is our business method, figure out if this chat is a
         private message or a group one
@@ -975,9 +1011,24 @@ I currently do not support any commands, sorry.""" % (self.myjid.user,)
         else:
             self.processMessagePC(elem)
 
-    def message_processor(self, elem):
+    def on_message(self, elem):
+        self.stanza_callback(self.message_processor, elem)
+
+    def on_presence(self, elem):
+        self.stanza_callback(self.presence_processor, elem)
+
+    def on_iq(self, elem):
+        self.stanza_callback(self.iq_processor, elem)
+
+    def stanza_callback(self, func, elem):
+        """main callback on receipt of stanza
+
+        We are currently wrapping this to prevent the callback from getting
+        removed from the factory in case of a processing error.  There are
+        likely more proper ways to do this.
+        """
         try:
-            self.processMessage(elem)
+            func(elem)
         except:
             io = StringIO.StringIO()
             traceback.print_exc(file=io)
