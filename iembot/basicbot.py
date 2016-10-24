@@ -256,10 +256,10 @@ class basicbot:
         """ callbacked when we are first logged in """
         pass
 
-    def authd(self, xmlstream):
+    def authd(self, xs=None):
         """ callback when we are logged into the server! """
-        msg = "Logged into jabber server as %s" % (self.myjid,)
-        self.email_error(None, msg)
+        self.email_error(None,
+                         "Logged into jabber server as %s" % (self.myjid,))
         if not self.firstlogin:
             self.compute_daily_caller()
             self.on_firstlogin()
@@ -268,8 +268,6 @@ class basicbot:
         # Resets associated with the previous login session, perhaps
         self.rooms = {}
         self.IQ = {}
-
-        # Assignment of xmlstream!
 
         self.load_twitter()
         self.send_presence()
@@ -514,8 +512,8 @@ Message:
         self.xmlstream.addObserver('/iq', self.on_iq)
         self.xmlstream.addObserver('/presence/x/item', self.on_presence)
 
-    def disconnected(self, xs):
-        log.msg("Disconnected?")
+    def disconnected(self, xs=None):
+        log.msg("disconnected() was called...")
 
     def init_failed(self, failure):
         log.err(failure)
