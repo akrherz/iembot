@@ -231,7 +231,7 @@ def wfoRSS(rm):
             title=txt[:urlpos],
             link=ltxt,
             guid=ltxt,
-            pubDate=ts.strftime("%a, %d %b %Y %H:%M:%S")))
+            pubDate=ts.strftime("%a, %d %b %Y %H:%M:%S GMT")))
 
     xml_cache[rm] = rss.to_xml()
     xml_cache_expires[rm] = lastID
@@ -267,7 +267,8 @@ class HomePage(resource.Resource):
               PyRSS2Gen.RSSItem(
                title="IEMBOT recently restarted, no history yet",
                link="http://mesonet.agron.iastate.edu/projects/iembot/",
-               pubDate=datetime.datetime.utcnow()))
+               pubDate=datetime.datetime.utcnow().strftime(
+                   "%a, %d %b %Y %H:%M:%S GMT")))
             xml = rss.to_xml()
         else:
             xml = wfoRSS(rm)
