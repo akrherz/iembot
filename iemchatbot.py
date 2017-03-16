@@ -220,12 +220,15 @@ def wfoRSS(rm):
         ts = datetime.datetime.strptime(CHATLOG[rm]['timestamps'][k],
                                         "%Y%m%d%H%M%S")
         txt = CHATLOG[rm]['txtlog'][k]
-        urlpos = txt.find("http://")
-        if (urlpos == -1):
+        m = re.match(r"https?://", txt)
+        urlpos = -1
+        if m:
+            urlpos = m.start()
+        else:
             txt += "  "
         ltxt = txt[urlpos:].replace("&amp;", "&").strip()
         if ltxt == "":
-            ltxt = "http://mesonet.agron.iastate.edu/projects/iembot/"
+            ltxt = "https://mesonet.agron.iastate.edu/projects/iembot/"
         rss.items.append(
           PyRSS2Gen.RSSItem(
             title=txt[:urlpos],
