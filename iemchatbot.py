@@ -20,6 +20,7 @@ import os
 import json
 
 from iembot import basicbot
+import iembot.util as botutil
 
 # http://stackoverflow.com/questions/7016602
 HTTPClientFactory.noisy = False
@@ -209,32 +210,16 @@ def wfoRSS(rm):
 
     rss = PyRSS2Gen.RSS2(
            generator="iembot",
-           title="IEMBOT Feed",
-           link="http://weather.im/iembot-rss/wfo/" + rm + ".xml",
+           title="IEMBOT RSS Feed of %s" % (rm,),
+           link="https://weather.im/iembot-rss/wfo/%s.xml" % (rm,),
            description="IEMBOT RSS Feed of %s" % (rm,),
            lastBuildDate=datetime.datetime.utcnow())
 
     for k in range(len(CHATLOG[rm]['seqnum'])-1, 0, -1):
         if CHATLOG[rm]['seqnum'][k] < 0:
             continue
-        ts = datetime.datetime.strptime(CHATLOG[rm]['timestamps'][k],
-                                        "%Y%m%d%H%M%S")
-        txt = CHATLOG[rm]['txtlog'][k]
-        m = re.match(r"https?://", txt)
-        urlpos = -1
-        if m:
-            urlpos = m.start()
-        else:
-            txt += "  "
-        ltxt = txt[urlpos:].replace("&amp;", "&").strip()
-        if ltxt == "":
-            ltxt = "https://mesonet.agron.iastate.edu/projects/iembot/"
-        rss.items.append(
-          PyRSS2Gen.RSSItem(
-            title=txt[:urlpos],
-            link=ltxt,
-            guid=ltxt,
-            pubDate=ts.strftime("%a, %d %b %Y %H:%M:%S GMT")))
+        rss.items.append(botutil.chatlog2rssitem(CHATLOG[rm]['timestamps'][k],
+                                                 CHATLOG[rm]['txtlog'][k]))
 
     xml_cache[rm] = rss.to_xml()
     xml_cache_expires[rm] = lastID
