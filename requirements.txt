@@ -1,4 +1,5 @@
 Twisted
 oauth
+PyRSS2Gen
 pytz
 git+https://github.com/akrherz/twitty-twister.git#egg=twitty-twister
