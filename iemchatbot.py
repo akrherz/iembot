@@ -52,6 +52,7 @@ def really_save_chat_log():
     log.msg('Saving CHATLOG to %s' % (PICKLEFILE,))
     pickle.dump(CHATLOG, open(PICKLEFILE, 'w'))
 
+
 lc2 = LoopingCall(saveChatLog)
 lc2.start(600)  # Every 10 minutes
 
@@ -191,6 +192,7 @@ class JabberClient(basicbot.basicbot):
                 self.tweet(elem.x['twitter'], self.tw_access_tokens[page],
                            twtextra=twtextra, twituser=page)
 
+
 xml_cache = {}
 xml_cache_expires = {}
 
@@ -210,9 +212,9 @@ def wfoRSS(rm):
 
     rss = PyRSS2Gen.RSS2(
            generator="iembot",
-           title="IEMBOT RSS Feed of %s" % (rm,),
+           title="%s IEMBot RSS Feed" % (rm,),
            link="https://weather.im/iembot-rss/wfo/%s.xml" % (rm,),
-           description="IEMBOT RSS Feed of %s" % (rm,),
+           description="%s IEMBot RSS Feed" % (rm,),
            lastBuildDate=datetime.datetime.utcnow())
 
     for k in range(len(CHATLOG[rm]['seqnum'])-1, 0, -1):
