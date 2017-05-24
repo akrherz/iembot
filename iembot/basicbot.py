@@ -1,6 +1,19 @@
 """ Basic iembot/nwsbot implementation, upstream for this code is
     on github: https://github.com/akrherz/iembot
 """
+import datetime
+import json
+import traceback
+from email.MIMEText import MIMEText
+import StringIO
+import random
+import os
+import pwd
+import urllib
+import socket
+import re
+import glob
+from xml.etree import ElementTree as ET
 
 from twisted.words.xish import domish
 from twisted.words.xish import xpath
@@ -17,21 +30,7 @@ from twisted.web import client as webclient
 
 from oauth import oauth
 
-from xml.etree import ElementTree as ET
-
-import datetime
 import pytz
-import json
-import traceback
-from email.MIMEText import MIMEText
-import StringIO
-import random
-import os
-import pwd
-import urllib
-import socket
-import re
-import glob
 
 from twittytwister import twitter
 
@@ -115,7 +114,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
         presence['type'] = 'unavailable'
         bot.xmlstream.send(presence)
 
-        del(bot.rooms[rm])
+        del bot.rooms[rm]
     log.msg(("... loaded %s chatrooms, joined %s of them, left %s of them"
              ) % (txn.rowcount, joined, len(oldrooms)))
 
@@ -339,10 +338,11 @@ class basicbot:
           twituser (str): The twitter user to disable
           errcode (int): The twitter errorcode
         """
-        log.msg("Removing twitter access token for user: '%s'" % (twituser, ))
         self.tw_access_tokens.pop(twituser, None)
         # Remove entry from the database
         if errcode in [89, ]:
+            log.msg(("Removing twitter access token for user: '%s'"
+                     ) % (twituser, ))
             df = self.dbpool.runOperation("""
                 DELETE from """+self.name+"""_twitter_oauth
                 WHERE screen_name = %s
@@ -362,7 +362,7 @@ class basicbot:
         j = {}
         try:
             j = json.loads(err.value.response)
-        except:
+        except Exception as _:
             log.msg("Unable to parse response |%s| as JSON" % (
                                                         err.value.response,))
         if len(j.get('errors', [])) > 0:
