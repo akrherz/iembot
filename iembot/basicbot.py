@@ -349,7 +349,8 @@ class basicbot:
                 """, (twituser,))
             df.addErrback(log.err)
 
-    def tweet_eb(self, err, twttxt, room, myjid, twituser):
+    def tweet_eb(self, err, twttxt, access_token, room, myjid, twituser,
+                 twtextra, trip):
         """
         Called after error going to twitter
         """
@@ -365,8 +366,14 @@ class basicbot:
         except Exception as _:
             log.msg("Unable to parse response |%s| as JSON" % (
                                                         err.value.response,))
-        if len(j.get('errors', [])) > 0:
+        if j.get('errors', []):
             errcode = j['errors'][0].get('code', 0)
+            if errcode in [130, ]:
+                # 130: over capacity
+                reactor.callLater(15,  # @UndefinedVariable
+                                  self.tweet, twttxt, access_token, room,
+                                  myjid, twituser, twtextra, trip + 1)
+                return
             if errcode in [89, 185, 326]:
                 # 89: Expired token, so we shall revoke for now
                 # 185: User is over quota
@@ -683,16 +690,20 @@ Message:
             self.xmlstream.send(presence)
 
     def tweet(self, twttxt, access_token, room=None, myjid=None, twituser=None,
-              twtextra=dict()):
+              twtextra=dict(), trip=0):
         """
         Tweet a message
         """
+        if trip > 3:
+            self.email_error("tweet retries exhausted", twttxt)
+            return
         twt = twitter.Twitter(consumer=self.twitter_oauth_consumer,
                               token=access_token)
         twttxt = safe_twitter_text(twttxt)
         df = twt.update(twttxt, None, twtextra)
         df.addCallback(self.tweet_cb, twttxt, room, myjid, twituser)
-        df.addErrback(self.tweet_eb, twttxt, room, myjid, twituser)
+        df.addErrback(self.tweet_eb, twttxt, access_token, room, myjid,
+                      twituser, twtextra, trip)
         df.addErrback(log.err)
 
         return df
