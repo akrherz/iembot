@@ -338,6 +338,9 @@ class basicbot:
           twituser (str): The twitter user to disable
           errcode (int): The twitter errorcode
         """
+        if twituser.startswith("iembot_"):
+            log.msg("Skipping disabling of twitter auth for %s" % (twituser, ))
+            return
         self.tw_access_tokens.pop(twituser, None)
         # Remove entry from the database
         if errcode in [89, ]:
