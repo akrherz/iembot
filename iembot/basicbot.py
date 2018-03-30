@@ -34,6 +34,8 @@ import pytz
 
 from twittytwister import twitter
 
+from pyiem.reference import TWEET_CHARS
+
 PRESENCE_MUC_ITEM = (
     "/presence/x[@xmlns='http://jabber.org/protocol/muc#user']/item")
 PRESENCE_MUC_STATUS = (
@@ -180,8 +182,8 @@ def safe_twitter_text(text):
     """
     # Convert two or more spaces into one
     text = ' '.join(text.split())
-    # If we are already below 140, we don't have any more work to do...
-    if len(text) < 140 and text.find("http") == -1:
+    # If we are already below TWEET_CHARS, we don't have any more work to do...
+    if len(text) < TWEET_CHARS and text.find("http") == -1:
         return text
     chars = 0
     words = text.split()
@@ -190,7 +192,7 @@ def safe_twitter_text(text):
             chars += 25
         else:
             chars += (len(word) + 1)
-    if chars < 140:
+    if chars < TWEET_CHARS:
         return text
 
     urls = re.findall('https?://[^\s]+', text)
@@ -199,20 +201,20 @@ def safe_twitter_text(text):
         sections = re.findall('(.*) for (.*)( till [0-9A-Z].*)', text2)
         if len(sections) == 1:
             text = "%s%s%s" % (sections[0][0], sections[0][2], urls[0])
-            if len(text) > 140:
-                sz = 112 - len(sections[0][2])
+            if len(text) > TWEET_CHARS:
+                sz = TWEET_CHARS - 26 - len(sections[0][2])
                 text = "%s%s%s" % (sections[0][0][:sz], sections[0][2],
                                    urls[0])
             return text
-        if len(text) > 140:
+        if len(text) > TWEET_CHARS:
             return "%s... %s" % (text2[:109], urls[0])
-    if chars > 140:
+    if chars > TWEET_CHARS:
         if words[-1].startswith('http'):
             i = -2
-            while len(' '.join(words[:i])) > (137-25):
+            while len(' '.join(words[:i])) > (TWEET_CHARS - 3 - 25):
                 i -= 1
             return ' '.join(words[:i]) + '... ' + words[-1]
-    return text[:140]
+    return text[:TWEET_CHARS]
 
 
 class basicbot:
@@ -1350,9 +1352,10 @@ I currently do not support any commands, sorry.""" % (self.myjid.user,)
             self.send_groupchat(room, msg)
             return
 
-        if len(plaintxt) > 139:
-            msg = "%s: Sorry, your message is longer than 140 " % (res,)
-            msg += "characters, so I can not relay to twitter!"
+        if len(plaintxt) > (TWEET_CHARS - 1):
+            msg = ("%s: Sorry, your message is longer than %s " 
+                   "characters, so I can not relay to twitter!"
+                   ) % (res, TWEET_CHARS)
             self.send_groupchat(room, msg)
             return
 
