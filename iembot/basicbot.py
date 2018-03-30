@@ -34,7 +34,8 @@ import pytz
 
 from twittytwister import twitter
 
-from pyiem.reference import TWEET_CHARS
+# from pyiem.reference import TWEET_CHARS
+TWEET_CHARS = 240
 
 PRESENCE_MUC_ITEM = (
     "/presence/x[@xmlns='http://jabber.org/protocol/muc#user']/item")
