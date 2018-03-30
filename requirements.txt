@@ -3,3 +3,4 @@ oauth
 PyRSS2Gen
 pytz
 git+https://github.com/akrherz/twitty-twister.git#egg=twitty-twister
+git+https://github.com/akrherz/pyIEM.git
