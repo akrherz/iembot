@@ -1,4 +1,10 @@
 """ Chat bot implementation of IEMBot """
+from __future__ import print_function
+import datetime
+import re
+import pickle
+import os
+import json
 
 from twisted.web.client import HTTPClientFactory
 from twisted.mail.smtp import SMTPSenderFactory
@@ -6,18 +12,9 @@ from twisted.words.protocols.jabber import jid
 from twisted.words.xish import xpath
 from twisted.python import log
 from twisted.web import server, resource
-
 from twisted.internet.task import LoopingCall
 from twisted.internet import reactor
-
-
 import PyRSS2Gen
-
-import datetime
-import re
-import pickle
-import os
-import json
 
 from iembot import basicbot
 import iembot.util as botutil
@@ -26,24 +23,35 @@ import iembot.util as botutil
 HTTPClientFactory.noisy = False
 SMTPSenderFactory.noisy = False
 
-CHATLOG = {}
-
 # Increment this as we change the structure of the CHATLOG variable
 PICKLEFILE = "iembot_chatlog_v1.pickle"
-SEQNUM0 = 0
-if os.path.isfile(PICKLEFILE):
+RUNTIME = {'seqnum0': 0}
+
+CHATLOG = {}
+XML_CACHE = {}
+XML_CACHE_EXPIRES = {}
+
+
+def load_chatlog():
+    """load up our pickled chatlog"""
+    if not os.path.isfile(PICKLEFILE):
+        return
     try:
-        CHATLOG = pickle.load(open(PICKLEFILE, 'r'))
-        for rm in CHATLOG.keys():
-            s = CHATLOG[rm]['seqnum'][-1]
-            if s is not None and int(s) > SEQNUM0:
-                SEQNUM0 = int(s)
-        log.msg("Loaded CHATLOG pickle: %s" % (PICKLEFILE,))
+        oldlog = pickle.load(open(PICKLEFILE, 'r'))
+        for rm in oldlog:
+            CHATLOG[rm] = oldlog[rm]
+            seq = CHATLOG[rm]['seqnum'][-1]
+            if seq is not None and int(seq) > RUNTIME['seqnum0']:
+                RUNTIME['seqnum0'] = int(seq)
+        log.msg("Loaded CHATLOG pickle: %s, segnum0: %s" % (PICKLEFILE,
+                                                            RUNTIME['seqnum0']
+                                                            ))
     except Exception, exp:
         log.err(exp)
 
 
-def saveChatLog():
+def save_chat_log():
+    """Save the chat log to a pickled file"""
     reactor.callInThread(really_save_chat_log)
 
 
@@ -51,10 +59,6 @@ def really_save_chat_log():
     """ Save the pickle file """
     log.msg('Saving CHATLOG to %s' % (PICKLEFILE,))
     pickle.dump(CHATLOG, open(PICKLEFILE, 'w'))
-
-
-lc2 = LoopingCall(saveChatLog)
-lc2.start(600)  # Every 10 minutes
 
 
 class JabberClient(basicbot.basicbot):
@@ -74,7 +78,7 @@ class JabberClient(basicbot.basicbot):
     def on_firstlogin(self):
         """ local stuff that we care about, that gets called on first login """
         # We use a sequence number on the messages to track things
-        self.seqnum = SEQNUM0
+        self.seqnum = RUNTIME['seqnum0']
 
     def processMessageGC(self, elem):
         """Process a stanza element that is from a chatroom"""
@@ -117,9 +121,9 @@ class JabberClient(basicbot.basicbot):
             product_id = elem.x['product_id']
 
         html = xpath.queryForNodes('/message/html/body', elem)
-        logEntry = body
+        log_entry = body
         if html is not None:
-            logEntry = html[0].toXml()
+            log_entry = html[0].toXml()
 
         CHATLOG[room]['seqnum'] = (CHATLOG[room]['seqnum'][1:] +
                                    [self.next_seqnum(), ])
@@ -128,13 +132,13 @@ class JabberClient(basicbot.basicbot):
         CHATLOG[room]['author'] = CHATLOG[room]['author'][1:] + [res, ]
         CHATLOG[room]['product_id'] = (CHATLOG[room]['product_id'][1:] +
                                        [product_id, ])
-        CHATLOG[room]['log'] = CHATLOG[room]['log'][1:] + [logEntry, ]
+        CHATLOG[room]['log'] = CHATLOG[room]['log'][1:] + [log_entry, ]
         CHATLOG[room]['txtlog'] = CHATLOG[room]['txtlog'][1:] + [body, ]
 
     def processMessagePC(self, elem):
         # log.msg("processMessagePC() called from %s...." % (elem['from'],))
         _from = jid.JID(elem["from"])
-        if (elem["from"] == self.config['bot.xmppdomain']):
+        if elem["from"] == self.config['bot.xmppdomain']:
             log.msg("MESSAGE FROM SERVER?")
             return
         # Intercept private messages via a chatroom, can't do that :)
@@ -193,22 +197,19 @@ class JabberClient(basicbot.basicbot):
                            twtextra=twtextra, twituser=page)
 
 
-xml_cache = {}
-xml_cache_expires = {}
-
-
-def wfoRSS(rm):
+def wfo_rss(rm):
+    """build a RSS for the given room"""
     if len(rm) == 4 and rm[0] == 'k':
         rm = '%schat' % (rm[-3:],)
     elif len(rm) == 3:
         rm = 'k%schat' % (rm,)
-    if rm not in xml_cache:
-        xml_cache[rm] = ""
-        xml_cache_expires[rm] = -2
+    if rm not in XML_CACHE:
+        XML_CACHE[rm] = ""
+        XML_CACHE_EXPIRES[rm] = -2
 
     lastID = CHATLOG[rm]['seqnum'][-1]
-    if lastID == xml_cache_expires[rm]:
-        return xml_cache[rm]
+    if lastID == XML_CACHE_EXPIRES[rm]:
+        return XML_CACHE[rm]
 
     rss = PyRSS2Gen.RSS2(
            generator="iembot",
@@ -223,8 +224,8 @@ def wfoRSS(rm):
         rss.items.append(botutil.chatlog2rssitem(CHATLOG[rm]['timestamps'][k],
                                                  CHATLOG[rm]['txtlog'][k]))
 
-    xml_cache[rm] = rss.to_xml()
-    xml_cache_expires[rm] = lastID
+    XML_CACHE[rm] = rss.to_xml()
+    XML_CACHE_EXPIRES[rm] = lastID
     return rss.to_xml()
 
 
@@ -261,7 +262,7 @@ class HomePage(resource.Resource):
                    "%a, %d %b %Y %H:%M:%S GMT")))
             xml = rss.to_xml()
         else:
-            xml = wfoRSS(rm)
+            xml = wfo_rss(rm)
         request.setHeader('Content-Length', "%s" % (len(xml),))
         request.setHeader('Content-Type', 'text/xml')
         request.setResponseCode(200)
@@ -294,7 +295,7 @@ class JsonChannel(resource.Resource):
         /room/dmxchat?seqnum=1
         """
         tokens = re.findall("/room/([a-z0-9]+)", request.uri.lower())
-        if len(tokens) == 0:
+        if not tokens:
             log.msg('Bad URI: %s len(tokens) is 0' % (request.uri,))
             request.write(self.wrap(request, json.dumps("ERROR")))
             request.finish()
@@ -311,7 +312,7 @@ class JsonChannel(resource.Resource):
 
         r = dict(messages=[])
         if room not in CHATLOG:
-            print 'No CHATLOG', room
+            print('No CHATLOG |%s|' % (room, ))
             request.write(self.wrap(request, json.dumps("ERROR")))
             request.finish()
             return server.NOT_DONE_YET
@@ -355,3 +356,8 @@ class JSONResource(resource.Resource):
         resource.Resource.__init__(self)
         self.putChild('room', JsonChannel())
         self.putChild('reload', AdminChannel(iembot))
+
+
+load_chatlog()
+lc2 = LoopingCall(save_chat_log)
+lc2.start(600)  # Every 10 minutes
