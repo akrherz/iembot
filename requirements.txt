@@ -2,5 +2,6 @@ Twisted
 oauth
 PyRSS2Gen
 pytz
+cartopy
 git+https://github.com/akrherz/twitty-twister.git#egg=twitty-twister
 git+https://github.com/akrherz/pyIEM.git
