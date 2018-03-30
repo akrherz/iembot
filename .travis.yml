@@ -3,12 +3,7 @@ python:
   - "2.7"
 
 install:
-  - "pip install Twisted"
-  - "pip install coveralls"
-  - "pip install oauth"
-  - "pip install pytz"
-  - "pip install PyRSS2Gen"
-  - "pip install git+https://github.com/akrherz/twitty-twister.git#egg=twitty-twister"
+  - "pip install -r requirements.txt"
 
 script:
   "coverage run --source=iembot setup.py test"
