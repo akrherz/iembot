@@ -4,8 +4,8 @@
 import datetime
 import json
 import traceback
-from email.MIMEText import MIMEText
-import StringIO
+from email.mime.text import MIMEText
+from io import StringIO
 import random
 import os
 import pwd
@@ -53,7 +53,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
     """
     # Load up the channel keys
     txn.execute("SELECT id, channel_key from %s_channels" % (bot.name,))
-    for row in txn:
+    for row in txn.fetchall():
         bot.channelkeys[row['channel_key']] = row['id']
 
     # Load up the routingtable for bot products
@@ -61,7 +61,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
     txn.execute("""
         SELECT roomname, channel from %s_room_subscriptions
     """ % (bot.name,))
-    for row in txn:
+    for row in txn.fetchall():
         rm = row['roomname']
         channel = row['channel']
         if channel not in rt:
@@ -76,7 +76,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
     txn.execute("""
         SELECT roomname, endpoint from %s_room_syndications
     """ % (bot.name,))
-    for row in txn:
+    for row in txn.fetchall():
         rm = row['roomname']
         endpoint = row['endpoint']
         if rm not in synd:
@@ -90,9 +90,9 @@ def load_chatrooms_from_db(txn, bot, always_join):
     txn.execute("""
         SELECT roomname, fbpage, twitter from %s_rooms ORDER by roomname ASC
     """ % (bot.name,))
-    oldrooms = bot.rooms.keys()
+    oldrooms = list(bot.rooms.keys())
     joined = 0
-    for i, row in enumerate(txn):
+    for i, row in enumerate(txn.fetchall()):
         rm = row['roomname']
         # Setup Room Config Dictionary
         if rm not in bot.rooms:
@@ -128,7 +128,7 @@ def load_twitter_from_db(txn, bot):
         SELECT screen_name, channel from """+bot.name+"""_twitter_subs
         """)
     twrt = {}
-    for row in txn:
+    for row in txn.fetchall():
         sn = row['screen_name']
         channel = row['channel']
         if sn == '' or channel == '':
@@ -144,7 +144,7 @@ def load_twitter_from_db(txn, bot):
         SELECT screen_name, access_token, access_token_secret
         from """+bot.name+"""_twitter_oauth
         """)
-    for row in txn:
+    for row in txn.fetchall():
         sn = row['screen_name']
         at = row['access_token']
         ats = row['access_token_secret']
@@ -159,7 +159,7 @@ def load_facebook_from_db(txn, bot):
         SELECT fbpid, channel from """+bot.name+"""_fb_subscriptions
         """)
     fbrt = {}
-    for row in txn:
+    for row in txn.fetchall():
         page = row['fbpid']
         channel = row['channel']
         if channel not in fbrt:
@@ -171,7 +171,7 @@ def load_facebook_from_db(txn, bot):
         SELECT fbpid, access_token from """+bot.name+"""_fb_access_tokens
         """)
 
-    for row in txn:
+    for row in txn.fetchall():
         page = row['fbpid']
         at = row['access_token']
         bot.fb_access_tokens[page] = at
@@ -421,7 +421,7 @@ class basicbot:
         Something to email errors when something fails
         """
         # Always log a message about our fun
-        cstr = StringIO.StringIO()
+        cstr = StringIO()
 
         if exp is not None:
             traceback.print_exc(file=cstr)
@@ -654,7 +654,7 @@ Message:
         # Ensure that we have well formed XML before sending it
         try:
             _ = ET.fromstring(message.toXml())
-        except Exception, exp:
+        except Exception as exp:
             self.email_error(exp, message.toXml())
             return None
         else:

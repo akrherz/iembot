@@ -37,7 +37,7 @@ def load_chatlog():
     if not os.path.isfile(PICKLEFILE):
         return
     try:
-        oldlog = pickle.load(open(PICKLEFILE, 'r'))
+        oldlog = pickle.load(open(PICKLEFILE, 'rb'))
         for rm in oldlog:
             CHATLOG[rm] = oldlog[rm]
             seq = CHATLOG[rm]['seqnum'][-1]
@@ -46,7 +46,7 @@ def load_chatlog():
         log.msg("Loaded CHATLOG pickle: %s, segnum0: %s" % (PICKLEFILE,
                                                             RUNTIME['seqnum0']
                                                             ))
-    except Exception, exp:
+    except Exception as exp:
         log.err(exp)
 
 
@@ -58,7 +58,7 @@ def save_chat_log():
 def really_save_chat_log():
     """ Save the pickle file """
     log.msg('Saving CHATLOG to %s' % (PICKLEFILE,))
-    pickle.dump(CHATLOG, open(PICKLEFILE, 'w'))
+    pickle.dump(CHATLOG, open(PICKLEFILE, 'wb'))
 
 
 class JabberClient(basicbot.basicbot):
