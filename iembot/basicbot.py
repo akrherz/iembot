@@ -5,7 +5,7 @@ import datetime
 import json
 import traceback
 from email.mime.text import MIMEText
-from io import StringIO
+from io import BytesIO
 import random
 import os
 import pwd
@@ -421,9 +421,8 @@ class basicbot:
         Something to email errors when something fails
         """
         # Always log a message about our fun
-        cstr = StringIO()
-
-        if exp is not None:
+        cstr = BytesIO()
+        if isinstance(exp, Exception):
             traceback.print_exc(file=cstr)
             cstr.seek(0)
             if isinstance(exp, Exception):
