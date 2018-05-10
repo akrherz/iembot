@@ -3,4 +3,4 @@ PyRSS2Gen
 pytz
 service_identity
 git+https://github.com/akrherz/twitty-twister.git
-git+https://github.com/akrherz/oauth.git@six
+git+https://github.com/akrherz/python-oauth.git@six
