@@ -5,7 +5,7 @@ import datetime
 import json
 import traceback
 from email.mime.text import MIMEText
-from io import BytesIO
+from io import BytesIO, StringIO
 import random
 import os
 import pwd
@@ -33,6 +33,7 @@ from oauth import oauth
 import pytz
 
 from twittytwister import twitter
+from iembot.util import safe_twitter_text
 
 # from pyiem.reference import TWEET_CHARS
 TWEET_CHARS = 240
@@ -177,54 +178,12 @@ def load_facebook_from_db(txn, bot):
         bot.fb_access_tokens[page] = at
 
 
-def safe_twitter_text(text):
-    """ Attempt to rip apart a message that is too long!
-    To be safe, the URL is counted as 24 chars
-    """
-    # Convert two or more spaces into one
-    text = ' '.join(text.split())
-    # If we are already below TWEET_CHARS, we don't have any more work to do...
-    if len(text) < TWEET_CHARS and text.find("http") == -1:
-        return text
-    chars = 0
-    words = text.split()
-    for word in words:
-        if word.find('http') == 0:
-            chars += 25
-        else:
-            chars += (len(word) + 1)
-    if chars < TWEET_CHARS:
-        return text
-
-    urls = re.findall('https?://[^\s]+', text)
-    if len(urls) == 1:
-        text2 = text.replace(urls[0], '')
-        sections = re.findall('(.*) for (.*)( till [0-9A-Z].*)', text2)
-        if len(sections) == 1:
-            text = "%s%s%s" % (sections[0][0], sections[0][2], urls[0])
-            if len(text) > TWEET_CHARS:
-                sz = TWEET_CHARS - 26 - len(sections[0][2])
-                text = "%s%s%s" % (sections[0][0][:sz], sections[0][2],
-                                   urls[0])
-            return text
-        if len(text) > TWEET_CHARS:
-            return "%s... %s" % (text2[:109], urls[0])
-    if chars > TWEET_CHARS:
-        if words[-1].startswith('http'):
-            i = -2
-            while len(' '.join(words[:i])) > (TWEET_CHARS - 3 - 25):
-                i -= 1
-            return ' '.join(words[:i]) + '... ' + words[-1]
-    return text[:TWEET_CHARS]
-
-
 class basicbot:
     """ Here lies the Jabber Bot """
 
     def __init__(self, name, dbpool):
         """ Constructor """
-        self.startup_time = datetime.datetime.utcnow().replace(
-                                                tzinfo=pytz.timezone("UTC"))
+        self.startup_time = datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
         self.name = name
         self.dbpool = dbpool
         self.config = {}
@@ -360,15 +319,14 @@ class basicbot:
         """
         Called after error going to twitter
         """
-        log.msg("====== Twitter Error! ======")
-        log.err(err)
+        log.msg("--> tweet_eb called")
 
         # Make sure we only are trapping API errors
         err.trap(weberror.Error)
         # Don't email duplication errors
         j = {}
         try:
-            j = json.loads(err.value.response)
+            j = json.loads(err.value.response.decode('utf-8', 'ignore'))
         except Exception as _:
             log.msg("Unable to parse response |%s| as JSON" % (
                                                         err.value.response,))
@@ -397,7 +355,7 @@ class basicbot:
 
         msg = "Sorry, an error was encountered with the tweet."
         htmlmsg = "Sorry, an error was encountered with the tweet."
-        if err.value.status == "401":
+        if err.value.status == b"401":
             msg = "Post to twitter failed. Access token for %s " % (twituser,)
             msg += "is no longer valid."
             htmlmsg = msg + " Please refresh access tokens "
@@ -411,7 +369,7 @@ class basicbot:
             INSERT into """+self.name+"""_social_log(medium, source, message,
             response, response_code, resource_uri) values (%s,%s,%s,%s,%s,%s)
             """, ('twitter', myjid, twttxt, err.value.response,
-                  err.value.status, "https://twitter.com/%s" % (twituser,)))
+                  int(err.value.status), "https://twitter.com/%s" % (twituser,)))
         deffered.addErrback(log.err)
 
         # return err.value.response
@@ -1043,8 +1001,9 @@ I currently do not support any commands, sorry.""" % (self.myjid.user,)
         """
         try:
             func(elem)
-        except:
-            io = StringIO.StringIO()
+        except Exception as exp:
+            log.err(exp)
+            io = StringIO()
             traceback.print_exc(file=io)
             self.email_error(io.getvalue(), elem.toXml())
 
