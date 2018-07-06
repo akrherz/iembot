@@ -1,18 +1,14 @@
+"""Our script that is exec'd from twistd via run.sh"""
+# Base Python
+import json
+
 # Twisted Bits
 from twisted.application import service, internet
 from twisted.web import server
 from twisted.enterprise import adbapi
 
-# Base Python
-import json
-import os
-import sys
-
-# Twisted 16.4 changes import logic
-sys.path.insert(0, os.getcwd())
-
 # Local Import
-import iemchatbot
+from iembot import iemchatbot, webservices
 
 dbconfig = json.load(open('settings.json'))
 
@@ -33,11 +29,11 @@ defer = dbpool.runQuery("select propname, propvalue from properties")
 defer.addCallback(jabber.fire_client_with_config, serviceCollection)
 
 # 2. JSON channel requests
-json = server.Site(iemchatbot.JSONResource(jabber), logPath='/dev/null')
-x = internet.TCPServer(9003, json)
+json = server.Site(webservices.JSONRootResource(jabber), logPath='/dev/null')
+x = internet.TCPServer(9003, json)  # pylint: disable=no-member
 x.setServiceParent(serviceCollection)
 
 # 3. Answer requests for RSS feeds of the bot logs
-rss = server.Site(iemchatbot.RootResource(), logPath="/dev/null")
-r = internet.TCPServer(9004, rss)
+rss = server.Site(webservices.RSSRootResource(jabber), logPath="/dev/null")
+r = internet.TCPServer(9004, rss)  # pylint: disable=no-member
 r.setServiceParent(serviceCollection)

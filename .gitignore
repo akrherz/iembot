@@ -1,5 +1,5 @@
 /config.ini
-/iembot_chatlog_v1.pickle
+/iembot_chatlog_v*.pickle
 /.project
 /.pydevproject
 /iembot.pid
