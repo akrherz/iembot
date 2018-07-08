@@ -38,7 +38,8 @@ from pyiem.reference import TWEET_CHARS
 
 ROOM_LOG_ENTRY = namedtuple(
     'ROOM_LOG_ENTRY',
-    ['seqnum', 'timestamp', 'log', 'author', 'product_id', 'txtlog']
+    ['seqnum', 'timestamp', 'log', 'author', 'product_id', 'product_text',
+     'txtlog']
 )
 PRESENCE_MUC_ITEM = (
     "/presence/x[@xmlns='http://jabber.org/protocol/muc#user']/item")
@@ -50,11 +51,12 @@ class basicbot:
     """ Here lies the Jabber Bot """
     PICKLEFILE = "iembot_chatlog_v2.pickle"
 
-    def __init__(self, name, dbpool):
+    def __init__(self, name, dbpool, memcache_client=None):
         """ Constructor """
         self.startup_time = datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
         self.name = name
         self.dbpool = dbpool
+        self.memcache_client = memcache_client
         self.config = {}
         self.IQ = {}
         self.rooms = {}

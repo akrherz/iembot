@@ -12,15 +12,3 @@ def test_tweettext():
              "https://iem.local/lsr/#DMX/201807041830/201807041830")
     msgout = botutil.safe_twitter_text(msgin)
     assert msgout == msgin
-
-
-def test_chatlog2rssitem():
-    """Can we do it, yes we can!"""
-    uri = ("https://mesonet.agron.iastate.edu/p.php?"
-           "pid=201703171339-KLWX-FXUS61-AFDLWX")
-    rssitem = botutil.chatlog2rssitem(
-        '201703171339',
-        ("LWX issues Area Forecast Discussion (AFD) %s") % (uri,))
-    assert rssitem.title == "LWX issues Area Forecast Discussion (AFD)"
-    assert rssitem.link == uri
-    assert rssitem.guid == uri

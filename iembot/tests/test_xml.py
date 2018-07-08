@@ -1,6 +1,6 @@
 import unittest
 from iembot.basicbot import basicbot
-from iembot.basicbot import safe_twitter_text
+from iembot.util import safe_twitter_text
 
 
 class TestXML(unittest.TestCase):

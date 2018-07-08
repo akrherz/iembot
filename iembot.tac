@@ -5,7 +5,9 @@ import json
 # Twisted Bits
 from twisted.application import service, internet
 from twisted.web import server
+from twisted.internet import reactor
 from twisted.enterprise import adbapi
+from txyam.client import YamClient
 
 # Local Import
 from iembot import iemchatbot, webservices
@@ -23,7 +25,10 @@ dbpool = adbapi.ConnectionPool("pyiem.twistedpg", cp_reconnect=True,
                                password=dbrw.get('password'),
                                user=dbrw.get('user'))
 
-jabber = iemchatbot.JabberClient("iembot", dbpool)
+memcache_client = YamClient(reactor, ['tcp:iem-memcached3:11211', ])
+memcache_client.connect()
+
+jabber = iemchatbot.JabberClient("iembot", dbpool, memcache_client)
 
 defer = dbpool.runQuery("select propname, propvalue from properties")
 defer.addCallback(jabber.fire_client_with_config, serviceCollection)

@@ -16,7 +16,8 @@ install:
   - . $HOME/miniconda/etc/profile.d/conda.sh
   - conda create -n test-environment python=$PYTHON_VERSION
   - conda activate test-environment
-  - conda install pytest
+  # cython is a lame requirement from rabbit hole of cartopy
+  - conda install pytest cython cartopy
   - pip install -r requirements.txt
   - pip install coveralls
 

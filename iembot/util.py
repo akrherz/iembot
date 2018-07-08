@@ -18,7 +18,6 @@ from twisted.mail import smtp
 from twisted.python import log
 import twisted.web.error as weberror
 from twisted.words.xish import domish
-import PyRSS2Gen
 from pyiem.reference import TWEET_CHARS
 
 
@@ -553,17 +552,31 @@ def safe_twitter_text(text):
     return text[:TWEET_CHARS]
 
 
-def chatlog2rssitem(timestamp, txt):
+def html_encode(s):
+    """Convert stuff in nws text to entities"""
+    htmlCodes = (
+            ("'", '&#39;'),
+            ('"', '&quot;'),
+            ('>', '&gt;'),
+            ('<', '&lt;'),
+            ('&', '&amp;')
+        )
+    for code in htmlCodes:
+        s = s.replace(code[0], code[1])
+    return s
+
+
+def add_entry_to_rss(entry, rss):
     """Convert a txt Jabber room message to a RSS feed entry
 
     Args:
-      timestamp(str): A string formatted timestamp in the form YYYYMMDDHHMI
-      txt(str): The text variant of the chatroom message that was set.
+      entry(iembot.basicbot.CHAT_LOG_ENTRY): entry
 
     Returns:
       PyRSSGen.RSSItem
     """
-    ts = datetime.datetime.strptime(timestamp, "%Y%m%d%H%M%S")
+    ts = datetime.datetime.strptime(entry.timestamp, "%Y%m%d%H%M%S")
+    txt = entry.txtlog
     m = re.search(r"https?://", txt)
     urlpos = -1
     if m:
@@ -573,7 +586,8 @@ def chatlog2rssitem(timestamp, txt):
     ltxt = txt[urlpos:].replace("&amp;", "&").strip()
     if ltxt == "":
         ltxt = "https://mesonet.agron.iastate.edu/projects/iembot/"
-    return PyRSS2Gen.RSSItem(title=txt[:urlpos].strip(),
-                             link=ltxt,
-                             guid=ltxt,
-                             pubDate=ts.strftime("%a, %d %b %Y %H:%M:%S GMT"))
+    fe = rss.add_entry()
+    fe.title(txt[:urlpos].strip())
+    fe.link(href=ltxt, rel='self')
+    fe.content(entry.product_text, type='CDATA')
+    fe.pubDate(ts.strftime("%a, %d %b %Y %H:%M:%S GMT"))

@@ -3,6 +3,7 @@ from __future__ import print_function
 import datetime
 import re
 
+from twisted.internet import reactor
 from twisted.web.client import HTTPClientFactory
 from twisted.mail.smtp import SMTPSenderFactory
 from twisted.words.protocols.jabber import jid
@@ -78,14 +79,53 @@ class JabberClient(basicbot.basicbot):
 
         if len(roomlog) > 40:
             roomlog.pop()
-        roomlog.insert(0, basicbot.ROOM_LOG_ENTRY(
-            seqnum=self.next_seqnum(),
-            timestamp=ts.strftime("%Y%m%d%H%M%S"),
-            log=log_entry,
-            author=res,
-            product_id=product_id,
-            txtlog=body)
-        )
+
+        def writelog(product_text=None):
+            """Actually do what we want to do"""
+            if product_text is None or product_text == '':
+                product_text = 'Sorry, product text is unavailable.'
+            roomlog.insert(0, basicbot.ROOM_LOG_ENTRY(
+                seqnum=self.next_seqnum(),
+                timestamp=ts.strftime("%Y%m%d%H%M%S"),
+                log=log_entry,
+                author=res,
+                product_id=product_id,
+                product_text=product_text,
+                txtlog=body)
+            )
+        if product_id == '':
+            writelog()
+            return
+
+        def got_data(res, trip):
+            """got a response!"""
+            # print("got_data(%s, %s)" % (res, trip))
+            (_flag, data) = res
+            if data is None:
+                if trip < 5:
+                    reactor.callLater(10, memcache_fetch, trip)
+                else:
+                    writelog()
+                return
+            log.msg("memcache lookup of %s succeeded" % (product_id, ))
+            # log.msg("Got a response! res: %s" % (res, ))
+            writelog(data.decode('utf-8', 'ignore'))
+
+        def no_data(mixed):
+            """got no data"""
+            log.err(mixed)
+            writelog()
+
+        def memcache_fetch(trip):
+            """fetch please"""
+            trip += 1
+            log.msg("memcache_fetch(trip=%s, product_id=%s" % (trip,
+                                                               product_id))
+            defer = self.memcache_client.get(product_id.encode('utf-8'))
+            defer.addCallback(got_data, trip)
+            defer.addErrback(no_data)
+
+        memcache_fetch(0)
 
     def processMessagePC(self, elem):
         # log.msg("processMessagePC() called from %s...." % (elem['from'],))

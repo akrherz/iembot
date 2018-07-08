@@ -5,7 +5,7 @@ import datetime
 
 from twisted.web import resource
 from twisted.python import log
-import PyRSS2Gen
+from feedgen.feed import FeedGenerator
 import iembot.util as botutil
 
 XML_CACHE = {}
@@ -27,22 +27,21 @@ def wfo_rss(iembot, rm):
     if lastID == XML_CACHE_EXPIRES[rm]:
         return XML_CACHE[rm]
 
-    rss = PyRSS2Gen.RSS2(
-           generator="iembot",
-           title="%s IEMBot RSS Feed" % (rm,),
-           link="https://weather.im/iembot-rss/wfo/%s.xml" % (rm,),
-           description="%s IEMBot RSS Feed" % (rm,),
-           lastBuildDate=datetime.datetime.utcnow())
+    rss = FeedGenerator()
+    rss.generator('iembot')
+    rss.title("%s IEMBot RSS Feed" % (rm,))
+    rss.link(href="https://weather.im/iembot-rss/wfo/%s.xml" % (rm,),
+             rel='self')
+    rss.description("%s IEMBot RSS Feed" % (rm,))
+    rss.lastBuildDate(
+        datetime.datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT"))
 
     for entry in iembot.chatlog[rm]:
-        if entry.segnum < 0:
-            continue
-        rss.items.append(
-            botutil.chatlog2rssitem(entry.timestamp, entry.txtlog))
+        botutil.add_entry_to_rss(entry, rss)
 
-    XML_CACHE[rm] = rss.to_xml()
+    XML_CACHE[rm] = rss.rss_str()
     XML_CACHE_EXPIRES[rm] = lastID
-    return rss.to_xml()
+    return rss.rss_str()
 
 
 class RSSService(resource.Resource):
@@ -59,32 +58,41 @@ class RSSService(resource.Resource):
 
     def render(self, request):
         uri = request.uri.decode('utf-8')
-        tokens = re.findall("/wfo/(k...|botstalk).xml", uri.lower())
+        if uri.startswith("/wfo/"):
+            tokens = re.findall("/wfo/(k...|botstalk).xml", uri.lower())
+        else:
+            tokens = re.findall("/room/(.*).xml", uri.lower())
         if not tokens:
             return b"ERROR!"
 
         rm = tokens[0]
-        if len(rm) == 4 and rm[0] == 'k':
-            rm = '%schat' % (rm[-3:],)
-        elif len(rm) == 3:
-            rm = 'k%schat' % (rm,)
+        if uri.startswith("/wfo/"):
+            if len(rm) == 4 and rm[0] == 'k':
+                rm = '%schat' % (rm[-3:],)
+            elif len(rm) == 3:
+                rm = 'k%schat' % (rm,)
         if not self.iembot.chatlog.get(rm, []):
-            rss = PyRSS2Gen.RSS2(
-                generator="iembot",
-                title="IEMBOT Feed",
-                link="http://weather.im/iembot-rss/wfo/" + tokens[0] + ".xml",
-                description="Syndication of iembot messages.",
-                lastBuildDate=datetime.datetime.utcnow())
-            rss.items.append(
-              PyRSS2Gen.RSSItem(
-               title="IEMBOT recently restarted, no history yet",
-               link="http://mesonet.agron.iastate.edu/projects/iembot/",
-               pubDate=datetime.datetime.utcnow().strftime(
-                   "%a, %d %b %Y %H:%M:%S GMT")))
-            xml = rss.to_xml()
+            rss = FeedGenerator()
+            rss.generator('iembot')
+            rss.title("IEMBot RSS Feed")
+            rss.link(
+                href="https://weather.im/iembot-rss/wfo/%s.xml" % (tokens[0],),
+                rel='self')
+            rss.description("Syndication of iembot messages.")
+            rss.lastBuildDate(datetime.datetime.utcnow())
+            fe = rss.add_entry()
+            fe.title("IEMBOT recently restarted, no history yet")
+            fe.link(href="http://mesonet.agron.iastate.edu/projects/iembot/",
+                    rel='self')
+            fe.pubDate(datetime.datetime.utcnow(
+                ).strftime("%a, %d %b %Y %H:%M:%S GMT"))
+            xml = rss.rss_str()
         else:
             xml = wfo_rss(self.iembot, rm)
-        return xml.encode('utf-8')
+        request.setHeader('Content-Length', "%s" % (len(xml),))
+        request.setHeader('Content-Type', 'text/xml')
+        request.setResponseCode(200)
+        return xml
 
 
 class RSSRootResource(resource.Resource):
@@ -93,7 +101,11 @@ class RSSRootResource(resource.Resource):
     def __init__(self, iembot):
         """Constructor"""
         resource.Resource.__init__(self)
-        self.putChild('wfo', RSSService(iembot))
+        service = RSSService(iembot)
+        # legacy and lame
+        self.putChild(b'wfo', service)
+        # more properly alligned with what we do
+        self.putChild(b'room', service)
 
 
 # ------------------- iembot-json stuff below ---------------
