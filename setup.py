@@ -15,12 +15,14 @@ class PyTest(TestCommand):
         errno = pytest.main(self.test_args)
         sys.exit(errno)
 
+
 setup(
     name='iembot',
     version=iembot.__version__,
     author='daryl herzmann',
     author_email='akrherz@gmail.com',
     packages=['iembot', ],
+    package_data={'iembot': ['data/*', ]},
     url='https://github.com/akrherz/iembot/',
     license='Apache',
     cmdclass={'test': PyTest},

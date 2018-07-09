@@ -1,3 +1,4 @@
+"""Some random tests"""
 import unittest
 from iembot.basicbot import basicbot
 from iembot.util import safe_twitter_text
@@ -17,7 +18,7 @@ class TestXML(unittest.TestCase):
                            'southern leeward islands. http://go.usa.gov/W3H'))
 
     def test_xml(self):
-        bot = basicbot('testbot', None)
+        bot = basicbot('testbot', None, xml_log_path="/tmp")
         msg = bot.send_groupchat('roomname', 'Hello Friend')
         self.assertTrue(msg is not None)
 

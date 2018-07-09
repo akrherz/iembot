@@ -1,0 +1,7 @@
+twisted>=18.4.0
+pytest
+pytz
+service_identity
+# cython is a lame requirement from rabbit hole of cartopy
+cython
+cartopy

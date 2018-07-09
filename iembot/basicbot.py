@@ -14,6 +14,7 @@ except ImportError as _exp:
     import urllib as urlparse
 import pickle
 import re
+import os
 from xml.etree import ElementTree as ET
 
 from twisted.words.xish import domish
@@ -36,6 +37,7 @@ import iembot.util as botutil
 
 from pyiem.reference import TWEET_CHARS
 
+DATADIR = os.sep.join([os.path.dirname(__file__), 'data'])
 ROOM_LOG_ENTRY = namedtuple(
     'ROOM_LOG_ENTRY',
     ['seqnum', 'timestamp', 'log', 'author', 'product_id', 'product_text',
@@ -51,7 +53,8 @@ class basicbot:
     """ Here lies the Jabber Bot """
     PICKLEFILE = "iembot_chatlog_v2.pickle"
 
-    def __init__(self, name, dbpool, memcache_client=None):
+    def __init__(self, name, dbpool, memcache_client=None,
+                 xml_log_path="logs"):
         """ Constructor """
         self.startup_time = datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
         self.name = name
@@ -72,12 +75,13 @@ class basicbot:
         self.firstlogin = False
         self.channelkeys = {}
         self.syndication = {}
-        self.xmllog = DailyLogFile('xmllog', 'logs/')
+        self.xmllog = DailyLogFile('xmllog', xml_log_path)
         self.myjid = None
         self.ingestjid = None
         self.conference = None
         self.email_timestamps = []
-        self.fortunes = open('startrek', 'r').read().split("\n%\n")
+        self.fortunes = open(
+            '%s/startrek' % (DATADIR, ), 'r').read().split("\n%\n")
         self.twitter_oauth_consumer = None
         self.logins = 0
         botutil.load_chatlog(self)
@@ -803,15 +807,8 @@ I currently do not support any commands, sorry.""" % (self.myjid.user,)
             self.send_privatechat(elem["from"], msg)
             return
         room = tokens[1].lower()
-        o = open('util/startrek', 'r').read()
-        fortunes = o.split("\n%\n")
-        cnt_fortunes = len(fortunes)
-        i = 0
-        while i < 60:
-            offset = int(cnt_fortunes * random.random())
-            msg = fortunes[offset]
-            self.send_groupchat(room, msg)
-            i += 1
+        for _i in range(60):
+            self.send_groupchat(room, self.get_fortune())
         self.send_groupchat(room,
                             ("Room flooding complete, offending message "
                              "should no longer appear"))
