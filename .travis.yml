@@ -17,7 +17,7 @@ install:
   - conda create -n test-environment python=$PYTHON_VERSION
   - conda activate test-environment
   - conda install -q --file conda_requirements.txt
-  - pip install -r requirements.txt
+  - pip install --upgrade -r pip_requirements.txt
   - pip install coveralls
 
 script:
