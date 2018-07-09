@@ -79,7 +79,9 @@ class RSSService(resource.Resource):
                 href="https://weather.im/iembot-rss/wfo/%s.xml" % (tokens[0],),
                 rel='self')
             rss.description("Syndication of iembot messages.")
-            rss.lastBuildDate(datetime.datetime.utcnow())
+            rss.lastBuildDate(
+                datetime.datetime.utcnow(
+                    ).strftime("%a, %d %b %Y %H:%M:%S GMT"))
             fe = rss.add_entry()
             fe.title("IEMBOT recently restarted, no history yet")
             fe.link(href="http://mesonet.agron.iastate.edu/projects/iembot/",
