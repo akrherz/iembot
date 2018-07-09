@@ -59,7 +59,8 @@ class RSSService(resource.Resource):
     def render(self, request):
         uri = request.uri.decode('utf-8')
         if uri.startswith("/wfo/"):
-            tokens = re.findall("/wfo/(k...|botstalk).xml", uri.lower())
+            tokens = re.findall(
+                "/wfo/(k...|botstalk|...chat).xml", uri.lower())
         else:
             tokens = re.findall("/room/(.*).xml", uri.lower())
         if not tokens:
@@ -76,7 +77,7 @@ class RSSService(resource.Resource):
             rss.generator('iembot')
             rss.title("IEMBot RSS Feed")
             rss.link(
-                href="https://weather.im/iembot-rss/wfo/%s.xml" % (tokens[0],),
+                href="https://weather.im/iembot-rss/room/%s.xml" % (rm,),
                 rel='self')
             rss.description("Syndication of iembot messages.")
             rss.lastBuildDate(
