@@ -589,5 +589,5 @@ def add_entry_to_rss(entry, rss):
     fe = rss.add_entry()
     fe.title(txt[:urlpos].strip())
     fe.link(href=ltxt, rel='self')
-    fe.content(entry.product_text, type='CDATA')
+    fe.content("<pre>%s</pre>" % (entry.product_text, ), type='CDATA')
     fe.pubDate(ts.strftime("%a, %d %b %Y %H:%M:%S GMT"))
