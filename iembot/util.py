@@ -586,7 +586,7 @@ def add_entry_to_rss(entry, rss):
     ltxt = txt[urlpos:].replace("&amp;", "&").strip()
     if ltxt == "":
         ltxt = "https://mesonet.agron.iastate.edu/projects/iembot/"
-    fe = rss.add_entry()
+    fe = rss.add_entry(order='append')
     fe.title(txt[:urlpos].strip())
     fe.link(href=ltxt, rel='self')
     fe.content("<pre>%s</pre>" % (entry.product_text, ), type='CDATA')
