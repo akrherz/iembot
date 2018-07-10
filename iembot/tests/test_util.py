@@ -2,6 +2,12 @@
 import iembot.util as botutil
 
 
+def test_htmlentites():
+    """Do replacements work?"""
+    assert botutil.htmlentities('<') == "&lt;"
+    assert botutil.htmlentities('<>') == "&lt;&gt;"
+
+
 def test_tweettext():
     """Are we doing the right thing here"""
     msgin = ("At 1:30 PM, 1 WNW Lake Mills [Winnebago Co, IA] TRAINED "

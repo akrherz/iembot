@@ -566,6 +566,25 @@ def html_encode(s):
     return s
 
 
+def htmlentities(text):
+    """Escape chars in the text for HTML presentation
+
+    Args:
+      text (str): subject to replace
+
+    Returns:
+      str : result of replacement
+    """
+    for lookfor, replacewith in [
+            ('&', '&amp;'),
+            ('>', '&gt;'),
+            ('<', '&lt;'),
+            ("'", '&#39;'),
+            ('"', '&quot;')]:
+        text = text.replace(lookfor, replacewith)
+    return text
+
+
 def add_entry_to_rss(entry, rss):
     """Convert a txt Jabber room message to a RSS feed entry
 
@@ -589,5 +608,6 @@ def add_entry_to_rss(entry, rss):
     fe = rss.add_entry(order='append')
     fe.title(txt[:urlpos].strip())
     fe.link(href=ltxt, rel='self')
-    fe.content("<pre>%s</pre>" % (entry.product_text, ), type='CDATA')
+    fe.content("<pre>%s</pre>" % (htmlentities(entry.product_text), ),
+               type='CDATA')
     fe.pubDate(ts.strftime("%a, %d %b %Y %H:%M:%S GMT"))
