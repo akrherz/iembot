@@ -1,5 +1,5 @@
-# feedgen 0.7.0 has a PR I made against it
-feedgen
+# feedgen 0.7.0 has a PR I made against it, so we use master
+git+https://github.com/lkiesow/python-feedgen#egg=feedgen
 git+https://github.com/Weasyl/txyam2.git#egg=txyam
 git+https://github.com/akrherz/pyIEM.git
 git+https://github.com/akrherz/twitty-twister.git@issue15
