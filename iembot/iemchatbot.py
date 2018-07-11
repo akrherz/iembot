@@ -109,7 +109,7 @@ class JabberClient(basicbot.basicbot):
                 return
             log.msg("memcache lookup of %s succeeded" % (product_id, ))
             # log.msg("Got a response! res: %s" % (res, ))
-            writelog(data.decode('utf-8', 'ignore'))
+            writelog(data.decode('ascii', 'ignore'))
 
         def no_data(mixed):
             """got no data"""

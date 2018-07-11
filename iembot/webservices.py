@@ -30,7 +30,7 @@ def wfo_rss(iembot, rm):
     rss = FeedGenerator()
     rss.generator('iembot')
     rss.title("%s IEMBot RSS Feed" % (rm,))
-    rss.link(href="https://weather.im/iembot-rss/wfo/%s.xml" % (rm,),
+    rss.link(href="https://weather.im/iembot-rss/room/%s.xml" % (rm,),
              rel='self')
     rss.description("%s IEMBot RSS Feed" % (rm,))
     rss.lastBuildDate(

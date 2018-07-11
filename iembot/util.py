@@ -585,6 +585,13 @@ def htmlentities(text):
     return text
 
 
+def remove_control_characters(html):
+    """Get rid of cruft?"""
+    # https://github.com/html5lib/html5lib-python/issues/96
+    html = re.sub(u"[\x00-\x08\x0b\x0e-\x1f\x7f]", "", html)
+    return html
+
+
 def add_entry_to_rss(entry, rss):
     """Convert a txt Jabber room message to a RSS feed entry
 
@@ -607,7 +614,8 @@ def add_entry_to_rss(entry, rss):
         ltxt = "https://mesonet.agron.iastate.edu/projects/iembot/"
     fe = rss.add_entry(order='append')
     fe.title(txt[:urlpos].strip())
-    fe.link(href=ltxt, rel='self')
-    fe.content("<pre>%s</pre>" % (htmlentities(entry.product_text), ),
+    fe.link(link=dict(href=ltxt))
+    txt = remove_control_characters(entry.product_text)
+    fe.content("<pre>%s</pre>" % (htmlentities(txt), ),
                type='CDATA')
     fe.pubDate(ts.strftime("%a, %d %b %Y %H:%M:%S GMT"))
