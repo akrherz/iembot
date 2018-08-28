@@ -259,8 +259,9 @@ def tweet_eb(err, bot, twttxt, access_token, room, myjid, twituser,
                                                     err.value.response,))
     if j.get('errors', []):
         errcode = j['errors'][0].get('code', 0)
-        if errcode in [130, ]:
+        if errcode in [130, 131]:
             # 130: over capacity
+            # 131: Internal error
             reactor.callLater(15,  # @UndefinedVariable
                               bot.tweet, twttxt, access_token, room,
                               myjid, twituser, twtextra, trip + 1)
