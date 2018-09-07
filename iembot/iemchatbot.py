@@ -164,8 +164,12 @@ class JabberClient(basicbot.basicbot):
         elem['type'] = "groupchat"
         self.send_groupchat_elem(elem)
 
+        alertedRooms = []
         for channel in channels:
             for room in self.routingtable.get(channel, []):
+                if room in alertedRooms:
+                    continue
+                alertedRooms.append(room)
                 elem['to'] = "%s@%s" % (room, self.config['bot.mucservice'])
                 self.send_groupchat_elem(elem)
             for page in self.tw_routingtable.get(channel, []):
