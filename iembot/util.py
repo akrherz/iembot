@@ -154,15 +154,22 @@ def email_error(exp, bot, message=''):
 
     def should_email():
         """Should we send an email?"""
+        # bot.email_timestamps contains timestamps of emails we *sent*
         utcnow = datetime.datetime.utcnow()
-        bot.email_timestamps.insert(0, utcnow)
-        delta = bot.email_timestamps[0] - bot.email_timestamps[-1]
+        # If we don't have any entries, we should email!
         if len(bot.email_timestamps) < 10:
+            bot.email_timestamps.insert(0, utcnow)
             return True
+        delta = utcnow - bot.email_timestamps[-1]
+        # Effectively limits to 10 per hour
+        if delta < datetime.timedelta(hours=1):
+            return False
+        # We are going to email!
+        bot.email_timestamps.insert(0, utcnow)
+        # trim listing to 10 entries
         while len(bot.email_timestamps) > 10:
             bot.email_timestamps.pop()
-
-        return delta > datetime.timedelta(hours=1)
+        return True
 
     # Logic to prevent email bombs
     if not should_email():
