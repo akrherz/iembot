@@ -218,8 +218,9 @@ def disable_twitter_user(bot, twituser, errcode=0):
         log.msg(("Removing twitter access token for user: '%s'"
                  ) % (twituser, ))
         df = bot.dbpool.runOperation("""
-            DELETE from """ + bot.name + """_twitter_oauth
-            WHERE screen_name = %s
+            UPDATE """ + bot.name + """_twitter_oauth
+            SET updated = now(), access_token = null,
+            access_token_secret = null WHERE screen_name = %s
             """, (twituser,))
         df.addErrback(log.err)
 
@@ -466,7 +467,8 @@ def load_twitter_from_db(txn, bot):
     twtokens = {}
     txn.execute("""
         SELECT screen_name, access_token, access_token_secret
-        from """+bot.name+"""_twitter_oauth
+        from """+bot.name+"""_twitter_oauth WHERE
+        access_token is not null and access_token_secret is not null
         """)
     for row in txn.fetchall():
         sn = row['screen_name']
