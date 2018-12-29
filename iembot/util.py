@@ -274,10 +274,11 @@ def tweet_eb(err, bot, twttxt, access_token, room, myjid, twituser,
                               bot.tweet, twttxt, access_token, room,
                               myjid, twituser, twtextra, trip + 1)
             return
-        if errcode in [89, 185, 326]:
+        if errcode in [89, 185, 326, 64]:
             # 89: Expired token, so we shall revoke for now
             # 185: User is over quota
             # 326: User is temporarily locked out
+            # 64: User is suspended
             disable_twitter_user(bot, twituser, errcode)
         if errcode not in [187, ]:
             # 187 duplicate message
