@@ -213,16 +213,16 @@ def disable_twitter_user(bot, twituser, errcode=0):
         log.msg("Skipping disabling of twitter auth for %s" % (twituser, ))
         return
     bot.tw_access_tokens.pop(twituser, None)
-    # Remove entry from the database
-    if errcode in [89, ]:
-        log.msg(("Removing twitter access token for user: '%s'"
-                 ) % (twituser, ))
-        df = bot.dbpool.runOperation("""
-            UPDATE """ + bot.name + """_twitter_oauth
-            SET updated = now(), access_token = null,
-            access_token_secret = null WHERE screen_name = %s
-            """, (twituser,))
-        df.addErrback(log.err)
+    log.msg(
+        "Removing twitter access token for user: '%s' errcode: %s" % (
+            twituser, errcode)
+    )
+    df = bot.dbpool.runOperation("""
+        UPDATE """ + bot.name + """_twitter_oauth
+        SET updated = now(), access_token = null,
+        access_token_secret = null WHERE screen_name = %s
+        """, (twituser,))
+    df.addErrback(log.err)
 
 
 def tweet_cb(response, bot, twttxt, room, myjid, twituser):
@@ -262,9 +262,9 @@ def tweet_eb(err, bot, twttxt, access_token, room, myjid, twituser,
     j = {}
     try:
         j = json.loads(err.value.response.decode('utf-8', 'ignore'))
-    except Exception as _:
-        log.msg("Unable to parse response |%s| as JSON" % (
-                                                    err.value.response,))
+    except Exception as exp:
+        log.msg("Unable to parse response |%s| as JSON %s" % (
+                                                    err.value.response, exp))
     if j.get('errors', []):
         errcode = j['errors'][0].get('code', 0)
         if errcode in [130, 131]:
