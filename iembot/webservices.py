@@ -137,7 +137,7 @@ class RoomChannel(resource.Resource):
         /room/dmxchat?seqnum=1
         """
         uri = request.uri.decode('utf-8')
-        tokens = re.findall("/room/([a-z0-9]+)", uri.lower())
+        tokens = re.findall("/room/([a-z_0-9]+)", uri.lower())
         if not tokens:
             log.msg('Bad URI: %s len(tokens) is 0' % (uri, ))
             return self.wrap(request, json.dumps("ERROR"))
