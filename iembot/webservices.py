@@ -57,6 +57,8 @@ class RSSService(resource.Resource):
         self.iembot = iembot
 
     def render(self, request):
+        if request.method == b'HEAD':
+            return b''
         uri = request.uri.decode('utf-8')
         if uri.startswith("/wfo/"):
             tokens = re.findall(
