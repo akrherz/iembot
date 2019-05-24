@@ -10,7 +10,7 @@ from collections import namedtuple
 import copy
 try:
     import urllib.parse as urlparse
-except ImportError as _exp:
+except ImportError as _exp:  # noqa
     import urllib as urlparse
 import pickle
 import re
@@ -33,9 +33,8 @@ from oauth import oauth
 import pytz
 
 from twittytwister import twitter
-import iembot.util as botutil
-
 from pyiem.reference import TWEET_CHARS
+import iembot.util as botutil
 
 DATADIR = os.sep.join([os.path.dirname(__file__), 'data'])
 ROOM_LOG_ENTRY = namedtuple(
@@ -104,7 +103,7 @@ class basicbot:
 
     def on_firstlogin(self):
         """ callbacked when we are first logged in """
-        pass
+        return
 
     def authd(self, _xs=None):
         """ callback when we are logged into the server! """
@@ -642,9 +641,9 @@ I currently do not support any commands, sorry.""" % (self.myjid.user,)
                                           "you."))
         self.xmlstream.send(message)
 
-    def processMessageGC(self, elem):
+    def processMessageGC(self, elem):  # pylint: disable=unused-argument
         """override me please"""
-        pass
+        return
 
     def message_processor(self, elem):
         """
@@ -732,10 +731,17 @@ I currently do not support any commands, sorry.""" % (self.myjid.user,)
 
         # Add a channel to the room's subscriptions
         elif re.match(r"^channels add", cmd, re.I):
+            add_channel = cmd[12:].strip().upper()
             if aff in ['owner', 'admin']:
-                df = self.dbpool.runInteraction(botutil.channels_room_add,
-                                                self, room, cmd[12:])
-                df.addErrback(botutil.email_error, self, room + " -> " + cmd)
+                if len(add_channel) < 24:
+                    df = self.dbpool.runInteraction(
+                        botutil.channels_room_add, self, room, cmd[12:])
+                    df.addErrback(
+                        botutil.email_error, self, room + " -> " + cmd)
+                else:
+                    err = ("%s: Error, channels are less than 24 characters!"
+                           ) % (res,)
+                    self.send_groupchat(room, err)
             else:
                 err = ("%s: Sorry, you must be a room admin to add a channel"
                        ) % (res,)
