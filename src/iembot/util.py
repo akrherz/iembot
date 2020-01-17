@@ -541,6 +541,27 @@ def load_chatrooms_from_db(txn, bot, always_join):
     )
 
 
+def load_webhooks_from_db(txn, bot):
+    """ Load twitter config from database """
+    txn.execute(
+        """
+        SELECT channel, url from """
+        + bot.name
+        + """_webhooks
+        """
+    )
+    table = {}
+    for row in txn.fetchall():
+        url = row["url"]
+        channel = row["channel"]
+        if url == "" or channel == "":
+            continue
+        res = table.setdefault(channel, [])
+        res.append(url)
+    bot.webhooks_routingtable = table
+    log.msg("load_webhooks_from_db(): %s subs found" % (txn.rowcount,))
+
+
 def load_twitter_from_db(txn, bot):
     """ Load twitter config from database """
     txn.execute(

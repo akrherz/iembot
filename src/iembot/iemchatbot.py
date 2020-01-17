@@ -10,6 +10,7 @@ from twisted.words.protocols.jabber import jid
 from twisted.words.xish import xpath
 from twisted.python import log
 from iembot import basicbot
+from iembot.webhooks import route as webhooks_route
 
 
 # http://stackoverflow.com/questions/7016602
@@ -199,3 +200,4 @@ class JabberClient(basicbot.basicbot):
                     twtextra=twtextra,
                     twituser=page,
                 )
+        webhooks_route(self, channels, elem)
