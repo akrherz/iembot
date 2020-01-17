@@ -18,6 +18,7 @@ from twisted.mail import smtp
 from twisted.python import log
 import twisted.web.error as weberror
 from twisted.words.xish import domish
+from pyiem.util import utc
 from pyiem.reference import TWEET_CHARS
 
 
@@ -161,13 +162,12 @@ def channels_room_del(txn, bot, room, channel):
 def purge_logs(bot):
     """ Remove chat logs on a 24 HR basis """
     log.msg("purge_logs() called...")
-    basets = datetime.datetime.utcnow() - datetime.timedelta(
+    basets = utc() - datetime.timedelta(
         days=int(bot.config.get("bot.purge_xmllog_days", 7))
     )
-    basets = basets.replace(tzinfo=pytz.utc)
     for fn in glob.glob("logs/xmllog.*"):
         ts = datetime.datetime.strptime(fn, "logs/xmllog.%Y_%m_%d")
-        ts = ts.replace(tzinfo=pytz.utc)
+        ts = ts.replace(tzinfo=pytz.UTC)
         if ts < basets:
             log.msg("Purging logfile %s" % (fn,))
             os.remove(fn)
@@ -191,7 +191,7 @@ def email_error(exp, bot, message=""):
     def should_email():
         """Should we send an email?"""
         # bot.email_timestamps contains timestamps of emails we *sent*
-        utcnow = datetime.datetime.utcnow()
+        utcnow = utc()
         # If we don't have any entries, we should email!
         if len(bot.email_timestamps) < 10:
             bot.email_timestamps.insert(0, utcnow)
@@ -228,7 +228,7 @@ Message:
             pwd.getpwuid(os.getuid())[0],
             socket.gethostname(),
             os.getcwd(),
-            datetime.datetime.utcnow(),
+            utc(),
             os.getpid(),
             " ".join(["%.2f" % (_,) for _ in os.getloadavg()]),
             cstr.read(),
@@ -794,3 +794,23 @@ def add_entry_to_rss(entry, rss):
     txt = remove_control_characters(entry.product_text)
     fe.content("<pre>%s</pre>" % (htmlentities(txt),), type="CDATA")
     fe.pubDate(ts.strftime("%a, %d %b %Y %H:%M:%S GMT"))
+
+
+def daily_timestamp(bot):
+    """ Send a timestamp to each room we are in.
+
+    Args:
+      bot (iembot.basicbot) instance
+    """
+    utcnow = utc()
+    # Make sure we are a bit into the future!
+    utc0z = utcnow + datetime.timedelta(hours=1)
+    utc0z = utc0z.replace(hour=0, minute=0, second=0, microsecond=0)
+    mess = "------ %s [UTC] ------" % (utc0z.strftime("%b %-d, %Y"),)
+    for rm in bot.rooms:
+        bot.send_groupchat(rm, mess)
+
+    tnext = utc0z + datetime.timedelta(hours=24)
+    delta = (tnext - utcnow).total_seconds()
+    log.msg("Calling daily_timestamp in %.2f seconds" % (delta,))
+    return reactor.callLater(delta, daily_timestamp, bot)

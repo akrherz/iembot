@@ -8,11 +8,7 @@ from io import StringIO
 import random
 from collections import namedtuple
 import copy
-
-try:
-    import urllib.parse as urlparse
-except ImportError as _exp:  # noqa
-    import urllib as urlparse
+import urllib.parse as urlparse
 import pickle
 import re
 import os
@@ -31,9 +27,8 @@ from twisted.web import client as webclient
 
 from oauth import oauth
 
-import pytz
-
 from twittytwister import twitter
+from pyiem.util import utc
 from pyiem.reference import TWEET_CHARS
 import iembot.util as botutil
 
@@ -67,7 +62,7 @@ class basicbot:
         self, name, dbpool, memcache_client=None, xml_log_path="logs"
     ):
         """ Constructor """
-        self.startup_time = datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
+        self.startup_time = utc()
         self.name = name
         self.dbpool = dbpool
         self.memcache_client = memcache_client
@@ -266,15 +261,13 @@ class basicbot:
     def rawDataInFn(self, data):
         """write xmllog"""
         self.xmllog.write(
-            "%s RECV %s\n"
-            % (datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), data)
+            "%s RECV %s\n" % (utc().strftime("%Y-%m-%d %H:%M:%S"), data)
         )
 
     def rawDataOutFn(self, data):
         """write xmllog"""
         self.xmllog.write(
-            "%s SEND %s\n"
-            % (datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), data)
+            "%s SEND %s\n" % (utc().strftime("%Y-%m-%d %H:%M:%S"), data)
         )
 
     def housekeeping(self):
@@ -284,7 +277,7 @@ class basicbot:
         2. Check if we have the football
         3. Update presence
         """
-        gmtnow = datetime.datetime.utcnow()
+        utcnow = utc()
         self.check_for_football()
 
         if self.IQ:
@@ -302,13 +295,13 @@ class basicbot:
         ping = domish.Element((None, "iq"))
         ping["to"] = self.myjid.host
         ping["type"] = "get"
-        pingid = "%s" % (gmtnow.strftime("%Y%m%d%H%M"),)
+        pingid = "%s" % (utcnow.strftime("%Y%m%d%H%M"),)
         ping["id"] = pingid
         ping.addChild(domish.Element(("urn:xmpp:ping", "ping")))
         if self.xmlstream is not None:
             self.IQ[pingid] = 1
             self.xmlstream.send(ping)
-            if gmtnow.minute % 10 == 0:
+            if utcnow.minute % 10 == 0:
                 self.send_presence()
                 # Reset our service guard
                 self.logins = 1
@@ -410,7 +403,7 @@ class basicbot:
         presence = domish.Element(("jabber:client", "presence"))
         msg = ("Booted: %s Updated: %s UTC, Rooms: %s, Messages: %s") % (
             self.startup_time.strftime("%d %b"),
-            datetime.datetime.utcnow().strftime("%H%M"),
+            utc().strftime("%H%M"),
             len(self.rooms),
             self.seqnum,
         )
@@ -461,32 +454,15 @@ class basicbot:
         """Figure out when to be called"""
         log.msg("compute_daily_caller() called...")
         # Figure out when to spam all rooms with a timestamp
-        utc = datetime.datetime.utcnow() + datetime.timedelta(days=1)
-        tnext = utc.replace(hour=0, minute=0, second=0)
+        utcnow = utc() + datetime.timedelta(days=1)
+        tnext = utcnow.replace(hour=0, minute=0, second=0)
         log.msg(
             "Initial Calling daily_timestamp in %s seconds"
-            % ((tnext - datetime.datetime.utcnow()).seconds,)
+            % ((tnext - utc()).seconds,)
         )
         reactor.callLater(
-            (tnext - datetime.datetime.utcnow()).seconds, self.daily_timestamp
+            (tnext - utc()).seconds, botutil.daily_timestamp, self
         )
-
-    def daily_timestamp(self):
-        """  Send date each 00:00 UTC Day, helps to break apart logs """
-        utcnow = (datetime.datetime.utcnow()).replace(
-            tzinfo=pytz.timezone("UTC")
-        )
-        # Make sure we are a bit into the future!
-        utc0z = utcnow + datetime.timedelta(hours=1)
-        utc0z = utc0z.replace(hour=0, minute=0, second=0, microsecond=0)
-        mess = "------ %s [UTC] ------" % (utc0z.strftime("%b %-d, %Y"),)
-        for rm in self.rooms:
-            self.send_groupchat(rm, mess)
-
-        tnext = utc0z + datetime.timedelta(hours=24)
-        delta = (tnext - utcnow).days * 86400.0 + (tnext - utcnow).seconds
-        log.msg("Calling daily_timestamp in %.2f seconds" % (delta,))
-        reactor.callLater(delta, self.daily_timestamp)
 
     def presence_processor(self, elem):
         """Process the presence stanza

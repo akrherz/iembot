@@ -1,5 +1,12 @@
 """Tests, gasp"""
 import iembot.util as botutil
+from iembot.basicbot import basicbot
+
+
+def test_daily_timestamp():
+    """Does the daily timestamp algo return a deferred."""
+    bot = basicbot(None, None, xml_log_path="/tmp")
+    assert botutil.daily_timestamp(bot) is not None
 
 
 def test_htmlentites():
