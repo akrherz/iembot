@@ -14,3 +14,5 @@ An ancient version of this codebase runs the `nwsbot` instance within
 refactoring during July 2018 and may be a bit more usable for others.
 
 For examples of start scripts, see `iembot` within [Weather.IM codebase](https://github.com/akrherz/weather.im/tree/master/iembot).
+
+Requires and tested on Python 3.6+.
