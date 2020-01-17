@@ -30,9 +30,13 @@ def wfo_rss(iembot, rm):
     rss = FeedGenerator()
     rss.generator("iembot")
     rss.title("%s IEMBot RSS Feed" % (rm,))
-    rss.link(href="https://weather.im/iembot-rss/room/%s.xml" % (rm,), rel="self")
+    rss.link(
+        href="https://weather.im/iembot-rss/room/%s.xml" % (rm,), rel="self"
+    )
     rss.description("%s IEMBot RSS Feed" % (rm,))
-    rss.lastBuildDate(datetime.datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT"))
+    rss.lastBuildDate(
+        datetime.datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
+    )
 
     for entry in iembot.chatlog[rm]:
         botutil.add_entry_to_rss(entry, rss)
@@ -59,7 +63,9 @@ class RSSService(resource.Resource):
             return b""
         uri = request.uri.decode("utf-8")
         if uri.startswith("/wfo/"):
-            tokens = re.findall("/wfo/(k...|botstalk|...chat).xml", uri.lower())
+            tokens = re.findall(
+                "/wfo/(k...|botstalk|...chat).xml", uri.lower()
+            )
         else:
             tokens = re.findall("/room/(.*).xml", uri.lower())
         if not tokens:
@@ -76,18 +82,26 @@ class RSSService(resource.Resource):
             rss.generator("iembot")
             rss.title("IEMBot RSS Feed")
             rss.link(
-                href="https://weather.im/iembot-rss/room/%s.xml" % (rm,), rel="self"
+                href="https://weather.im/iembot-rss/room/%s.xml" % (rm,),
+                rel="self",
             )
             rss.description("Syndication of iembot messages.")
             rss.lastBuildDate(
-                datetime.datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
+                datetime.datetime.utcnow().strftime(
+                    "%a, %d %b %Y %H:%M:%S GMT"
+                )
             )
             fe = rss.add_entry()
             fe.title("IEMBOT recently restarted, no history yet")
             fe.link(
-                href="http://mesonet.agron.iastate.edu/projects/iembot/", rel="self"
+                href="http://mesonet.agron.iastate.edu/projects/iembot/",
+                rel="self",
             )
-            fe.pubDate(datetime.datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT"))
+            fe.pubDate(
+                datetime.datetime.utcnow().strftime(
+                    "%a, %d %b %Y %H:%M:%S GMT"
+                )
+            )
             xml = rss.rss_str()
         else:
             xml = wfo_rss(self.iembot, rm)
@@ -127,7 +141,9 @@ class RoomChannel(resource.Resource):
         """ Support specification of a JSONP callback """
         if "callback" in request.args:
             request.setHeader("Content-type", "application/javascript")
-            return ("%s(%s);" % (request.args["callback"][0], j)).encode("utf-8")
+            return ("%s(%s);" % (request.args["callback"][0], j)).encode(
+                "utf-8"
+            )
         return j.encode("utf-8")
 
     def render(self, request):

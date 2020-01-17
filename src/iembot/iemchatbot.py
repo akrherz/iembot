@@ -41,7 +41,9 @@ class JabberClient(basicbot.basicbot):
         # Ignore all messages that are x-stamp (delayed / room history)
         # <delay xmlns='urn:xmpp:delay' stamp='2016-05-06T20:04:17.513Z'
         #  from='nwsbot@laptop.local/twisted_words'/>
-        if xpath.queryForNodes("/message/delay[@xmlns='urn:xmpp:delay']", elem):
+        if xpath.queryForNodes(
+            "/message/delay[@xmlns='urn:xmpp:delay']", elem
+        ):
             return
 
         _from = jid.JID(elem["from"])
@@ -123,7 +125,9 @@ class JabberClient(basicbot.basicbot):
         def memcache_fetch(trip):
             """fetch please"""
             trip += 1
-            log.msg("memcache_fetch(trip=%s, product_id=%s" % (trip, product_id))
+            log.msg(
+                "memcache_fetch(trip=%s, product_id=%s" % (trip, product_id)
+            )
             defer = self.memcache_client.get(product_id.encode("utf-8"))
             defer.addCallback(got_data, trip)
             defer.addErrback(no_data)
@@ -141,7 +145,9 @@ class JabberClient(basicbot.basicbot):
             log.msg("ERROR: message is MUC private chat")
             return
 
-        if _from.userhost() != "iembot_ingest@%s" % (self.config["bot.xmppdomain"]):
+        if _from.userhost() != "iembot_ingest@%s" % (
+            self.config["bot.xmppdomain"]
+        ):
             log.msg("ERROR: message not from iembot_ingest")
             return
 
@@ -177,7 +183,8 @@ class JabberClient(basicbot.basicbot):
             for page in self.tw_routingtable.get(channel, []):
                 if page not in self.tw_access_tokens:
                     log.msg(
-                        ("Failed to tweet due to no access_tokens for %s") % (page,)
+                        ("Failed to tweet due to no access_tokens for %s")
+                        % (page,)
                     )
                     continue
                 # Require the x.twitter attribute to be set to prevent
@@ -192,7 +199,10 @@ class JabberClient(basicbot.basicbot):
                 ):
                     twtextra["lat"] = elem.x["lat"]
                     twtextra["long"] = elem.x["long"]
-                log.msg("Sending tweet '%s' to page '%s'" % (elem.x["twitter"], page))
+                log.msg(
+                    "Sending tweet '%s' to page '%s'"
+                    % (elem.x["twitter"], page)
+                )
                 # Finally, actually tweet, this is in basicbot
                 self.tweet(
                     elem.x["twitter"],

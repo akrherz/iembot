@@ -111,7 +111,9 @@ def channels_room_add(txn, bot, room, channel):
             """,
             (room, ch),
         )
-        bot.send_groupchat(room, ("Subscribed %s to channel '%s'") % (room, ch))
+        bot.send_groupchat(
+            room, ("Subscribed %s to channel '%s'") % (room, ch)
+        )
     # Send room a listing of channels!
     channels_room_list(bot, room)
 
@@ -135,7 +137,9 @@ def channels_room_del(txn, bot, room, channel):
             continue
 
         if room not in bot.routingtable[ch]:
-            bot.send_groupchat(room, ("Room not subscribed to channel: '%s'") % (ch,))
+            bot.send_groupchat(
+                room, ("Room not subscribed to channel: '%s'") % (ch,)
+            )
             continue
 
         # Remove from routing table
@@ -239,7 +243,10 @@ Message:
     msg["To"] = bot.config.get("bot.email_errors_to", "root@localhost")
 
     df = smtp.sendmail(
-        bot.config.get("bot.smtp_server", "localhost"), msg["From"], msg["To"], msg
+        bot.config.get("bot.smtp_server", "localhost"),
+        msg["From"],
+        msg["To"],
+        msg,
     )
     df.addErrback(log.err)
     return True
@@ -257,7 +264,8 @@ def disable_twitter_user(bot, twituser, errcode=0):
         return
     bot.tw_access_tokens.pop(twituser, None)
     log.msg(
-        "Removing twitter access token for user: '%s' errcode: %s" % (twituser, errcode)
+        "Removing twitter access token for user: '%s' errcode: %s"
+        % (twituser, errcode)
     )
     df = bot.dbpool.runOperation(
         """
@@ -300,7 +308,9 @@ def tweet_cb(response, bot, twttxt, room, myjid, twituser):
     return response
 
 
-def tweet_eb(err, bot, twttxt, access_token, room, myjid, twituser, twtextra, trip):
+def tweet_eb(
+    err, bot, twttxt, access_token, room, myjid, twituser, twtextra, trip
+):
     """
     Called after error going to twitter
     """
@@ -313,7 +323,10 @@ def tweet_eb(err, bot, twttxt, access_token, room, myjid, twituser, twtextra, tr
     try:
         j = json.loads(err.value.response.decode("utf-8", "ignore"))
     except Exception as exp:
-        log.msg("Unable to parse response |%s| as JSON %s" % (err.value.response, exp))
+        log.msg(
+            "Unable to parse response |%s| as JSON %s"
+            % (err.value.response, exp)
+        )
     if j.get("errors", []):
         errcode = j["errors"][0].get("code", 0)
         if errcode in [130, 131]:
@@ -355,7 +368,10 @@ def tweet_eb(err, bot, twttxt, access_token, room, myjid, twituser, twtextra, tr
         msg = "Post to twitter failed. Access token for %s " % (twituser,)
         msg += "is no longer valid."
         htmlmsg = msg + " Please refresh access tokens "
-        htmlmsg += '<a href="https://nwschat.weather.gov/' 'nws/twitter.php">here</a>.'
+        htmlmsg += (
+            '<a href="https://nwschat.weather.gov/'
+            'nws/twitter.php">here</a>.'
+        )
     if room is not None:
         bot.send_groupchat(room, msg, htmlmsg)
 
@@ -399,7 +415,9 @@ def fbfail(err, bot, room, myjid, message, fbpage):
         % (room, myjid, message, err.value.response),
     )
 
-    msg = "Posting to facebook failed! Got this message: %s" % (err.getErrorMessage(),)
+    msg = "Posting to facebook failed! Got this message: %s" % (
+        err.getErrorMessage(),
+    )
     if j is not None:
         msg = "Posting to facebook failed with this message: %s" % (
             j.get("error", {}).get("message", "Missing"),
@@ -414,7 +432,14 @@ def fbfail(err, bot, room, myjid, message, fbpage):
         INSERT into nwsbot_social_log(medium, source, message,
         response, response_code, resource_uri) values (%s,%s,%s,%s,%s,%s)
         """,
-        ("facebook", myjid, message, err.value.response, err.value.status, fbpage),
+        (
+            "facebook",
+            myjid,
+            message,
+            err.value.response,
+            err.value.status,
+            fbpage,
+        ),
     )
     df.addErrback(log.err)
 
@@ -423,7 +448,10 @@ def fbsuccess(response, bot, room, myjid, message):
     """ Got a response from facebook! """
     d = json.loads(response)
     (pageid, postid) = d["id"].split("_")
-    url = "http://www.facebook.com/permalink.php?story_fbid=%s&id=%s" % (postid, pageid)
+    url = "http://www.facebook.com/permalink.php?story_fbid=%s&id=%s" % (
+        postid,
+        pageid,
+    )
     html = 'Posted Facebook Message! View <a href="%s">here</a>' % (
         url.replace("&", "&amp;"),
     )
@@ -494,7 +522,8 @@ def load_chatrooms_from_db(txn, bot, always_join):
         synd[rm].append(endpoint)
     bot.syndication = synd
     log.msg(
-        ("... loaded %s room syndications for %s rooms") % (txn.rowcount, len(synd))
+        ("... loaded %s room syndications for %s rooms")
+        % (txn.rowcount, len(synd))
     )
 
     # Load up a list of chatrooms
@@ -645,7 +674,10 @@ def load_chatlog(bot):
             seq = bot.chatlog[rm][-1].seqnum
             if seq is not None and int(seq) > bot.seqnum:
                 bot.seqnum = int(seq)
-        log.msg("Loaded CHATLOG pickle: %s, seqnum: %s" % (bot.PICKLEFILE, bot.seqnum))
+        log.msg(
+            "Loaded CHATLOG pickle: %s, seqnum: %s"
+            % (bot.PICKLEFILE, bot.seqnum)
+        )
     except Exception as exp:
         log.err(exp)
 
@@ -677,7 +709,11 @@ def safe_twitter_text(text):
             text = "%s%s%s" % (sections[0][0], sections[0][2], urls[0])
             if len(text) > TWEET_CHARS:
                 sz = TWEET_CHARS - 26 - len(sections[0][2])
-                text = "%s%s%s" % (sections[0][0][:sz], sections[0][2], urls[0])
+                text = "%s%s%s" % (
+                    sections[0][0][:sz],
+                    sections[0][2],
+                    urls[0],
+                )
             return text
         if len(text) > TWEET_CHARS:
             # 25 for URL, three dots and space for 29
