@@ -67,6 +67,7 @@ class basicbot:
         self.tw_routingtable = {}
         self.fb_access_tokens = {}
         self.fb_routingtable = {}
+        self.webhooks_routingtable = {}
         self.has_football = True
         self.xmlstream = None
         self.firstlogin = False
@@ -120,6 +121,7 @@ class basicbot:
         self.send_presence()
         self.load_chatrooms(True)
         self.load_facebook()
+        self.load_webhooks()
 
         lc = LoopingCall(self.housekeeping)
         lc.start(60)
@@ -148,6 +150,12 @@ class basicbot:
         log.msg("load_twitter() called...")
         df = self.dbpool.runInteraction(botutil.load_twitter_from_db, self)
         df.addErrback(botutil.email_error, self, "load_twitter() failure")
+
+    def load_webhooks(self):
+        """ Load the twitter subscriptions and access tokens """
+        log.msg("load_webhooks() called...")
+        df = self.dbpool.runInteraction(botutil.load_webhooks_from_db, self)
+        df.addErrback(botutil.email_error, self, "load_webhooks() failure")
 
     def load_facebook(self):
         """
