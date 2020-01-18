@@ -8,7 +8,7 @@ from iembot.basicbot import basicbot
 
 def test_load_chatrooms_fromdb():
     """Can we load up chatroom details?"""
-    dbconn = psycopg2.connect("dbname=iembot")
+    dbconn = psycopg2.connect("dbname=iembot host=localhost")
     cursor = dbconn.cursor()
     bot = mock.Mock()
     bot.name = "iembot"
