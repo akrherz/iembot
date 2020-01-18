@@ -13,5 +13,5 @@ install:
   - python -m pip install . --upgrade
 
 script:
-  - coverage run -m pytest
+  - coverage run --source=src -m pytest
   - codecov -e TRAVIS_PYTHON_VERSION
