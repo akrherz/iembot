@@ -1,6 +1,20 @@
 """Tests, gasp"""
+from unittest import mock
+import psycopg2
+
 import iembot.util as botutil
 from iembot.basicbot import basicbot
+
+
+def test_load_chatrooms_fromdb():
+    """Can we load up chatroom details?"""
+    dbconn = psycopg2.connect("dbname=iembot")
+    cursor = dbconn.cursor()
+    bot = mock.Mock()
+    bot.name = "iembot"
+    bot.rooms = {}
+    botutil.load_chatrooms_from_db(cursor, bot, True)
+    assert bot
 
 
 def test_daily_timestamp():

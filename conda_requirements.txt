@@ -1,4 +1,5 @@
 twisted>=18.4.0
+psycopg2
 pytest
 pytest-cov
 pytz
