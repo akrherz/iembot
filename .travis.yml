@@ -2,9 +2,9 @@ language: python
 dist: bionic
 env:
   matrix:
-    - PYTHON_VERSION=2.7
     - PYTHON_VERSION=3.6
     - PYTHON_VERSION=3.7
+    - PYTHON_VERSION=3.8
 
 install:
   - git clone --depth 1 https://github.com/akrherz/ci_tooling.git .ci_tooling
@@ -13,5 +13,5 @@ install:
   - python -m pip install . --upgrade
 
 script:
-  - pytest --cov=./
+  - coverage run --source=src -m pytest
   - codecov -e TRAVIS_PYTHON_VERSION

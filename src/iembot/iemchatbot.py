@@ -1,5 +1,4 @@
 """ Chat bot implementation of IEMBot """
-from __future__ import print_function
 import datetime
 import re
 
@@ -31,10 +30,6 @@ class JabberClient(basicbot.basicbot):
     3-inf. jabber.client callsback 'authd' when we get logged in
        -> 'auth' will call on_login
     """
-
-    def on_firstlogin(self):
-        """ local stuff that we care about, that gets called on first login """
-        pass
 
     def processMessageGC(self, elem):
         """Process a stanza element that is from a chatroom"""
@@ -105,7 +100,6 @@ class JabberClient(basicbot.basicbot):
 
         def got_data(res, trip):
             """got a response!"""
-            # print("got_data(%s, %s)" % (res, trip))
             (_flag, data) = res
             if data is None:
                 if trip < 5:
