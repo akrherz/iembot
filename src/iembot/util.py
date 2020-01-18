@@ -479,7 +479,12 @@ def load_chatrooms_from_db(txn, bot, always_join):
       always_join (boolean): do we force joining each room, regardless
     """
     # Load up the channel keys
-    txn.execute("SELECT id, channel_key from %s_channels" % (bot.name,))
+    txn.execute(
+        """
+        SELECT id, channel_key from %s_channels
+        WHERE id is not null and channel_key is not null"""
+        % (bot.name,)
+    )
     for row in txn.fetchall():
         bot.channelkeys[row["channel_key"]] = row["id"]
 
@@ -488,6 +493,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
     txn.execute(
         """
         SELECT roomname, channel from %s_room_subscriptions
+        WHERE roomname is not null and channel is not null
     """
         % (bot.name,)
     )
@@ -511,6 +517,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
     txn.execute(
         """
         SELECT roomname, endpoint from %s_room_syndications
+        WHERE roomname is not null and endpoint is not null
     """
         % (bot.name,)
     )
@@ -529,7 +536,8 @@ def load_chatrooms_from_db(txn, bot, always_join):
     # Load up a list of chatrooms
     txn.execute(
         """
-        SELECT roomname, fbpage, twitter from %s_rooms ORDER by roomname ASC
+        SELECT roomname, fbpage, twitter from %s_rooms
+        WHERE roomname is not null ORDER by roomname ASC
     """
         % (bot.name,)
     )
@@ -576,7 +584,7 @@ def load_webhooks_from_db(txn, bot):
         """
         SELECT channel, url from """
         + bot.name
-        + """_webhooks
+        + """_webhooks WHERE channel is not null and url is not null
         """
     )
     table = {}
@@ -597,7 +605,8 @@ def load_twitter_from_db(txn, bot):
         """
         SELECT screen_name, channel from """
         + bot.name
-        + """_twitter_subs
+        + """_twitter_subs WHERE screen_name is not null
+        and channel is not null
         """
     )
     twrt = {}
@@ -638,6 +647,7 @@ def load_facebook_from_db(txn, bot):
         SELECT fbpid, channel from """
         + bot.name
         + """_fb_subscriptions
+        WHERE fbpid is not null and channel is not null
         """
     )
     fbrt = {}
@@ -653,7 +663,8 @@ def load_facebook_from_db(txn, bot):
         """
         SELECT fbpid, access_token from """
         + bot.name
-        + """_fb_access_tokens
+        + """_fb_access_tokens WHERE fbpid is not null
+        and access_token is not null
         """
     )
 
