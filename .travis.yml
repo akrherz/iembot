@@ -20,5 +20,5 @@ before_script:
   - psql -v "ON_ERROR_STOP=1" -f database/schema.sql -h localhost -U postgres iembot || exit 2
 
 script:
-  - coverage run --source=src -m pytest
+  - pytest --cov=src
   - codecov -e TRAVIS_PYTHON_VERSION
