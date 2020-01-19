@@ -21,7 +21,8 @@ def wfo_rss(iembot, rm):
     if rm not in XML_CACHE:
         XML_CACHE[rm] = ""
         XML_CACHE_EXPIRES[rm] = -2
-
+    if rm not in iembot.chatlog:
+        return ""
     # should not be empty given the caller
     lastID = iembot.chatlog[rm][0].seqnum
     if lastID == XML_CACHE_EXPIRES[rm]:

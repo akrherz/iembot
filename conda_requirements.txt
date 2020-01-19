@@ -2,6 +2,7 @@ twisted>=18.4.0
 psycopg2
 pytest
 pytest-cov
+pytest-runner
 pytz
 service_identity
 # cython is a lame requirement from rabbit hole of cartopy
