@@ -29,6 +29,13 @@ def test_htmlentites():
     assert botutil.htmlentities("<>") == "&lt;&gt;"
 
 
+def test_tweet_unescape():
+    """Test that we remove html entities from string."""
+    msg = "Hail &gt; 2.0 INCHES"
+    ans = "Hail > 2.0 INCHES"
+    assert botutil.safe_twitter_text(msg) == ans
+
+
 def test_tweettext():
     """Are we doing the right thing here"""
     msgin = (
