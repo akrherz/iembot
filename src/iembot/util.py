@@ -1,5 +1,6 @@
 """Utility functions for IEMBot"""
 import datetime
+from html import unescape
 import re
 import os
 import socket
@@ -697,6 +698,8 @@ def safe_twitter_text(text):
     """ Attempt to rip apart a message that is too long!
     To be safe, the URL is counted as 24 chars
     """
+    # XMPP payload will have entities, unescape those before tweeting
+    text = unescape(text)
     # Convert two or more spaces into one
     text = " ".join(text.split())
     # If we are already below TWEET_CHARS, we don't have any more work to do...
