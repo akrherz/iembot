@@ -2,7 +2,7 @@ IEMBOT
 ======
 
 [![Docs](https://readthedocs.org/projects/iembot/badge/?version=latest)](https://readthedocs.org/projects/iembot/)
-[![Build Status](https://travis-ci.org/akrherz/iembot.svg)](https://travis-ci.org/akrherz/iembot)
+[![Build Status](https://github.com/akrherz/iembot/workflows/Install%20and%20Test/badge.svg)](https://github.com/akrherz/iembot)
 [![Code Health](https://landscape.io/github/akrherz/iembot/master/landscape.svg?style=flat)](https://landscape.io/github/akrherz/iembot/master)
 
 I am a XMPP client with limited bot capabilities.  In general, I am a message
