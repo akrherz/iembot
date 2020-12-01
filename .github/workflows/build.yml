@@ -1,0 +1,32 @@
+name: Install and Test
+on: [push]
+jobs:
+  build-linux:
+    name: Python (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.6", "3.8", "3.9"]
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Add /etc/hosts entries
+      run: |
+        cat .github/workflows/etchosts.txt | sudo tee -a /etc/hosts
+
+    - name: Setup CI from ci-tooling
+      run: |
+        git clone --depth 1 https://github.com/akrherz/ci_tooling.git .ci_tooling
+        . .ci_tooling/postgres.sh
+        . .ci_tooling/miniconda.sh
+        pip install codecov
+        python -m pip install . --upgrade
+        export PATH="/usr/lib/postgresql/11/bin:$PATH"
+        psql -c 'CREATE ROLE travis SUPERUSER LOGIN CREATEDB;' -U postgres || true
+        psql -c 'CREATE ROLE runner SUPERUSER LOGIN CREATEDB;' -U postgres || true
+        psql -v "ON_ERROR_STOP=1" -c "create database iembot;" -h localhost -U postgres || exit 2
+        psql -v "ON_ERROR_STOP=1" -f database/schema.sql -h localhost -U postgres iembot || exit 2
+        coverage run --source=src setup.py test
+        if [[ ${{ matrix.python-version }} == "3.8" ]]; then
+          codecov;
+        fi
