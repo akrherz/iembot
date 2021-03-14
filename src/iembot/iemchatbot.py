@@ -203,5 +203,6 @@ class JabberClient(basicbot.basicbot):
                     self.tw_access_tokens[page],
                     twtextra=twtextra,
                     twituser=page,
+                    twitter_media=elem.x.getAttribute("twitter_media"),
                 )
         webhooks_route(self, channels, elem)

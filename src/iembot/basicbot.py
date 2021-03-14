@@ -18,7 +18,7 @@ from twisted.words.xish import domish
 from twisted.words.xish import xpath
 from twisted.words.protocols.jabber import jid, client, error, xmlstream
 from twisted.words.xish.xmlstream import STREAM_END_EVENT
-from twisted.internet import reactor
+from twisted.internet import reactor, threads
 from twisted.application import internet
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
@@ -420,12 +420,28 @@ class basicbot:
         twituser=None,
         twtextra=None,
         trip=0,
+        twitter_media=None,
     ):
         """
         Tweet a message
         """
         if trip > 3:
             botutil.email_error("tweet retries exhausted", self, twttxt)
+            return
+        if twitter_media:
+            # hacky end-around to some blocking code
+            df = threads.deferToThread(
+                botutil.tweet,
+                self,
+                access_token,
+                twttxt,
+                twitter_media,
+            )
+            df.addErrback(
+                botutil.email_error,
+                self,
+                twttxt,
+            )
             return
         twt = twitter.Twitter(
             consumer=self.twitter_oauth_consumer, token=access_token
