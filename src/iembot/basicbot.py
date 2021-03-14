@@ -428,6 +428,7 @@ class basicbot:
         if trip > 3:
             botutil.email_error("tweet retries exhausted", self, twttxt)
             return
+        twttxt = botutil.safe_twitter_text(twttxt)
         if twitter_media:
             # hacky end-around to some blocking code
             df = threads.deferToThread(
@@ -446,7 +447,6 @@ class basicbot:
         twt = twitter.Twitter(
             consumer=self.twitter_oauth_consumer, token=access_token
         )
-        twttxt = botutil.safe_twitter_text(twttxt)
         if twtextra is None:
             twtextra = dict()
         df = twt.update(twttxt, None, twtextra)
