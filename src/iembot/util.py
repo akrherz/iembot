@@ -13,6 +13,7 @@ import pwd
 from io import BytesIO
 
 import pytz
+import twitter
 from oauth import oauth
 from twisted.internet import reactor
 from twisted.mail import smtp
@@ -21,6 +22,17 @@ import twisted.web.error as weberror
 from twisted.words.xish import domish
 from pyiem.util import utc
 from pyiem.reference import TWEET_CHARS
+
+
+def tweet(bot, oauth_token, twttxt, twitter_media):
+    """Blocking tweet method."""
+    api = twitter.Api(
+        consumer_key=bot.config["bot.twitter.consumerkey"],
+        consumer_secret=bot.config["bot.twitter.consumersecret"],
+        access_token_key=oauth_token.key,
+        access_token_secret=oauth_token.secret,
+    )
+    api.PostUpdate(twttxt, media=twitter_media)
 
 
 def channels_room_list(bot, room):
