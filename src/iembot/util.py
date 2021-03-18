@@ -8,6 +8,7 @@ import json
 import glob
 import pickle
 from email.mime.text import MIMEText
+import time
 import traceback
 import pwd
 from io import BytesIO
@@ -32,7 +33,13 @@ def tweet(bot, oauth_token, twttxt, twitter_media):
         access_token_key=oauth_token.key,
         access_token_secret=oauth_token.secret,
     )
-    api.PostUpdate(twttxt, media=twitter_media)
+    try:
+        api.PostUpdate(twttxt, media=twitter_media)
+    except Exception as exp:
+        email_error(exp, bot, twttxt)
+        # Since this called from a thread, sleeping should not jam us up
+        time.sleep(10)
+        api.PostUpdate(twttxt, media=twitter_media)
 
 
 def channels_room_list(bot, room):
