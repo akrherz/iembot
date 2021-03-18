@@ -101,22 +101,12 @@ def channels_room_add(txn, bot, room, channel):
         # Add a channels entry for this channel, if one currently does
         # not exist
         txn.execute(
-            """
-            SELECT * from """
-            + bot.name
-            + """_channels
-            WHERE id = %s
-            """,
+            f"SELECT * from {bot.name}_channels WHERE id = %s",
             (ch,),
         )
         if txn.rowcount == 0:
             txn.execute(
-                """
-                INSERT into """
-                + bot.name
-                + """_channels(id, name)
-                VALUES (%s, %s)
-                """,
+                f"INSERT into {bot.name}_channels(id, name) VALUES (%s, %s)",
                 (ch, ch),
             )
 
@@ -124,17 +114,11 @@ def channels_room_add(txn, bot, room, channel):
         bot.routingtable[ch].append(room)
         # Add to database
         txn.execute(
-            """
-            INSERT into """
-            + bot.name
-            + """_room_subscriptions
-            (roomname, channel) VALUES (%s, %s)
-            """,
+            "INSERT into {bot.name}_room_subscriptions "
+            "(roomname, channel) VALUES (%s, %s)",
             (room, ch),
         )
-        bot.send_groupchat(
-            room, ("Subscribed %s to channel '%s'") % (room, ch)
-        )
+        bot.send_groupchat(room, f"Subscribed {room} to channel '{ch}'")
     # Send room a listing of channels!
     channels_room_list(bot, room)
 
@@ -167,15 +151,11 @@ def channels_room_del(txn, bot, room, channel):
         bot.routingtable[ch].remove(room)
         # Remove from database
         txn.execute(
-            """
-            DELETE from """
-            + bot.name
-            + """_room_subscriptions WHERE
-            roomname = %s and channel = %s
-        """,
+            f"DELETE from {bot.name}_room_subscriptions WHERE "
+            "roomname = %s and channel = %s",
             (room, ch),
         )
-        bot.send_groupchat(room, ("Unscribed %s to channel '%s'") % (room, ch))
+        bot.send_groupchat(room, f"Unscribed {room} to channel '{ch}'")
     channels_room_list(bot, room)
 
 
@@ -288,13 +268,9 @@ def disable_twitter_user(bot, twituser, errcode=0):
         % (twituser, errcode)
     )
     df = bot.dbpool.runOperation(
-        """
-        UPDATE """
-        + bot.name
-        + """_twitter_oauth
-        SET updated = now(), access_token = null,
-        access_token_secret = null WHERE screen_name = %s
-        """,
+        f"UPDATE {bot.name}_twitter_oauth SET updated = now(), "
+        "access_token = null, access_token_secret = null "
+        "WHERE screen_name = %s",
         (twituser,),
     )
     df.addErrback(log.err)
@@ -315,13 +291,8 @@ def tweet_cb(response, bot, twttxt, room, myjid, twituser):
 
     # Log
     df = bot.dbpool.runOperation(
-        """
-        INSERT into """
-        + bot.name
-        + """_social_log(medium, source,
-        resource_uri, message, response, response_code)
-        values (%s,%s,%s,%s,%s,%s)
-        """,
+        f"INSERT into {bot.name}_social_log(medium, source, resource_uri, "
+        "message, response, response_code) values (%s,%s,%s,%s,%s,%s)",
         ("twitter", myjid, url, twttxt, response, 200),
     )
     df.addErrback(log.err)
@@ -397,12 +368,8 @@ def tweet_eb(
 
     # Log this
     deffered = bot.dbpool.runOperation(
-        """
-        INSERT into """
-        + bot.name
-        + """_social_log(medium, source, message,
-        response, response_code, resource_uri) values (%s,%s,%s,%s,%s,%s)
-    """,
+        f"INSERT into {bot.name}_social_log(medium, source, message, "
+        "response, response_code, resource_uri) values (%s,%s,%s,%s,%s,%s)",
         (
             "twitter",
             myjid,
@@ -448,10 +415,8 @@ def fbfail(err, bot, room, myjid, message, fbpage):
 
     # Log this
     df = bot.dbpool.runOperation(
-        """
-        INSERT into nwsbot_social_log(medium, source, message,
-        response, response_code, resource_uri) values (%s,%s,%s,%s,%s,%s)
-        """,
+        "INSERT into nwsbot_social_log(medium, source, message, "
+        "response, response_code, resource_uri) values (%s,%s,%s,%s,%s,%s)",
         (
             "facebook",
             myjid,
@@ -481,10 +446,8 @@ def fbsuccess(response, bot, room, myjid, message):
 
     # Log this
     df = bot.dbpool.runOperation(
-        """
-        INSERT into nwsbot_social_log(medium, source, resource_uri,
-        message, response, response_code) values (%s,%s,%s,%s,%s,%s)
-        """,
+        "INSERT into nwsbot_social_log(medium, source, resource_uri, "
+        "message, response, response_code) values (%s,%s,%s,%s,%s,%s)",
         ("facebook", myjid, url, message, response, 200),
     )
     df.addErrback(log.err)
@@ -500,10 +463,8 @@ def load_chatrooms_from_db(txn, bot, always_join):
     """
     # Load up the channel keys
     txn.execute(
-        """
-        SELECT id, channel_key from %s_channels
-        WHERE id is not null and channel_key is not null"""
-        % (bot.name,)
+        f"SELECT id, channel_key from {bot.name}_channels "
+        "WHERE id is not null and channel_key is not null"
     )
     for row in txn.fetchall():
         bot.channelkeys[row["channel_key"]] = row["id"]
@@ -511,11 +472,8 @@ def load_chatrooms_from_db(txn, bot, always_join):
     # Load up the routingtable for bot products
     rt = {}
     txn.execute(
-        """
-        SELECT roomname, channel from %s_room_subscriptions
-        WHERE roomname is not null and channel is not null
-    """
-        % (bot.name,)
+        f"SELECT roomname, channel from {bot.name}_room_subscriptions "
+        "WHERE roomname is not null and channel is not null"
     )
     rooms = []
     for row in txn.fetchall():
@@ -535,11 +493,8 @@ def load_chatrooms_from_db(txn, bot, always_join):
     # Now we need to load up the syndication
     synd = {}
     txn.execute(
-        """
-        SELECT roomname, endpoint from %s_room_syndications
-        WHERE roomname is not null and endpoint is not null
-    """
-        % (bot.name,)
+        f"SELECT roomname, endpoint from {bot.name}_room_syndications "
+        "WHERE roomname is not null and endpoint is not null"
     )
     for row in txn.fetchall():
         rm = row["roomname"]
@@ -555,11 +510,8 @@ def load_chatrooms_from_db(txn, bot, always_join):
 
     # Load up a list of chatrooms
     txn.execute(
-        """
-        SELECT roomname, fbpage, twitter from %s_rooms
-        WHERE roomname is not null ORDER by roomname ASC
-    """
-        % (bot.name,)
+        f"SELECT roomname, fbpage, twitter from {bot.name}_rooms "
+        "WHERE roomname is not null ORDER by roomname ASC"
     )
     oldrooms = list(bot.rooms.keys())
     joined = 0
@@ -601,11 +553,8 @@ def load_chatrooms_from_db(txn, bot, always_join):
 def load_webhooks_from_db(txn, bot):
     """ Load twitter config from database """
     txn.execute(
-        """
-        SELECT channel, url from """
-        + bot.name
-        + """_webhooks WHERE channel is not null and url is not null
-        """
+        "SELECT channel, url from {bot.name}_webhooks "
+        "WHERE channel is not null and url is not null"
     )
     table = {}
     for row in txn.fetchall():
@@ -622,12 +571,8 @@ def load_webhooks_from_db(txn, bot):
 def load_twitter_from_db(txn, bot):
     """ Load twitter config from database """
     txn.execute(
-        """
-        SELECT screen_name, channel from """
-        + bot.name
-        + """_twitter_subs WHERE screen_name is not null
-        and channel is not null
-        """
+        f"SELECT screen_name, channel from {bot.name}_twitter_subs "
+        "WHERE screen_name is not null and channel is not null"
     )
     twrt = {}
     for row in txn.fetchall():
@@ -643,13 +588,9 @@ def load_twitter_from_db(txn, bot):
 
     twtokens = {}
     txn.execute(
-        """
-        SELECT screen_name, access_token, access_token_secret
-        from """
-        + bot.name
-        + """_twitter_oauth WHERE
-        access_token is not null and access_token_secret is not null
-        """
+        "SELECT screen_name, access_token, access_token_secret from "
+        f"{bot.name}_twitter_oauth WHERE access_token is not null and "
+        "access_token_secret is not null"
     )
     for row in txn.fetchall():
         sn = row["screen_name"]
@@ -663,12 +604,8 @@ def load_twitter_from_db(txn, bot):
 def load_facebook_from_db(txn, bot):
     """ Load facebook config from database """
     txn.execute(
-        """
-        SELECT fbpid, channel from """
-        + bot.name
-        + """_fb_subscriptions
-        WHERE fbpid is not null and channel is not null
-        """
+        f"SELECT fbpid, channel from {bot.name}_fb_subscriptions "
+        "WHERE fbpid is not null and channel is not null"
     )
     fbrt = {}
     for row in txn.fetchall():
@@ -680,12 +617,8 @@ def load_facebook_from_db(txn, bot):
     bot.fb_routingtable = fbrt
 
     txn.execute(
-        """
-        SELECT fbpid, access_token from """
-        + bot.name
-        + """_fb_access_tokens WHERE fbpid is not null
-        and access_token is not null
-        """
+        f"SELECT fbpid, access_token from {bot.name}_fb_access_tokens "
+        "WHERE fbpid is not null and access_token is not null"
     )
 
     for row in txn.fetchall():
@@ -835,15 +768,14 @@ def daily_timestamp(bot):
     Args:
       bot (iembot.basicbot) instance
     """
-    utcnow = utc()
     # Make sure we are a bit into the future!
-    utc0z = utcnow + datetime.timedelta(hours=1)
+    utc0z = utc() + datetime.timedelta(hours=1)
     utc0z = utc0z.replace(hour=0, minute=0, second=0, microsecond=0)
     mess = "------ %s [UTC] ------" % (utc0z.strftime("%b %-d, %Y"),)
     for rm in bot.rooms:
         bot.send_groupchat(rm, mess)
 
     tnext = utc0z + datetime.timedelta(hours=24)
-    delta = (tnext - utcnow).total_seconds()
-    log.msg("Calling daily_timestamp in %.2f seconds" % (delta,))
+    delta = (tnext - utc()).total_seconds()
+    log.msg(f"Calling daily_timestamp in {delta:.2f} seconds")
     return reactor.callLater(delta, daily_timestamp, bot)
