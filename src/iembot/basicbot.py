@@ -1,7 +1,4 @@
-""" Basic iembot/nwsbot implementation
-
-upstream for this code is on github: https://github.com/akrherz/iembot
-"""
+""" Basic iembot/nwsbot implementation. """
 import datetime
 import traceback
 from io import StringIO
