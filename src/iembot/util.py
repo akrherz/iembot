@@ -35,8 +35,7 @@ def tweet(bot, oauth_token, twttxt, twitter_media):
     )
     try:
         api.PostUpdate(twttxt, media=twitter_media)
-    except Exception as exp:
-        email_error(exp, bot, twttxt)
+    except Exception:
         # Since this called from a thread, sleeping should not jam us up
         time.sleep(10)
         api.PostUpdate(twttxt, media=twitter_media)
