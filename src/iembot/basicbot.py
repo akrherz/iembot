@@ -438,7 +438,7 @@ class basicbot:
             df.addErrback(
                 botutil.email_error,
                 self,
-                twttxt,
+                f"User:{twituser} Tweet:{twttxt}",
             )
             return
         twt = twitter.Twitter(
