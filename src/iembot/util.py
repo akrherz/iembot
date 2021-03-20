@@ -552,7 +552,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
 def load_webhooks_from_db(txn, bot):
     """ Load twitter config from database """
     txn.execute(
-        "SELECT channel, url from {bot.name}_webhooks "
+        f"SELECT channel, url from {bot.name}_webhooks "
         "WHERE channel is not null and url is not null"
     )
     table = {}
