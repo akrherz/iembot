@@ -436,9 +436,15 @@ class basicbot:
                 twitter_media,
             )
             df.addErrback(
+                botutil.twitter_errback,
+                self,
+                twituser,
+                f"User:{twituser} Tweet:{twttxt}",
+            )
+            df.addErrback(
                 botutil.email_error,
                 self,
-                f"User:{twituser} Tweet:{twttxt}",
+                f"User: {twituser}, Text: {twttxt} Hit double exception"
             )
             return
         twt = twitter.Twitter(
