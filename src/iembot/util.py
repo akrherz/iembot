@@ -113,7 +113,7 @@ def channels_room_add(txn, bot, room, channel):
         bot.routingtable[ch].append(room)
         # Add to database
         txn.execute(
-            "INSERT into {bot.name}_room_subscriptions "
+            f"INSERT into {bot.name}_room_subscriptions "
             "(roomname, channel) VALUES (%s, %s)",
             (room, ch),
         )
