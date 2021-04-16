@@ -21,7 +21,7 @@ jobs:
         . .ci_tooling/miniconda.sh
         pip install codecov
         python -m pip install . --upgrade
-        export PATH="/usr/lib/postgresql/11/bin:$PATH"
+        export PATH="/usr/lib/postgresql/12/bin:$PATH"
         psql -c 'CREATE ROLE travis SUPERUSER LOGIN CREATEDB;' -U postgres || true
         psql -c 'CREATE ROLE runner SUPERUSER LOGIN CREATEDB;' -U postgres || true
         psql -v "ON_ERROR_STOP=1" -c "create database iembot;" -h localhost -U postgres || exit 2
