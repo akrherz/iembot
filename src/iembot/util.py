@@ -302,13 +302,16 @@ def twitter_errback(err, bot, twituser, msg):
     """Error callback when simple twitter workflow fails."""
     # err is class twisted.python.failure.Failure
     val = err.value.message
-    errcode = val[0].get("code", 0)
-    if errcode in [89, 185, 326, 64]:
-        # 89: Expired token, so we shall revoke for now
-        # 185: User is over quota
-        # 326: User is temporarily locked out
-        # 64: User is suspended
-        disable_twitter_user(bot, twituser, errcode)
+    try:
+        errcode = val[0].get("code", 0)
+        if errcode in [89, 185, 326, 64]:
+            # 89: Expired token, so we shall revoke for now
+            # 185: User is over quota
+            # 326: User is temporarily locked out
+            # 64: User is suspended
+            disable_twitter_user(bot, twituser, errcode)
+    except Exception as exp:
+        log.msg(exp)
     email_error(err, bot, msg)
 
 
