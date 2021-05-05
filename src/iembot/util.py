@@ -260,7 +260,7 @@ def disable_twitter_user(bot, twituser, errcode=0):
     """
     if twituser.startswith("iembot_"):
         log.msg("Skipping disabling of twitter auth for %s" % (twituser,))
-        return
+        return False
     bot.tw_access_tokens.pop(twituser, None)
     log.msg(
         "Removing twitter access token for user: '%s' errcode: %s"
@@ -273,6 +273,7 @@ def disable_twitter_user(bot, twituser, errcode=0):
         (twituser,),
     )
     df.addErrback(log.err)
+    return True
 
 
 def tweet_cb(response, bot, twttxt, room, myjid, twituser):
@@ -309,7 +310,8 @@ def twitter_errback(err, bot, twituser, msg):
             # 185: User is over quota
             # 326: User is temporarily locked out
             # 64: User is suspended
-            disable_twitter_user(bot, twituser, errcode)
+            if disable_twitter_user(bot, twituser, errcode):
+                return
     except Exception as exp:
         log.msg(exp)
     email_error(err, bot, msg)
