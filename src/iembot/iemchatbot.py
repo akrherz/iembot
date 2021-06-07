@@ -167,6 +167,7 @@ class JabberClient(basicbot.basicbot):
         self.send_groupchat_elem(elem)
 
         alertedRooms = []
+        alertedPages = []
         for channel in channels:
             for room in self.routingtable.get(channel, []):
                 if room in alertedRooms:
@@ -185,6 +186,9 @@ class JabberClient(basicbot.basicbot):
                 # confusion with some ingestors still sending tweets themself
                 if not elem.x.hasAttribute("twitter"):
                     continue
+                if page in alertedPages:
+                    continue
+                alertedPages.append(page)
                 twtextra = {}
                 if (
                     elem.x
