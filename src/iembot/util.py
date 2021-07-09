@@ -251,39 +251,48 @@ Message:
     return True
 
 
-def disable_twitter_user(bot, twituser, errcode=0):
-    """Disable the twitter subs for this twituser
+def disable_twitter_user(bot, user_id, errcode=0):
+    """Disable the twitter subs for this user_id
 
     Args:
-        twituser (str): The twitter user to disable
+        user_id (big_id): The twitter user to disable
         errcode (int): The twitter errorcode
     """
-    if twituser.startswith("iembot_"):
-        log.msg("Skipping disabling of twitter auth for %s" % (twituser,))
+    twuser = bot.tw_users.get(user_id)
+    if twuser is None:
+        log.msg(f"Failed to disable unknown twitter user_id {user_id}")
         return False
-    bot.tw_access_tokens.pop(twituser, None)
+    screen_name = twuser["screen_name"]
+    if screen_name.startswith("iembot_"):
+        log.msg(f"Skipping disabling of twitter for {user_id} ({screen_name})")
+        return False
+    bot.tw_users.pop(user_id, None)
     log.msg(
-        "Removing twitter access token for user: '%s' errcode: %s"
-        % (twituser, errcode)
+        f"Removing twitter access token for user: {user_id} ({screen_name}) "
+        f"errcode: {errcode}"
     )
     df = bot.dbpool.runOperation(
         f"UPDATE {bot.name}_twitter_oauth SET updated = now(), "
         "access_token = null, access_token_secret = null "
-        "WHERE screen_name = %s",
-        (twituser,),
+        "WHERE user_id = %s",
+        (user_id, ),
     )
     df.addErrback(log.err)
     return True
 
 
-def tweet_cb(response, bot, twttxt, room, myjid, twituser):
+def tweet_cb(response, bot, twttxt, room, myjid, user_id):
     """
     Called after success going to twitter
     """
     log.msg("tweet_cb() called...")
     if response is None:
         return
-    url = "https://twitter.com/%s/status/%s" % (twituser, response)
+    twuser = bot.tw_users.get(user_id)
+    if twuser is None:
+        return response
+    screen_name = twuser["screen_name"]
+    url = "https://twitter.com/%s/status/%s" % (screen_name, response)
     html = 'Posted twitter message! View it <a href="%s">here</a>.' % (url,)
     plain = "Posted twitter message! %s" % (url,)
     if room is not None:
@@ -299,7 +308,7 @@ def tweet_cb(response, bot, twttxt, room, myjid, twituser):
     return response
 
 
-def twitter_errback(err, bot, twituser, msg):
+def twitter_errback(err, bot, user_id, msg):
     """Error callback when simple twitter workflow fails."""
     # err is class twisted.python.failure.Failure
     val = err.value.message
@@ -310,7 +319,7 @@ def twitter_errback(err, bot, twituser, msg):
             # 185: User is over quota
             # 326: User is temporarily locked out
             # 64: User is suspended
-            if disable_twitter_user(bot, twituser, errcode):
+            if disable_twitter_user(bot, user_id, errcode):
                 return
     except Exception as exp:
         log.msg(exp)
@@ -318,7 +327,7 @@ def twitter_errback(err, bot, twituser, msg):
 
 
 def tweet_eb(
-    err, bot, twttxt, access_token, room, myjid, twituser, twtextra, trip
+    err, bot, twttxt, access_token, room, myjid, user_id, twtextra, trip
 ):
     """
     Called after error going to twitter
@@ -348,7 +357,7 @@ def tweet_eb(
                 access_token,
                 room,
                 myjid,
-                twituser,
+                user_id,
                 twtextra,
                 trip + 1,
             )
@@ -358,31 +367,18 @@ def tweet_eb(
             # 185: User is over quota
             # 326: User is temporarily locked out
             # 64: User is suspended
-            disable_twitter_user(bot, twituser, errcode)
+            disable_twitter_user(bot, user_id, errcode)
         if errcode not in [187]:
             # 187 duplicate message
             email_error(
                 err,
                 bot,
-                ("Room: %s\nmyjid: %s\ntwituser: %s\n" "tweet: %s\nError:%s\n")
-                % (room, myjid, twituser, twttxt, err.value.response),
+                ("Room: %s\nmyjid: %s\nuser_id: %s\n" "tweet: %s\nError:%s\n")
+                % (room, myjid, user_id, twttxt, err.value.response),
             )
 
     log.msg(err.getErrorMessage())
     log.msg(err.value.response)
-
-    msg = "Sorry, an error was encountered with the tweet."
-    htmlmsg = "Sorry, an error was encountered with the tweet."
-    if err.value.status == b"401":
-        msg = "Post to twitter failed. Access token for %s " % (twituser,)
-        msg += "is no longer valid."
-        htmlmsg = msg + " Please refresh access tokens "
-        htmlmsg += (
-            '<a href="https://nwschat.weather.gov/'
-            'nws/twitter.php">here</a>.'
-        )
-    if room is not None:
-        bot.send_groupchat(room, msg, htmlmsg)
 
     # Log this
     deffered = bot.dbpool.runOperation(
@@ -394,7 +390,7 @@ def tweet_eb(
             twttxt,
             err.value.response,
             int(err.value.status),
-            "https://twitter.com/%s" % (twituser,),
+            user_id,
         ),
     )
     deffered.addErrback(log.err)
@@ -589,33 +585,34 @@ def load_webhooks_from_db(txn, bot):
 def load_twitter_from_db(txn, bot):
     """ Load twitter config from database """
     txn.execute(
-        f"SELECT screen_name, channel from {bot.name}_twitter_subs "
-        "WHERE screen_name is not null and channel is not null"
+        f"SELECT user_id, channel from {bot.name}_twitter_subs "
+        "WHERE user_id is not null and channel is not null"
     )
     twrt = {}
     for row in txn.fetchall():
-        sn = row["screen_name"]
+        user_id = row["user_id"]
         channel = row["channel"]
-        if sn == "" or channel == "":
-            continue
-        if channel not in twrt:
-            twrt[channel] = []
-        twrt[channel].append(sn)
+        d = twrt.setdefault(channel, [])
+        d.append(user_id)
     bot.tw_routingtable = twrt
     log.msg("load_twitter_from_db(): %s subs found" % (txn.rowcount,))
 
-    twtokens = {}
+    twusers = {}
     txn.execute(
-        "SELECT screen_name, access_token, access_token_secret from "
+        "SELECT user_id, access_token, access_token_secret, screen_name from "
         f"{bot.name}_twitter_oauth WHERE access_token is not null and "
-        "access_token_secret is not null"
+        "access_token_secret is not null and user_id is not null and "
+        "screen_name is not null"
     )
     for row in txn.fetchall():
-        sn = row["screen_name"]
+        user_id = row["user_id"]
         at = row["access_token"]
         ats = row["access_token_secret"]
-        twtokens[sn] = oauth.OAuthToken(at, ats)
-    bot.tw_access_tokens = twtokens
+        twusers[user_id] = {
+            "screen_name": row["screen_name"],
+            "access_token": oauth.OAuthToken(at, ats),
+        }
+    bot.tw_users = twusers
     log.msg("load_twitter_from_db(): %s oauth tokens found" % (txn.rowcount,))
 
 

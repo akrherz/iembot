@@ -175,20 +175,21 @@ class JabberClient(basicbot.basicbot):
                 alertedRooms.append(room)
                 elem["to"] = "%s@%s" % (room, self.config["bot.mucservice"])
                 self.send_groupchat_elem(elem)
-            for page in self.tw_routingtable.get(channel, []):
-                if page not in self.tw_access_tokens:
+            for user_id in self.tw_routingtable.get(channel, []):
+                twuser = self.tw_users.get(user_id)
+                if twuser is None:
                     log.msg(
                         ("Failed to tweet due to no access_tokens for %s")
-                        % (page,)
+                        % (user_id,)
                     )
                     continue
                 # Require the x.twitter attribute to be set to prevent
                 # confusion with some ingestors still sending tweets themself
                 if not elem.x.hasAttribute("twitter"):
                     continue
-                if page in alertedPages:
+                if user_id in alertedPages:
                     continue
-                alertedPages.append(page)
+                alertedPages.append(user_id)
                 twtextra = {}
                 if (
                     elem.x
@@ -198,15 +199,15 @@ class JabberClient(basicbot.basicbot):
                     twtextra["lat"] = elem.x["lat"]
                     twtextra["long"] = elem.x["long"]
                 log.msg(
-                    "Sending tweet '%s' to page '%s'"
-                    % (elem.x["twitter"], page)
+                    "Sending tweet '%s' to %s (%s)"
+                    % (elem.x["twitter"], user_id, twuser["screen_name"])
                 )
                 # Finally, actually tweet, this is in basicbot
                 self.tweet(
                     elem.x["twitter"],
-                    self.tw_access_tokens[page],
+                    twuser["access_token"],
                     twtextra=twtextra,
-                    twituser=page,
+                    user_id=user_id,
                     twitter_media=elem.x.getAttribute("twitter_media"),
                 )
         webhooks_route(self, channels, elem)
