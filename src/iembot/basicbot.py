@@ -69,8 +69,8 @@ class basicbot:
         self.chatlog = {}
         self.seqnum = 0
         self.routingtable = {}
-        self.tw_access_tokens = {}
-        self.tw_routingtable = {}
+        self.tw_users = {}  # Storage by user_id => {screen_name: ..., oauth:}
+        self.tw_routingtable = {}  # Storage by channel => [user_id, ]
         self.fb_access_tokens = {}
         self.fb_routingtable = {}
         self.webhooks_routingtable = {}
@@ -414,7 +414,7 @@ class basicbot:
         access_token,
         room=None,
         myjid=None,
-        twituser=None,
+        user_id=None,
         twtextra=None,
         trip=0,
         twitter_media=None,
@@ -438,13 +438,13 @@ class basicbot:
             df.addErrback(
                 botutil.twitter_errback,
                 self,
-                twituser,
-                f"User:{twituser} Tweet:{twttxt}",
+                user_id,
+                f"User:{user_id} Tweet:{twttxt}",
             )
             df.addErrback(
                 botutil.email_error,
                 self,
-                f"User: {twituser}, Text: {twttxt} Hit double exception"
+                f"User: {user_id}, Text: {twttxt} Hit double exception"
             )
             return
         twt = twitter.Twitter(
@@ -453,7 +453,7 @@ class basicbot:
         if twtextra is None:
             twtextra = dict()
         df = twt.update(twttxt, None, twtextra)
-        df.addCallback(botutil.tweet_cb, self, twttxt, room, myjid, twituser)
+        df.addCallback(botutil.tweet_cb, self, twttxt, room, myjid, user_id)
         df.addErrback(
             botutil.tweet_eb,
             self,
@@ -461,7 +461,7 @@ class basicbot:
             access_token,
             room,
             myjid,
-            twituser,
+            user_id,
             twtextra,
             trip,
         )
@@ -610,43 +610,45 @@ class basicbot:
                 continue
             if channel in self.tw_routingtable:
                 log.msg("Twitter wants channel: %s" % (channel,))
-                for page in self.tw_routingtable[channel]:
-                    if page in alertedTwitter:
+                for user_id in self.tw_routingtable[channel]:
+                    if user_id in alertedTwitter:
                         continue
                     log.msg(
-                        "Twitter Page: %s wants channel: %s" % (page, channel)
+                        "Twitter: %s wants channel: %s" % (user_id, channel)
                     )
-                    alertedTwitter.append(page)
+                    alertedTwitter.append(user_id)
                     if elem.x and elem.x.hasAttribute("nwschatonly"):
                         continue
-                    if page in self.tw_access_tokens:
-                        log.msg(
-                            "Channel: [%s] Page: [%s] Tweet: [%s]"
-                            % (channel, page, twt)
+                    twuser = self.tw_users.get(user_id)
+                    if twuser is None:
+                        continue
+                    log.msg(
+                        "Channel: [%s] User: [%s,%s] Tweet: [%s]"
+                        % (channel, user_id, twuser["screen_name"], twt)
+                    )
+                    if self.has_football:
+                        twtextra = {}
+                        if (
+                            elem.x
+                            and elem.x.hasAttribute("lat")
+                            and elem.x.hasAttribute("long")
+                        ):
+                            twtextra["lat"] = elem.x["lat"]
+                            twtextra["long"] = elem.x["long"]
+                        self.tweet(
+                            twt,
+                            twuser["access_token"],
+                            user_id=user_id,
+                            myjid=source,
+                            twtextra=twtextra,
                         )
-                        if self.has_football:
-                            twtextra = {}
-                            if (
-                                elem.x
-                                and elem.x.hasAttribute("lat")
-                                and elem.x.hasAttribute("long")
-                            ):
-                                twtextra["lat"] = elem.x["lat"]
-                                twtextra["long"] = elem.x["long"]
-                            self.tweet(
-                                twt,
-                                self.tw_access_tokens[page],
-                                twituser=page,
-                                myjid=source,
-                                twtextra=twtextra,
-                            )
-                            # ASSUME we joined twitter room already
-                            self.send_groupchat("twitter", twt)
-                        else:
-                            log.msg("No Twitter since we have no football")
-                            self.send_groupchat(
-                                "twitter", "NO FOOTBALL %s" % (twt,)
-                            )
+                        # ASSUME we joined twitter room already
+                        self.send_groupchat("twitter", twt)
+                    else:
+                        log.msg("No Twitter since we have no football")
+                        self.send_groupchat(
+                            "twitter", "NO FOOTBALL %s" % (twt,)
+                        )
 
             if channel in self.fb_routingtable:
                 log.msg("Facebook wants channel: %s" % (channel,))
@@ -979,7 +981,7 @@ I currently do not support any commands, sorry.""" % (
         Process a command (#twitter or #social) generated within a chatroom
         """
         # Lets see if this room has a twitter page associated with it
-        _twitter = self.rooms[room]["twitter"]
+        _twitter = self.rooms[room].get("twitter_fail")
         if _twitter is None:
             msg = "%s: Sorry, this room is not associated with " % (res,)
             msg += "a twitter account. Please contact Admin Team"
@@ -1002,14 +1004,15 @@ I currently do not support any commands, sorry.""" % (
             self.send_groupchat(room, msg)
             return
 
-        access_token = self.tw_access_tokens.get(twitter, None)
-        if access_token is None:
-            msg = "%s: Sorry, I don't have permission to post to your " % (
-                res,
-            )
-            msg += "page."
-            self.send_groupchat(room, msg)
-            return
+        # This is broken due to user_id usage
+        # access_token = self.tw...get(twitter, None)
+        # if access_token is None:
+        #    msg = "%s: Sorry, I don't have permission to post to your " % (
+        #        res,
+        #    )
+        #    msg += "page."
+        #    self.send_groupchat(room, msg)
+        #    return
 
         if len(plaintxt) > (TWEET_CHARS - 1):
             msg = (
@@ -1020,9 +1023,7 @@ I currently do not support any commands, sorry.""" % (
             return
 
         # We can finally tweet!
-        self.tweet(
-            plaintxt, access_token, room=room, myjid=myjid, twituser=_twitter
-        )
+        # self.tweet(plaintxt, "bug", room=room, myjid=myjid, user_id=_twitter)
 
     def process_facebook_cmd(self, room, res, plaintxt):
         """
