@@ -34,11 +34,28 @@ def tweet(bot, oauth_token, twttxt, twitter_media):
         access_token_secret=oauth_token.secret,
     )
     try:
-        api.PostUpdate(twttxt, media=twitter_media)
-    except Exception:
+        res = api.PostUpdate(twttxt, media=twitter_media)
+    except twitter.error.TwitterError as exp:
+        # Something bad happened with submitting this to twitter
+        if str(exp).startswith("media type unrecognized"):
+            # The media content hit some error, just send it without it
+            log.msg(
+                "Sending '%s' as media to twitter failed, stripping" % (
+                    twitter_media,
+                )
+            )
+            res = api.PostUpdate(twttxt)
+        else:
+            log.err(exp)
+            # Since this called from a thread, sleeping should not jam us up
+            time.sleep(10)
+            res = api.PostUpdate(twttxt, media=twitter_media)
+    except Exception as exp:
+        log.err(exp)
         # Since this called from a thread, sleeping should not jam us up
         time.sleep(10)
-        api.PostUpdate(twttxt, media=twitter_media)
+        res = api.PostUpdate(twttxt)
+    return res
 
 
 def channels_room_list(bot, room):
@@ -285,24 +302,22 @@ def tweet_cb(response, bot, twttxt, room, myjid, user_id):
     """
     Called after success going to twitter
     """
-    log.msg("tweet_cb() called...")
     if response is None:
         return
     twuser = bot.tw_users.get(user_id)
     if twuser is None:
         return response
     screen_name = twuser["screen_name"]
-    url = "https://twitter.com/%s/status/%s" % (screen_name, response)
-    html = 'Posted twitter message! View it <a href="%s">here</a>.' % (url,)
-    plain = "Posted twitter message! %s" % (url,)
-    if room is not None:
-        bot.send_groupchat(room, plain, html)
+    if isinstance(response, twitter.Status):
+        url = "https://twitter.com/%s/status/%s" % (screen_name, response.id)
+    else:
+        url = "https://twitter.com/%s/status/%s" % (screen_name, response)
 
     # Log
     df = bot.dbpool.runOperation(
         f"INSERT into {bot.name}_social_log(medium, source, resource_uri, "
         "message, response, response_code) values (%s,%s,%s,%s,%s,%s)",
-        ("twitter", myjid, url, twttxt, response, 200),
+        ("twitter", myjid, url, twttxt, repr(response), 200),
     )
     df.addErrback(log.err)
     return response
@@ -311,8 +326,9 @@ def tweet_cb(response, bot, twttxt, room, myjid, user_id):
 def twitter_errback(err, bot, user_id, msg):
     """Error callback when simple twitter workflow fails."""
     # err is class twisted.python.failure.Failure
-    val = err.value.message
+    log.err(err)
     try:
+        val = err.value.message
         errcode = val[0].get("code", 0)
         if errcode in [89, 185, 326, 64]:
             # 89: Expired token, so we shall revoke for now
@@ -322,7 +338,7 @@ def twitter_errback(err, bot, user_id, msg):
             if disable_twitter_user(bot, user_id, errcode):
                 return
     except Exception as exp:
-        log.msg(exp)
+        log.err(exp)
     email_error(err, bot, msg)
 
 

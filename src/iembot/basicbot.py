@@ -435,6 +435,7 @@ class basicbot:
                 twttxt,
                 twitter_media,
             )
+            df.addCallback(botutil.tweet_cb, self, twttxt, "", "", user_id)
             df.addErrback(
                 botutil.twitter_errback,
                 self,
