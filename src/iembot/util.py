@@ -561,7 +561,9 @@ def load_chatrooms_from_db(txn, bot, always_join):
         if always_join or rm not in oldrooms:
             presence = domish.Element(("jabber:client", "presence"))
             presence["to"] = "%s@%s/%s" % (rm, bot.conference, bot.myjid.user)
-            reactor.callLater(i % 30, bot.xmlstream.send, presence)
+            # Some jitter to prevent overloading
+            jitter = 0 if rm in ['botstalk', ] else i % 30
+            reactor.callLater(jitter, bot.xmlstream.send, presence)
             joined += 1
         if rm in oldrooms:
             oldrooms.remove(rm)
