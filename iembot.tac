@@ -19,11 +19,15 @@ serviceCollection = service.IServiceCollection(application)
 
 # This provides DictCursors!
 dbrw = dbconfig.get('databaserw')
-dbpool = adbapi.ConnectionPool("pyiem.twistedpg", cp_reconnect=True,
-                               database=dbrw.get('openfire'),
-                               host=dbrw.get('host'),
-                               password=dbrw.get('password'),
-                               user=dbrw.get('user'))
+dbpool = adbapi.ConnectionPool(
+    "pyiem.twistedpg",
+    cp_reconnect=True,
+    database=dbrw.get('openfire'),
+    host=dbrw.get('host'),
+    password=dbrw.get('password'),
+    user=dbrw.get('user'),
+    gssencmode="disable",
+)
 
 memcache_client = YamClient(reactor, ['tcp:iem-memcached3:11211', ])
 memcache_client.connect()
