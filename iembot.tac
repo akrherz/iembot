@@ -1,8 +1,6 @@
 """Our script that is exec'd from twistd via run.sh"""
 # Base Python
 import json
-import os
-import sys
 
 # Twisted Bits
 from twisted.application import service, internet
@@ -10,9 +8,6 @@ from twisted.web import server
 from twisted.internet import reactor
 from twisted.enterprise import adbapi
 from txyam.client import YamClient
-
-# Twisted 16.4 changes import logic
-sys.path.insert(0, os.getcwd())
 
 # Local Import
 from iembot import iemchatbot, webservices
@@ -24,11 +19,15 @@ serviceCollection = service.IServiceCollection(application)
 
 # This provides DictCursors!
 dbrw = dbconfig.get('databaserw')
-dbpool = adbapi.ConnectionPool("pyiem.twistedpg", cp_reconnect=True,
-                               database=dbrw.get('openfire'),
-                               host=dbrw.get('host'),
-                               password=dbrw.get('password'),
-                               user=dbrw.get('user'))
+dbpool = adbapi.ConnectionPool(
+    "pyiem.twistedpg",
+    cp_reconnect=True,
+    database=dbrw.get('openfire'),
+    host=dbrw.get('host'),
+    password=dbrw.get('password'),
+    user=dbrw.get('user'),
+    gssencmode="disable",
+)
 
 memcache_client = YamClient(reactor, ['tcp:iem-memcached3:11211', ])
 memcache_client.connect()
