@@ -1,8 +1,6 @@
 """Our script that is exec'd from twistd via run.sh"""
 # Base Python
 import json
-import os
-import sys
 
 # Twisted Bits
 from twisted.application import service, internet
@@ -10,9 +8,6 @@ from twisted.web import server
 from twisted.internet import reactor
 from twisted.enterprise import adbapi
 from txyam.client import YamClient
-
-# Twisted 16.4 changes import logic
-sys.path.insert(0, os.getcwd())
 
 # Local Import
 from iembot import iemchatbot, webservices
