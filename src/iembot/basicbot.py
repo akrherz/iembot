@@ -26,7 +26,6 @@ from oauth import oauth
 
 from twittytwister import twitter
 from pyiem.util import utc
-from pyiem.reference import TWEET_CHARS
 import iembot.util as botutil
 
 DATADIR = os.sep.join([os.path.dirname(__file__), "data"])
@@ -101,7 +100,7 @@ class basicbot:
 
         def really_save_chat_log():
             """called from a thread"""
-            log.msg("Saving CHATLOG to %s" % (self.PICKLEFILE,))
+            log.msg(f"Saving CHATLOG to {self.PICKLEFILE}")
             # unsure if deepcopy is necessary, but alas
             pickle.dump(
                 copy.deepcopy(self.chatlog), open(self.PICKLEFILE, "wb")
@@ -187,8 +186,7 @@ class basicbot:
         for row in res:
             self.config[row["propname"]] = row["propvalue"]
         log.msg(
-            ("%s properties were loaded from the database")
-            % (len(self.config),)
+            f"{len(self.config)} properties were loaded from the database"
         )
 
         self.myjid = jid.JID(
@@ -976,145 +974,3 @@ I currently do not support any commands, sorry.""" % (
             cf.addErrback(log.err)
         else:
             log.msg("Skipping facebook relay as I don't have the football")
-
-    def process_twitter_cmd(self, room, res, plaintxt):
-        """
-        Process a command (#twitter or #social) generated within a chatroom
-        """
-        # Lets see if this room has a twitter page associated with it
-        _twitter = self.rooms[room].get("twitter_fail")
-        if _twitter is None:
-            msg = "%s: Sorry, this room is not associated with " % (res,)
-            msg += "a twitter account. Please contact Admin Team"
-            self.send_groupchat(room, msg)
-            return
-
-        myjid = "%s,%s" % (room, self.rooms[room]["occupants"][res]["jid"])
-        if self.rooms[room]["occupants"][res]["jid"] is None:
-            msg = "%s: Sorry, I am unable to process your facebook " % (res,)
-            msg += "request due to a lookup failure.  Please consider "
-            msg += "rejoining the chatroom if you really wish to speak with me"
-            self.send_groupchat(room, msg)
-            return
-
-        aff = self.rooms[room]["occupants"][res]["affiliation"]
-
-        if aff not in ["owner", "admin"]:
-            msg = "%s: Sorry, you need to be a local room admin " % (res,)
-            msg += "or owner to use twitter feature!"
-            self.send_groupchat(room, msg)
-            return
-
-        # This is broken due to user_id usage
-        # access_token = self.tw...get(twitter, None)
-        # if access_token is None:
-        #    msg = "%s: Sorry, I don't have permission to post to your " % (
-        #        res,
-        #    )
-        #    msg += "page."
-        #    self.send_groupchat(room, msg)
-        #    return
-
-        if len(plaintxt) > (TWEET_CHARS - 1):
-            msg = (
-                "%s: Sorry, your message is longer than %s "
-                "characters, so I can not relay to twitter!"
-            ) % (res, TWEET_CHARS)
-            self.send_groupchat(room, msg)
-            return
-
-        # We can finally tweet!
-        # self.tweet(plaintxt, "bug", room=room, myjid=myjid, user_id=_twitter)
-
-    def process_facebook_cmd(self, room, res, plaintxt):
-        """
-        Process a command (#facebook) generated within a chatroom requesting
-        facebook posting
-          1. User must be local admin
-          2. Bot posts back a link to the post, tricky!
-        @param room The room name this request came from
-        @param res The resource this came from
-        @param plaintxt The plain text variant of this message
-        """
-        # Make sure the local room has a FB page associated with it
-        if self.rooms[room]["fbpage"] is None:
-            self.send_groupchat(
-                room,
-                (
-                    "%s: Sorry, this room is not associated "
-                    "with Facebook Page.  Please contact "
-                    "Admin Team."
-                )
-                % (res,),
-            )
-            return
-        fbpage = self.rooms[room]["fbpage"]
-
-        # Make sure we know who the real JID of this user is....
-        if res not in self.rooms[room]["occupants"]:
-            self.send_groupchat(
-                room,
-                (
-                    "%s: Sorry, I am unable to process your "
-                    "facebook request due to a lookup failure. "
-                    " Please consider rejoining the chatroom if "
-                    "you really wish to speak with me."
-                )
-                % (res,),
-            )
-            return
-
-        # Figure out the user's affiliation
-        aff = self.rooms[room]["occupants"][res]["affiliation"]
-        myjid = "%s,%s" % (room, self.rooms[room]["occupants"][res]["jid"])
-
-        if aff not in ["owner", "admin"]:
-            self.send_groupchat(
-                room,
-                (
-                    "%s: Sorry, you need to be a local room "
-                    "admin or owner to use facebook feature!"
-                )
-                % (res,),
-            )
-            return
-
-        if fbpage not in self.fb_access_tokens:
-            self.send_groupchat(
-                room,
-                ("%s: Sorry, I don't have permission to post " "to your page.")
-                % (res,),
-            )
-            return
-
-        # Done with error checking!
-        post_args = {}
-        post_args["access_token"] = self.fb_access_tokens[fbpage]
-        # Without encoding, this causes urlencode to be angry
-        post_args["message"] = plaintxt.replace("#facebook", "").encode(
-            "ascii", "ignore"
-        )
-
-        # Need to use async proxy, please
-        url = "https://graph.facebook.com/me/feed?"
-        postdata = urlparse.urlencode(post_args)
-        if self.has_football:
-            cf = webclient.getPage(url, method="POST", postdata=postdata)
-            cf.addCallback(
-                botutil.fbsuccess, self, room, myjid, post_args["message"]
-            )
-            cf.addErrback(
-                botutil.fbfail, self, room, myjid, post_args["message"], fbpage
-            )
-            cf.addErrback(log.err)
-        else:
-            log.msg("Skipping facebook relay as I don't have the football")
-            self.send_groupchat(
-                room,
-                (
-                    "%s: Sorry, I am currently in "
-                    "non-production mode, so I am not sending "
-                    "facebook messages."
-                )
-                % (res,),
-            )

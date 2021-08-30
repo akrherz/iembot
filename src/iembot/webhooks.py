@@ -17,7 +17,6 @@ def route(bot, channels, elem):
       channels (list): channels for this message.
       elem: xish element.
     """
-    log.msg("webhooks.route() called...")
     # {'DMX': [url, url, ...]}
     subs = [
         bot.webhooks_routingtable[channel]
@@ -25,7 +24,6 @@ def route(bot, channels, elem):
         if channel in bot.webhooks_routingtable
     ]
     if not subs:
-        log.msg("found no subs!")
         return
     data = {"text": str(elem.body)}
     postdata = json.dumps(data).encode("utf-8", "ignore")

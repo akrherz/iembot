@@ -11,3 +11,4 @@
 /docs/build
 /.eggs
 /logs
+/settings.json
