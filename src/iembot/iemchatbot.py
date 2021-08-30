@@ -107,7 +107,8 @@ class JabberClient(basicbot.basicbot):
                 else:
                     writelog()
                 return
-            log.msg("memcache lookup of %s succeeded" % (product_id,))
+            if trip > 1:
+                log.msg(f"memcache lookup of {product_id} succeeded")
             # log.msg("Got a response! res: %s" % (res, ))
             writelog(data.decode("ascii", "ignore"))
 
@@ -119,9 +120,8 @@ class JabberClient(basicbot.basicbot):
         def memcache_fetch(trip):
             """fetch please"""
             trip += 1
-            log.msg(
-                "memcache_fetch(trip=%s, product_id=%s" % (trip, product_id)
-            )
+            if trip > 1:
+                log.msg(f"memcache_fetch(trip={trip}, product_id={product_id}")
             defer = self.memcache_client.get(product_id.encode("utf-8"))
             defer.addCallback(got_data, trip)
             defer.addErrback(no_data)

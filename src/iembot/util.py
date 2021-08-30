@@ -91,11 +91,8 @@ def channels_room_add(txn, bot, room, channel):
     if channel == "":
         bot.send_groupchat(
             room,
-            (
-                "Failed to add channel to room "
-                "subscription, you supplied a "
-                "blank channel?"
-            ),
+            "Failed to add channel to room subscription, you supplied a "
+            "blank channel?",
         )
         return
     # Allow channels to be comma delimited
@@ -106,12 +103,8 @@ def channels_room_add(txn, bot, room, channel):
         if room in bot.routingtable[ch]:
             bot.send_groupchat(
                 room,
-                (
-                    "Error adding subscription, your "
-                    "room is already subscribed to the"
-                    "'%s' channel"
-                )
-                % (ch,),
+                "Error adding subscription, your room is already subscribed "
+                f"to the '{ch}' channel",
             )
             continue
         # Add a channels entry for this channel, if one currently does
