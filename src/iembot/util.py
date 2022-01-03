@@ -378,11 +378,17 @@ def tweet_eb(
             disable_twitter_user(bot, user_id, errcode)
         if errcode not in [187]:
             # 187 duplicate message
+            twuser = bot.tw_users.get(user_id, {})
             email_error(
                 err,
                 bot,
-                ("Room: %s\nmyjid: %s\nuser_id: %s\n" "tweet: %s\nError:%s\n")
-                % (room, myjid, user_id, twttxt, err.value.response),
+                (
+                    f"Room: {room}\n"
+                    f"myjid: {myjid}\n"
+                    f"user: {twuser.get('screen_name')} [{user_id}]\n"
+                    f"tweet: {twttxt}\n"
+                    f"Error:{err.value.response}\n"
+                ),
             )
 
     log.msg(err.getErrorMessage())
