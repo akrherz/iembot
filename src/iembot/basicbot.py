@@ -83,9 +83,9 @@ class basicbot:
         self.ingestjid = None
         self.conference = None
         self.email_timestamps = []
-        self.fortunes = (
-            open("%s/startrek" % (DATADIR,), "r").read().split("\n%\n")
-        )
+        fn = os.path.join(DATADIR, "startrek")
+        with open(fn, "r", encoding="utf-8") as fp:
+            self.fortunes = fp.read().split("\n%\n")
         self.twitter_oauth_consumer = None
         self.logins = 0
         botutil.load_chatlog(self)
@@ -115,7 +115,7 @@ class basicbot:
     def authd(self, _xs=None):
         """callback when we are logged into the server!"""
         botutil.email_error(
-            None, self, "Logged into jabber server as %s" % (self.myjid,)
+            None, self, f"Logged into jabber server as {self.myjid}"
         )
         if not self.firstlogin:
             self.compute_daily_caller()
@@ -483,8 +483,9 @@ class basicbot:
     def presence_processor(self, elem):
         """Process the presence stanza
 
-                The bot process keeps track of room occupants and their affiliations,
-                roles so to provide ACLs for room admin activities.
+                The bot process keeps track of room occupants and their
+                affiliations, roles so to provide ACLs for room admin
+                activities.
 
                 Args:
                   elem (domish.Element): stanza
@@ -492,8 +493,10 @@ class basicbot:
         <presence xmlns='jabber:client' to='nwsbot@laptop.local/twisted_words'
             from='dmxchat@conference.laptop.local/nws-daryl.herzmann'>
             <priority>1</priority>
-            <c xmlns='http://jabber.org/protocol/caps' node='http://pidgin.im/'
-                ver='AcN1/PEN8nq7AHD+9jpxMV4U6YM=' ext='voice-v1 camera-v1 video-v1'
+            <c xmlns='http://jabber.org/protocol/caps'
+            node='http://pidgin.im/'
+                ver='AcN1/PEN8nq7AHD+9jpxMV4U6YM='
+                ext='voice-v1 camera-v1 video-v1'
                 hash='sha-1'/>
             <x xmlns='vcard-temp:x:update'><photo/></x>
             <x xmlns='http://jabber.org/protocol/muc#user'>
