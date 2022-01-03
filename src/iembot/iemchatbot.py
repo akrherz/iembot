@@ -18,7 +18,7 @@ SMTPSenderFactory.noisy = False
 
 
 class JabberClient(basicbot.basicbot):
-    """ I am a Jabber Bot
+    """I am a Jabber Bot
 
     I provide some customizations that are not provided by basicbot, here are
     some details on calling order

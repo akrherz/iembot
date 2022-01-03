@@ -50,14 +50,14 @@ PRESENCE_MUC_STATUS = (
 
 
 class basicbot:
-    """ Here lies the Jabber Bot """
+    """Here lies the Jabber Bot"""
 
     PICKLEFILE = "iembot_chatlog_v2.pickle"
 
     def __init__(
         self, name, dbpool, memcache_client=None, xml_log_path="logs"
     ):
-        """ Constructor """
+        """Constructor"""
         self.startup_time = utc()
         self.name = name
         self.dbpool = dbpool
@@ -109,11 +109,11 @@ class basicbot:
         reactor.callInThread(really_save_chat_log)
 
     def on_firstlogin(self):
-        """ callbacked when we are first logged in """
+        """callbacked when we are first logged in"""
         return
 
     def authd(self, _xs=None):
-        """ callback when we are logged into the server! """
+        """callback when we are logged into the server!"""
         botutil.email_error(
             None, self, "Logged into jabber server as %s" % (self.myjid,)
         )
@@ -155,13 +155,13 @@ class basicbot:
         df.addErrback(botutil.email_error, self, "load_chatrooms() failure")
 
     def load_twitter(self):
-        """ Load the twitter subscriptions and access tokens """
+        """Load the twitter subscriptions and access tokens"""
         log.msg("load_twitter() called...")
         df = self.dbpool.runInteraction(botutil.load_twitter_from_db, self)
         df.addErrback(botutil.email_error, self, "load_twitter() failure")
 
     def load_webhooks(self):
-        """ Load the twitter subscriptions and access tokens """
+        """Load the twitter subscriptions and access tokens"""
         log.msg("load_webhooks() called...")
         df = self.dbpool.runInteraction(botutil.load_webhooks_from_db, self)
         df.addErrback(botutil.email_error, self, "load_webhooks() failure")
@@ -175,19 +175,17 @@ class basicbot:
         df.addErrback(botutil.email_error, self)
 
     def check_for_football(self):
-        """ Logic to check if we have the football or not, this should
-        be over-ridden """
+        """Logic to check if we have the football or not, this should
+        be over-ridden"""
         self.has_football = True
 
     def fire_client_with_config(self, res, serviceCollection):
-        """ Calledback once bot has loaded its database configuration """
+        """Calledback once bot has loaded its database configuration"""
         log.msg("fire_client_with_config() called ...")
 
         for row in res:
             self.config[row["propname"]] = row["propvalue"]
-        log.msg(
-            f"{len(self.config)} properties were loaded from the database"
-        )
+        log.msg(f"{len(self.config)} properties were loaded from the database")
 
         self.myjid = jid.JID(
             "%s@%s/twisted_words"
@@ -241,7 +239,7 @@ class basicbot:
         log.err(failure)
 
     def get_fortune(self):
-        """ Get a random value from the array """
+        """Get a random value from the array"""
         offset = int((len(self.fortunes) - 1) * random.random())
         return " ".join(self.fortunes[offset].replace("\n", "").split())
 
@@ -363,7 +361,7 @@ class basicbot:
         return message
 
     def send_groupchat_elem(self, elem, to=None, secondtrip=False):
-        """ Wrapper for sending groupchat elements """
+        """Wrapper for sending groupchat elements"""
         if to is not None:
             elem["to"] = to
         room = jid.JID(elem["to"]).user
@@ -443,7 +441,7 @@ class basicbot:
             df.addErrback(
                 botutil.email_error,
                 self,
-                f"User: {user_id}, Text: {twttxt} Hit double exception"
+                f"User: {user_id}, Text: {twttxt} Hit double exception",
             )
             return
         twt = twitter.Twitter(
@@ -485,24 +483,24 @@ class basicbot:
     def presence_processor(self, elem):
         """Process the presence stanza
 
-        The bot process keeps track of room occupants and their affiliations,
-        roles so to provide ACLs for room admin activities.
+                The bot process keeps track of room occupants and their affiliations,
+                roles so to provide ACLs for room admin activities.
 
-        Args:
-          elem (domish.Element): stanza
+                Args:
+                  elem (domish.Element): stanza
 
-<presence xmlns='jabber:client' to='nwsbot@laptop.local/twisted_words'
-    from='dmxchat@conference.laptop.local/nws-daryl.herzmann'>
-    <priority>1</priority>
-    <c xmlns='http://jabber.org/protocol/caps' node='http://pidgin.im/'
-        ver='AcN1/PEN8nq7AHD+9jpxMV4U6YM=' ext='voice-v1 camera-v1 video-v1'
-        hash='sha-1'/>
-    <x xmlns='vcard-temp:x:update'><photo/></x>
-    <x xmlns='http://jabber.org/protocol/muc#user'>
-        <item affiliation='owner' jid='nws-mortal@laptop.local/laptop'
-        role='moderator'/>
-    </x>
-</presence>
+        <presence xmlns='jabber:client' to='nwsbot@laptop.local/twisted_words'
+            from='dmxchat@conference.laptop.local/nws-daryl.herzmann'>
+            <priority>1</priority>
+            <c xmlns='http://jabber.org/protocol/caps' node='http://pidgin.im/'
+                ver='AcN1/PEN8nq7AHD+9jpxMV4U6YM=' ext='voice-v1 camera-v1 video-v1'
+                hash='sha-1'/>
+            <x xmlns='vcard-temp:x:update'><photo/></x>
+            <x xmlns='http://jabber.org/protocol/muc#user'>
+                <item affiliation='owner' jid='nws-mortal@laptop.local/laptop'
+                role='moderator'/>
+            </x>
+        </presence>
         """
         # log.msg("presence_processor() called")
         items = xpath.queryForNodes(PRESENCE_MUC_ITEM, elem)

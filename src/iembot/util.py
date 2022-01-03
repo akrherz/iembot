@@ -40,9 +40,8 @@ def tweet(bot, oauth_token, twttxt, twitter_media):
         if str(exp).startswith("media type unrecognized"):
             # The media content hit some error, just send it without it
             log.msg(
-                "Sending '%s' as media to twitter failed, stripping" % (
-                    twitter_media,
-                )
+                "Sending '%s' as media to twitter failed, stripping"
+                % (twitter_media,)
             )
             res = api.PostUpdate(twttxt)
         else:
@@ -169,7 +168,7 @@ def channels_room_del(txn, bot, room, channel):
 
 
 def purge_logs(bot):
-    """ Remove chat logs on a 24 HR basis """
+    """Remove chat logs on a 24 HR basis"""
     log.msg("purge_logs() called...")
     basets = utc() - datetime.timedelta(
         days=int(bot.config.get("bot.purge_xmllog_days", 7))
@@ -285,7 +284,7 @@ def disable_twitter_user(bot, user_id, errcode=0):
         f"UPDATE {bot.name}_twitter_oauth SET updated = now(), "
         "access_token = null, access_token_secret = null "
         "WHERE user_id = %s",
-        (user_id, ),
+        (user_id,),
     )
     df.addErrback(log.err)
     return True
@@ -408,7 +407,7 @@ def tweet_eb(
 
 
 def fbfail(err, bot, room, myjid, message, fbpage):
-    """ We got a failure from facebook API!"""
+    """We got a failure from facebook API!"""
     log.msg("=== Facebook API Failure ===")
     log.err(err)
     err.trap(weberror.Error)
@@ -453,7 +452,7 @@ def fbfail(err, bot, room, myjid, message, fbpage):
 
 
 def fbsuccess(response, bot, room, myjid, message):
-    """ Got a response from facebook! """
+    """Got a response from facebook!"""
     d = json.loads(response)
     (pageid, postid) = d["id"].split("_")
     url = "http://www.facebook.com/permalink.php?story_fbid=%s&id=%s" % (
@@ -477,7 +476,7 @@ def fbsuccess(response, bot, room, myjid, message):
 
 
 def load_chatrooms_from_db(txn, bot, always_join):
-    """ Load database configuration and do work
+    """Load database configuration and do work
 
     Args:
       txn (dbtransaction): database cursor
@@ -555,7 +554,14 @@ def load_chatrooms_from_db(txn, bot, always_join):
             presence = domish.Element(("jabber:client", "presence"))
             presence["to"] = "%s@%s/%s" % (rm, bot.conference, bot.myjid.user)
             # Some jitter to prevent overloading
-            jitter = 0 if rm in ['botstalk', ] else i % 30
+            jitter = (
+                0
+                if rm
+                in [
+                    "botstalk",
+                ]
+                else i % 30
+            )
             reactor.callLater(jitter, bot.xmlstream.send, presence)
             joined += 1
         if rm in oldrooms:
@@ -576,7 +582,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
 
 
 def load_webhooks_from_db(txn, bot):
-    """ Load twitter config from database """
+    """Load twitter config from database"""
     txn.execute(
         f"SELECT channel, url from {bot.name}_webhooks "
         "WHERE channel is not null and url is not null"
@@ -594,7 +600,7 @@ def load_webhooks_from_db(txn, bot):
 
 
 def load_twitter_from_db(txn, bot):
-    """ Load twitter config from database """
+    """Load twitter config from database"""
     txn.execute(
         f"SELECT user_id, channel from {bot.name}_twitter_subs "
         "WHERE user_id is not null and channel is not null"
@@ -628,7 +634,7 @@ def load_twitter_from_db(txn, bot):
 
 
 def load_facebook_from_db(txn, bot):
-    """ Load facebook config from database """
+    """Load facebook config from database"""
     txn.execute(
         f"SELECT fbpid, channel from {bot.name}_fb_subscriptions "
         "WHERE fbpid is not null and channel is not null"
@@ -673,7 +679,7 @@ def load_chatlog(bot):
 
 
 def safe_twitter_text(text):
-    """ Attempt to rip apart a message that is too long!
+    """Attempt to rip apart a message that is too long!
     To be safe, the URL is counted as 24 chars
     """
     # XMPP payload will have entities, unescape those before tweeting
@@ -756,7 +762,7 @@ def htmlentities(text):
 def remove_control_characters(html):
     """Get rid of cruft?"""
     # https://github.com/html5lib/html5lib-python/issues/96
-    html = re.sub(u"[\x00-\x08\x0b\x0e-\x1f\x7f]", "", html)
+    html = re.sub("[\x00-\x08\x0b\x0e-\x1f\x7f]", "", html)
     return html
 
 
@@ -789,7 +795,7 @@ def add_entry_to_rss(entry, rss):
 
 
 def daily_timestamp(bot):
-    """ Send a timestamp to each room we are in.
+    """Send a timestamp to each room we are in.
 
     Args:
       bot (iembot.basicbot) instance
