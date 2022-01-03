@@ -139,7 +139,7 @@ class RoomChannel(resource.Resource):
         self.iembot = iembot
 
     def wrap(self, request, j):
-        """ Support specification of a JSONP callback """
+        """Support specification of a JSONP callback"""
         if "callback" in request.args:
             request.setHeader("Content-type", "application/javascript")
             return ("%s(%s);" % (request.args["callback"][0], j)).encode(
@@ -148,7 +148,7 @@ class RoomChannel(resource.Resource):
         return j.encode("utf-8")
 
     def render(self, request):
-        """ Process the request that we got, it should look something like:
+        """Process the request that we got, it should look something like:
         /room/dmxchat?seqnum=1
         """
         uri = request.uri.decode("utf-8")
