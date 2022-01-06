@@ -21,8 +21,12 @@ from twisted.mail import smtp
 from twisted.python import log
 import twisted.web.error as weberror
 from twisted.words.xish import domish
+from twitter.error import TwitterError
 from pyiem.util import utc
 from pyiem.reference import TWEET_CHARS
+
+# local
+import iembot
 
 
 def tweet(bot, oauth_token, twttxt, twitter_media):
@@ -39,10 +43,7 @@ def tweet(bot, oauth_token, twttxt, twitter_media):
         # Something bad happened with submitting this to twitter
         if str(exp).startswith("media type unrecognized"):
             # The media content hit some error, just send it without it
-            log.msg(
-                "Sending '%s' as media to twitter failed, stripping"
-                % (twitter_media,)
-            )
+            log.msg(f"Sending '{twitter_media}' to twitter failed, stripping")
             res = api.PostUpdate(twttxt)
         else:
             log.err(exp)
@@ -146,13 +147,11 @@ def channels_room_del(txn, bot, room, channel):
 
     for ch in channel.split(","):
         if ch not in bot.routingtable:
-            bot.send_groupchat(room, "Unknown channel: '%s'" % (ch,))
+            bot.send_groupchat(room, f"Unknown channel: '{ch}'")
             continue
 
         if room not in bot.routingtable[ch]:
-            bot.send_groupchat(
-                room, ("Room not subscribed to channel: '%s'") % (ch,)
-            )
+            bot.send_groupchat(room, f"Room not subscribed to channel: '{ch}'")
             continue
 
         # Remove from routing table
@@ -177,7 +176,7 @@ def purge_logs(bot):
         ts = datetime.datetime.strptime(fn, "logs/xmllog.%Y_%m_%d")
         ts = ts.replace(tzinfo=pytz.UTC)
         if ts < basets:
-            log.msg("Purging logfile %s" % (fn,))
+            log.msg(f"Purging logfile {fn}")
             os.remove(fn)
 
 
@@ -220,32 +219,19 @@ def email_error(exp, bot, message=""):
         log.msg("Email threshold exceeded, so no email sent!")
         return False
 
+    le = ' '.join([f'{_:.2f}' for _ in os.getloadavg()])
     msg = MIMEText(
-        """
-System          : %s@%s [CWD: %s]
-System UTC date : %s
-process id      : %s
-system load     : %s
-Exception       :
-%s
-%s
-
-Message:
-%s"""
-        % (
-            pwd.getpwuid(os.getuid())[0],
-            socket.gethostname(),
-            os.getcwd(),
-            utc(),
-            os.getpid(),
-            " ".join(["%.2f" % (_,) for _ in os.getloadavg()]),
-            cstr.read(),
-            exp,
-            message,
-        )
+        f"System          : {pwd.getpwuid(os.getuid())[0]}@"
+        f"{socket.gethostname()} [CWD: {os.getcwd()}]\n"
+        f"System UTC date : {utc()}\n"
+        f"process id      : {os.getpid()}\n"
+        f"iembot.version  : {iembot.__version__}\n"
+        f"system load     : {le}\n"
+        f"Exception       : {cstr.read()}\n"
+        f"{exp}\n"
+        f"Message: {message}\n"
     )
-
-    msg["subject"] = "[bot] Traceback -- %s" % (socket.gethostname(),)
+    msg["subject"] = f"[bot] Traceback -- {socket.gethostname()}"
 
     msg["From"] = bot.config.get("bot.email_errors_from", "root@localhost")
     msg["To"] = bot.config.get("bot.email_errors_to", "root@localhost")
@@ -315,22 +301,40 @@ def tweet_cb(response, bot, twttxt, room, myjid, user_id):
     return response
 
 
-def twitter_errback(err, bot, user_id, msg):
+def twittererror_exp_to_code(exp) -> int:
+    """Convert a TwitterError Exception into a code.
+
+    Args:
+      exp (TwitterError): The exception to convert
+    """
+    errcode = None
+    if isinstance(exp, TwitterError):
+        errmsg = str(exp)
+        errmsg = errmsg[errmsg.find("["):].replace("'", '"')
+        try:
+            errobj = json.loads(errmsg)
+            errcode = errobj[0].get("code", 0)
+        except Exception as exp2:
+            log.msg(f"Failed to parse code TwitterError: {exp2}")
+    return errcode
+
+
+def twitter_errback(err, bot, user_id, tweettext):
     """Error callback when simple twitter workflow fails."""
-    # err is class twisted.python.failure.Failure
+    # Always log it
     log.err(err)
-    try:
-        val = err.value.message
-        errcode = val[0].get("code", 0)
-        if errcode in [89, 185, 326, 64]:
-            # 89: Expired token, so we shall revoke for now
-            # 185: User is over quota
-            # 326: User is temporarily locked out
-            # 64: User is suspended
-            if disable_twitter_user(bot, user_id, errcode):
-                return
-    except Exception as exp:
-        log.err(exp)
+    errcode = twittererror_exp_to_code(err)
+    if errcode in [89, 185, 326, 64]:
+        # 89: Expired token, so we shall revoke for now
+        # 185: User is over quota
+        # 326: User is temporarily locked out
+        # 64: User is suspended
+        disable_twitter_user(bot, user_id, errcode)
+    sn = bot.tw_users.get(user_id, {}).get("screen_name", "")
+    msg = (
+        f"User: {user_id} ({sn})\n"
+        f"Failed to tweet: {tweettext}"
+    )
     email_error(err, bot, msg)
 
 
@@ -350,8 +354,7 @@ def tweet_eb(
         j = json.loads(err.value.response.decode("utf-8", "ignore"))
     except Exception as exp:
         log.msg(
-            "Unable to parse response |%s| as JSON %s"
-            % (err.value.response, exp)
+            f"Unable to parse response |{err.value.response}| as JSON {exp}"
         )
     if j.get("errors", []):
         errcode = j["errors"][0].get("code", 0)

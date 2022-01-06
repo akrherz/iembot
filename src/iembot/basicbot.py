@@ -188,15 +188,12 @@ class basicbot:
         log.msg(f"{len(self.config)} properties were loaded from the database")
 
         self.myjid = jid.JID(
-            "%s@%s/twisted_words"
-            % (self.config["bot.username"], self.config["bot.xmppdomain"])
+            f"{self.config['bot.username']}@{self.config['bot.xmppdomain']}/"
+            "twisted_words"
         )
         self.ingestjid = jid.JID(
-            "%s@%s"
-            % (
-                self.config["bot.ingest_username"],
-                self.config["bot.xmppdomain"],
-            )
+            f"{self.config['bot.ingest_username']}@"
+            f"{self.config['bot.xmppdomain']}"
         )
         self.conference = self.config["bot.mucservice"]
 
@@ -253,15 +250,11 @@ class basicbot:
 
     def rawDataInFn(self, data):
         """write xmllog"""
-        self.xmllog.write(
-            "%s RECV %s\n" % (utc().strftime("%Y-%m-%d %H:%M:%S"), data)
-        )
+        self.xmllog.write(f"{utc():%Y-%m-%d %H:%M:%S} RECV {data}\n")
 
     def rawDataOutFn(self, data):
         """write xmllog"""
-        self.xmllog.write(
-            "%s SEND %s\n" % (utc().strftime("%Y-%m-%d %H:%M:%S"), data)
-        )
+        self.xmllog.write(f"{utc():%Y-%m-%d %H:%M:%S} SEND {data}\n")
 
     def housekeeping(self):
         """
@@ -274,7 +267,7 @@ class basicbot:
         self.check_for_football()
 
         if self.IQ:
-            log.msg("ERROR: missing IQs %s" % (list(self.IQ.keys()),))
+            log.msg(f"ERROR: missing IQs {list(self.IQ.keys())}")
         if len(self.IQ) > 5:
             self.IQ = {}
             botutil.email_error(
@@ -288,7 +281,7 @@ class basicbot:
         ping = domish.Element((None, "iq"))
         ping["to"] = self.myjid.host
         ping["type"] = "get"
-        pingid = "%s" % (utcnow.strftime("%Y%m%d%H%M"),)
+        pingid = f"{utcnow:%Y%m%d%H%M}"
         ping["id"] = pingid
         ping.addChild(domish.Element(("urn:xmpp:ping", "ping")))
         if self.xmlstream is not None:
@@ -309,7 +302,7 @@ class basicbot:
         """
         message = domish.Element(("jabber:client", "message"))
         if to.find("@") == -1:  # base username, add domain
-            to = "%s@%s" % (to, self.config["bot.xmppdomain"])
+            to = f"{to}@{self.config['bot.xmppdomain']}"
         message["to"] = to
         message["type"] = "chat"
         message.addElement("body", None, mess)
@@ -336,7 +329,7 @@ class basicbot:
           twisted.words.xish.domish.Element: the element that was sent
         """
         message = domish.Element(("jabber:client", "message"))
-        message["to"] = "%s@%s" % (room, self.conference)
+        message["to"] = f"{room}@{self.conference}"
         message["type"] = "groupchat"
         message.addElement("body", None, plain)
         html = message.addElement(
@@ -367,11 +360,8 @@ class basicbot:
         room = jid.JID(elem["to"]).user
         if room not in self.rooms:
             botutil.email_error(
-                (
-                    "Attempted to send message to room [%s] "
-                    "we have not joined..."
-                )
-                % (room,),
+                f"Attempted to send message to room [{room}] "
+                "we have not joined...",
                 self,
                 elem,
             )
@@ -379,11 +369,10 @@ class basicbot:
         if not self.rooms[room]["joined"]:
             if secondtrip:
                 log.msg(
-                    ("ABORT of send to room: %s, msg: %s, not in room")
-                    % (room, elem)
+                    f"ABORT of send to room: {room}, msg: {elem}, not in room"
                 )
                 return
-            log.msg("delaying send to room: %s, not in room yet" % (room,))
+            log.msg(f"delaying send to room: {room}, not in room yet")
             # Need to prevent elem['to'] object overwriting
             reactor.callLater(300, self.send_groupchat_elem, elem, elem["to"])
             return
@@ -394,11 +383,10 @@ class basicbot:
         Set a presence for my login
         """
         presence = domish.Element(("jabber:client", "presence"))
-        msg = ("Booted: %s Updated: %s UTC, Rooms: %s, Messages: %s") % (
-            self.startup_time.strftime("%d %b"),
-            utc().strftime("%H%M"),
-            len(self.rooms),
-            self.seqnum,
+        msg = (
+            f"Booted: {self.startup_time:%d %b} "
+            f"Updated: {utc():%H%M} UTC, Rooms: {len(self.rooms)}, "
+            f"Messages: {self.seqnum}"
         )
         presence.addElement("status").addContent(msg)
         if self.xmlstream is not None:
@@ -436,7 +424,7 @@ class basicbot:
                 botutil.twitter_errback,
                 self,
                 user_id,
-                f"User:{user_id} Tweet:{twttxt}",
+                twttxt,
             )
             df.addErrback(
                 botutil.email_error,
@@ -473,8 +461,8 @@ class basicbot:
         utcnow = utc() + datetime.timedelta(days=1)
         tnext = utcnow.replace(hour=0, minute=0, second=0)
         log.msg(
-            "Initial Calling daily_timestamp in %s seconds"
-            % ((tnext - utc()).seconds,)
+            "Initial Calling daily_timestamp in "
+            f"{(tnext - utc()).seconds} seconds"
         )
         reactor.callLater(
             (tnext - utc()).seconds, botutil.daily_timestamp, self
@@ -513,7 +501,7 @@ class basicbot:
         _room = jid.JID(elem["from"]).user
         if _room not in self.rooms:
             botutil.email_error(
-                "Got MUC presence from unknown room '%s'" % (_room,),
+                f"Got MUC presence from unknown room '{_room}'",
                 self,
                 elem,
             )
@@ -531,7 +519,7 @@ class basicbot:
             left = affiliation == "none" and role == "none"
             selfpres = "110" in muc_codes
             if selfpres:
-                log.msg("MUC '%s' self presence left: %s" % (_room, left))
+                log.msg(f"MUC '{_room}' self presence left: {left}")
                 self.rooms[_room]["joined"] = not left
 
             self.rooms[_room]["occupants"][_handle] = {
@@ -562,7 +550,7 @@ class basicbot:
 
         # Send message to botstalk, unmodified
         elem["type"] = "groupchat"
-        elem["to"] = "botstalk@%s" % (self.conference,)
+        elem["to"] = f"botstalk@{self.conference}"
         self.send_groupchat_elem(elem)
 
         if elem.x and elem.x.hasAttribute("channels"):
@@ -593,14 +581,11 @@ class basicbot:
                 # Don't send to a room we don't know about
                 if room not in self.rooms:
                     log.msg(
-                        (
-                            "Refusing to send MUC msg to unknown room: "
-                            "'%s' msg: %s"
-                        )
-                        % (room, elem)
+                        "Refusing to send MUC msg to unknown room: "
+                        f"'{room}' msg: {elem}"
                     )
                     continue
-                elem["to"] = "%s@%s" % (room, self.conference)
+                elem["to"] = f"{room}@{self.conference}"
                 self.send_groupchat_elem(elem)
         # Facebook Routing
         alertedPages = []
@@ -609,13 +594,11 @@ class basicbot:
             if channel == "":
                 continue
             if channel in self.tw_routingtable:
-                log.msg("Twitter wants channel: %s" % (channel,))
+                log.msg(f"Twitter wants channel: {channel}")
                 for user_id in self.tw_routingtable[channel]:
                     if user_id in alertedTwitter:
                         continue
-                    log.msg(
-                        "Twitter: %s wants channel: %s" % (user_id, channel)
-                    )
+                    log.msg(f"Twitter: {user_id} wants channel: {channel}")
                     alertedTwitter.append(user_id)
                     if elem.x and elem.x.hasAttribute("nwschatonly"):
                         continue
@@ -646,9 +629,7 @@ class basicbot:
                         self.send_groupchat("twitter", twt)
                     else:
                         log.msg("No Twitter since we have no football")
-                        self.send_groupchat(
-                            "twitter", "NO FOOTBALL %s" % (twt,)
-                        )
+                        self.send_groupchat("twitter", f"NO FOOTBALL {twt}")
 
             if channel in self.fb_routingtable:
                 log.msg("Facebook wants channel: %s" % (channel,))
