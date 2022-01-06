@@ -515,104 +515,6 @@ class basicbot:
                 "role": role,
             }
 
-    def route_message(self, elem, source="nwsbot_ingest"):
-        """
-        Route XML messages to the appropriate room
-
-        @param elem: domish.Element stanza to process
-        @param source optional source of this message, assume nwsbot_ingest
-        """
-        # Go look for body to see routing info!
-        # Get the body string
-        if not elem.body:
-            log.msg("Unprocessable message:")
-            log.msg(elem)
-            return
-
-        bstring = elem.body
-        if not bstring:
-            log.msg("Nothing found in body?")
-            log.msg(elem)
-            return
-
-        # Send message to botstalk, unmodified
-        elem["type"] = "groupchat"
-        elem["to"] = f"botstalk@{self.conference}"
-        self.send_groupchat_elem(elem)
-
-        if elem.x and elem.x.hasAttribute("channels"):
-            channels = elem.x["channels"].split(",")
-        else:
-            # The body string contains
-            (channel, meat) = bstring.split(":", 1)
-            channels = [channel]
-            # Send to chatroom, clip body of channel notation
-            elem.body.children[0] = meat
-
-        # Look for custom twitter formatting
-        twt = bstring
-        if elem.x and elem.x.hasAttribute("twitter"):
-            twt = elem.x["twitter"]
-
-        # Route to subscription channels
-        alertedRooms = []
-        for channel in channels:
-            for room in self.routingtable.setdefault(channel, []):
-                # Don't send a message twice, this may be from redundant subs
-                if room in alertedRooms:
-                    continue
-                alertedRooms.append(room)
-                # Don't send to a room we don't know about
-                if room not in self.rooms:
-                    log.msg(
-                        "Refusing to send MUC msg to unknown room: "
-                        f"'{room}' msg: {elem}"
-                    )
-                    continue
-                elem["to"] = f"{room}@{self.conference}"
-                self.send_groupchat_elem(elem)
-        alertedTwitter = []
-        for channel in channels:
-            if channel == "":
-                continue
-            if channel in self.tw_routingtable:
-                log.msg(f"Twitter wants channel: {channel}")
-                for user_id in self.tw_routingtable[channel]:
-                    if user_id in alertedTwitter:
-                        continue
-                    log.msg(f"Twitter: {user_id} wants channel: {channel}")
-                    alertedTwitter.append(user_id)
-                    if elem.x and elem.x.hasAttribute("nwschatonly"):
-                        continue
-                    twuser = self.tw_users.get(user_id)
-                    if twuser is None:
-                        continue
-                    log.msg(
-                        f"Channel: [{channel}] User: [{user_id},"
-                        f"{twuser['screen_name']}] Tweet: [{twt}]"
-                    )
-                    if self.has_football:
-                        twtextra = {}
-                        if (
-                            elem.x
-                            and elem.x.hasAttribute("lat")
-                            and elem.x.hasAttribute("long")
-                        ):
-                            twtextra["lat"] = elem.x["lat"]
-                            twtextra["long"] = elem.x["long"]
-                        self.tweet(
-                            twt,
-                            twuser["access_token"],
-                            user_id=user_id,
-                            myjid=source,
-                            twtextra=twtextra,
-                        )
-                        # ASSUME we joined twitter room already
-                        self.send_groupchat("twitter", twt)
-                    else:
-                        log.msg("No Twitter since we have no football")
-                        self.send_groupchat("twitter", f"NO FOOTBALL {twt}")
-
     def iq_processor(self, elem):
         """
         Something to process IQ messages
@@ -626,20 +528,7 @@ class basicbot:
 
         @param elem: domish.Element stanza to process
         """
-        _from = jid.JID(elem["from"])
-        # Don't react to broadcast messages
-        if _from.user is None:
-            return
-
-        # Intercept private messages via a chatroom, can't do that :)
-        if _from.host == self.conference:
-            self.convert_to_privatechat(_from)
-            return
-
-        if _from.userhost() == self.ingestjid.userhost():
-            self.route_message(elem)
-        else:
-            self.talkWithUser(elem)
+        raise NotImplementedError()
 
     def send_help_message(self, user):
         """
@@ -688,7 +577,7 @@ class basicbot:
 
     def processMessageGC(self, elem):  # pylint: disable=unused-argument
         """override me please"""
-        return
+        raise NotImplementedError()
 
     def message_processor(self, elem):
         """
