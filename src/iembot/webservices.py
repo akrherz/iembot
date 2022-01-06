@@ -6,6 +6,9 @@ import datetime
 from twisted.web import resource
 from twisted.python import log
 from feedgen.feed import FeedGenerator
+from pyiem.util import utc
+
+# Local
 import iembot.util as botutil
 
 XML_CACHE = {}
@@ -15,9 +18,9 @@ XML_CACHE_EXPIRES = {}
 def wfo_rss(iembot, rm):
     """build a RSS for the given room"""
     if len(rm) == 4 and rm[0] == "k":
-        rm = "%schat" % (rm[-3:],)
+        rm = f"{rm[-3:]}chat"
     elif len(rm) == 3:
-        rm = "k%schat" % (rm,)
+        rm = f"k{rm}chat"
     if rm not in XML_CACHE:
         XML_CACHE[rm] = ""
         XML_CACHE_EXPIRES[rm] = -2
@@ -30,14 +33,10 @@ def wfo_rss(iembot, rm):
 
     rss = FeedGenerator()
     rss.generator("iembot")
-    rss.title("%s IEMBot RSS Feed" % (rm,))
-    rss.link(
-        href="https://weather.im/iembot-rss/room/%s.xml" % (rm,), rel="self"
-    )
-    rss.description("%s IEMBot RSS Feed" % (rm,))
-    rss.lastBuildDate(
-        datetime.datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
-    )
+    rss.title(f"{rm} IEMBot RSS Feed")
+    rss.link(href=f"https://weather.im/iembot-rss/room/{rm}.xml", rel="self")
+    rss.description(f"{rm} IEMBot RSS Feed")
+    rss.lastBuildDate(f"{utc():%a, %d %b %Y %H:%M:%S} GMT")
 
     for entry in iembot.chatlog[rm]:
         botutil.add_entry_to_rss(entry, rss)
@@ -75,23 +74,19 @@ class RSSService(resource.Resource):
         rm = tokens[0]
         if uri.startswith("/wfo/"):
             if len(rm) == 4 and rm[0] == "k":
-                rm = "%schat" % (rm[-3:],)
+                rm = f"{rm[-3:]}chat"
             elif len(rm) == 3:
-                rm = "k%schat" % (rm,)
+                rm = f"k{rm}chat"
         if not self.iembot.chatlog.get(rm, []):
             rss = FeedGenerator()
             rss.generator("iembot")
             rss.title("IEMBot RSS Feed")
             rss.link(
-                href="https://weather.im/iembot-rss/room/%s.xml" % (rm,),
+                href=f"https://weather.im/iembot-rss/room/{rm}.xml",
                 rel="self",
             )
             rss.description("Syndication of iembot messages.")
-            rss.lastBuildDate(
-                datetime.datetime.utcnow().strftime(
-                    "%a, %d %b %Y %H:%M:%S GMT"
-                )
-            )
+            rss.lastBuildDate(f"{utc():%a, %d %b %Y %H:%M:%S} GMT")
             fe = rss.add_entry()
             fe.title("IEMBOT recently restarted, no history yet")
             fe.link(
@@ -106,7 +101,7 @@ class RSSService(resource.Resource):
             xml = rss.rss_str()
         else:
             xml = wfo_rss(self.iembot, rm)
-        request.setHeader("Content-Length", "%s" % (len(xml),))
+        request.setHeader("Content-Length", f"{len(xml)}")
         request.setHeader("Content-Type", "text/xml")
         request.setResponseCode(200)
         return xml
@@ -142,9 +137,7 @@ class RoomChannel(resource.Resource):
         """Support specification of a JSONP callback"""
         if "callback" in request.args:
             request.setHeader("Content-type", "application/javascript")
-            return ("%s(%s);" % (request.args["callback"][0], j)).encode(
-                "utf-8"
-            )
+            return (f"{request.args['callback'][0]}({j});").encode("utf-8")
         return j.encode("utf-8")
 
     def render(self, request):
@@ -154,19 +147,19 @@ class RoomChannel(resource.Resource):
         uri = request.uri.decode("utf-8")
         tokens = re.findall("/room/([a-z_0-9]+)", uri.lower())
         if not tokens:
-            log.msg("Bad URI: %s len(tokens) is 0" % (uri,))
+            log.msg(f"Bad URI: {uri} len(tokens) is 0")
             return self.wrap(request, json.dumps("ERROR"))
 
         room = tokens[0]
         seqnum = request.args.get(b"seqnum")
         if seqnum is None or len(seqnum) != 1:
-            log.msg("Bad URI: %s seqnum problem" % (request.uri,))
+            log.msg(f"Bad URI: {request.uri} seqnum problem")
             return self.wrap(request, json.dumps("ERROR"))
         seqnum = int(seqnum[0])
 
         r = dict(messages=[])
         if room not in self.iembot.chatlog:
-            print("No CHATLOG |%s|" % (room,))
+            log.msg(f"No CHATLOG |{room}|")
             return self.wrap(request, json.dumps("ERROR"))
         for entry in self.iembot.chatlog[room][::-1]:
             if entry.seqnum <= seqnum:

@@ -70,9 +70,9 @@ def channels_room_list(bot, room):
 
     # Need to add a space in the channels listing so that the string does
     # not get so long that it causes chat clients to bail
-    msg = "This room is subscribed to %s channels (%s)" % (
-        len(channels),
-        ", ".join(channels),
+    msg = (
+        f"This room is subscribed to {len(channels)} channels "
+        f"({'', ''.join(channels)})"
     )
     bot.send_groupchat(room, msg)
 
@@ -286,10 +286,11 @@ def tweet_cb(response, bot, twttxt, room, myjid, user_id):
     if twuser is None:
         return response
     screen_name = twuser["screen_name"]
+    url = f"https://twitter.com/{screen_name}"
     if isinstance(response, twitter.Status):
-        url = "https://twitter.com/%s/status/%s" % (screen_name, response.id)
+        url = f"{url}/status/{response.id}"
     else:
-        url = "https://twitter.com/%s/status/%s" % (screen_name, response)
+        url = f"{url}/status/{response}"
 
     # Log
     df = bot.dbpool.runOperation(
@@ -448,8 +449,8 @@ def load_chatrooms_from_db(txn, bot, always_join):
             rooms.append(rm)
     bot.routingtable = rt
     log.msg(
-        ("... loaded %s channel subscriptions for %s rooms")
-        % (txn.rowcount, len(rooms))
+        f"... loaded {txn.rowcount} channel subscriptions for "
+        f"{len(rooms)} rooms"
     )
 
     # Now we need to load up the syndication
@@ -466,8 +467,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
         synd[rm].append(endpoint)
     bot.syndication = synd
     log.msg(
-        ("... loaded %s room syndications for %s rooms")
-        % (txn.rowcount, len(synd))
+        f"... loaded {txn.rowcount} room syndications for {len(synd)} rooms"
     )
 
     # Load up a list of chatrooms
@@ -490,7 +490,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
 
         if always_join or rm not in oldrooms:
             presence = domish.Element(("jabber:client", "presence"))
-            presence["to"] = "%s@%s/%s" % (rm, bot.conference, bot.myjid.user)
+            presence["to"] = f"{rm}@{bot.conference}/{bot.myjid.user}"
             # Some jitter to prevent overloading
             jitter = (
                 0
@@ -508,14 +508,14 @@ def load_chatrooms_from_db(txn, bot, always_join):
     # Check old rooms for any rooms we need to vacate!
     for rm in oldrooms:
         presence = domish.Element(("jabber:client", "presence"))
-        presence["to"] = "%s@%s/%s" % (rm, bot.conference, bot.myjid.user)
+        presence["to"] = f"{rm}@{bot.conference}/{bot.myjid.user}"
         presence["type"] = "unavailable"
         bot.xmlstream.send(presence)
 
         del bot.rooms[rm]
     log.msg(
-        ("... loaded %s chatrooms, joined %s of them, left %s of them")
-        % (txn.rowcount, joined, len(oldrooms))
+        f"... loaded {txn.rowcount} chatrooms, joined {joined} of them, "
+        f"left {len(oldrooms)} of them"
     )
 
 
@@ -534,7 +534,7 @@ def load_webhooks_from_db(txn, bot):
         res = table.setdefault(channel, [])
         res.append(url)
     bot.webhooks_routingtable = table
-    log.msg("load_webhooks_from_db(): %s subs found" % (txn.rowcount,))
+    log.msg(f"load_webhooks_from_db(): {txn.rowcount} subs found")
 
 
 def load_twitter_from_db(txn, bot):
@@ -550,7 +550,7 @@ def load_twitter_from_db(txn, bot):
         d = twrt.setdefault(channel, [])
         d.append(user_id)
     bot.tw_routingtable = twrt
-    log.msg("load_twitter_from_db(): %s subs found" % (txn.rowcount,))
+    log.msg(f"load_twitter_from_db(): {txn.rowcount} subs found")
 
     twusers = {}
     txn.execute(
@@ -568,7 +568,7 @@ def load_twitter_from_db(txn, bot):
             "access_token": oauth.OAuthToken(at, ats),
         }
     bot.tw_users = twusers
-    log.msg("load_twitter_from_db(): %s oauth tokens found" % (txn.rowcount,))
+    log.msg(f"load_twitter_from_db(): {txn.rowcount} oauth tokens found")
 
 
 def load_chatlog(bot):
@@ -583,8 +583,7 @@ def load_chatlog(bot):
             if seq is not None and int(seq) > bot.seqnum:
                 bot.seqnum = int(seq)
         log.msg(
-            "Loaded CHATLOG pickle: %s, seqnum: %s"
-            % (bot.PICKLEFILE, bot.seqnum)
+            f"Loaded CHATLOG pickle: {bot.PICKLEFILE}, seqnum: {bot.seqnum}"
         )
     except Exception as exp:
         log.err(exp)
@@ -616,24 +615,20 @@ def safe_twitter_text(text):
         text2 = text.replace(urls[0], "")
         sections = re.findall("(.*) for (.*)( till [0-9A-Z].*)", text2)
         if len(sections) == 1:
-            text = "%s%s%s" % (sections[0][0], sections[0][2], urls[0])
+            text = f"{sections[0][0]}{sections[0][2]}{urls[0]}"
             if len(text) > TWEET_CHARS:
                 sz = TWEET_CHARS - 26 - len(sections[0][2])
-                text = "%s%s%s" % (
-                    sections[0][0][:sz],
-                    sections[0][2],
-                    urls[0],
-                )
+                text = f"{sections[0][0][:sz]}{sections[0][2]}{urls[0]}"
             return text
         if len(text) > TWEET_CHARS:
             # 25 for URL, three dots and space for 29
-            return "%s... %s" % (text2[: (TWEET_CHARS - 29)], urls[0])
+            return f"{text2[: (TWEET_CHARS - 29)]}... {urls[0]}"
     if chars > TWEET_CHARS:
         if words[-1].startswith("http"):
             i = -2
             while len(" ".join(words[:i])) > (TWEET_CHARS - 3 - 25):
                 i -= 1
-            return " ".join(words[:i]) + "... " + words[-1]
+            return f"{' '.join(words[:i])}... {words[-1]}"
     return text[:TWEET_CHARS]
 
 
@@ -702,7 +697,7 @@ def add_entry_to_rss(entry, rss):
     fe.title(txt[:urlpos].strip())
     fe.link(link=dict(href=ltxt))
     txt = remove_control_characters(entry.product_text)
-    fe.content("<pre>%s</pre>" % (htmlentities(txt),), type="CDATA")
+    fe.content(f"<pre>{htmlentities(txt)}</pre>", type="CDATA")
     fe.pubDate(ts.strftime("%a, %d %b %Y %H:%M:%S GMT"))
 
 
@@ -715,7 +710,7 @@ def daily_timestamp(bot):
     # Make sure we are a bit into the future!
     utc0z = utc() + datetime.timedelta(hours=1)
     utc0z = utc0z.replace(hour=0, minute=0, second=0, microsecond=0)
-    mess = "------ %s [UTC] ------" % (utc0z.strftime("%b %-d, %Y"),)
+    mess = f"------ {utc0z:%b %-d, %Y} [UTC] ------"
     for rm in bot.rooms:
         bot.send_groupchat(rm, mess)
 

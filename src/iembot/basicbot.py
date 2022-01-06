@@ -588,8 +588,8 @@ class basicbot:
                     if twuser is None:
                         continue
                     log.msg(
-                        "Channel: [%s] User: [%s,%s] Tweet: [%s]"
-                        % (channel, user_id, twuser["screen_name"], twt)
+                        f"Channel: [{channel}] User: [{user_id},"
+                        f"{twuser['screen_name']}] Tweet: [{twt}]"
                     )
                     if self.has_football:
                         twtextra = {}
@@ -645,14 +645,14 @@ class basicbot:
         """
         Send a user a help message about what I can do
         """
-        msg = """Hi, I am %s.  You can try talking directly with me.
-I currently do not support any commands, sorry.""" % (
-            self.myjid.user,
+        me = self.myjid.user
+        msg = (
+            f"Hi, I am {me}.  You can try talking directly "
+            "with me. I currently do not support any commands, sorry."
         )
         htmlmsg = msg.replace("\n", "<br />").replace(
             self.myjid.user,
-            ('<a href="https://%s/%sfaq.php">%s</a>')
-            % (self.myjid.host, self.myjid.user, self.myjid.user),
+            f'<a href="https://{self.myjid.host}/{me}faq.php">%s</a>'
         )
         self.send_privatechat(user, msg, htmlmsg)
 
@@ -758,13 +758,12 @@ I currently do not support any commands, sorry.""" % (
             self.send_groupchat(
                 room,
                 (
-                    "%s: Sorry, I am unable to process "
+                    f"{res}: Sorry, I am unable to process "
                     "your request due to a lookup failure."
                     "  Please consider rejoining the "
                     "chatroom if you really wish to "
                     "speak with me."
                 )
-                % (res,),
             )
             return
 
@@ -774,7 +773,7 @@ I currently do not support any commands, sorry.""" % (
 
         # Support legacy ping, return as done
         if re.match(r"^ping", cmd, re.I):
-            self.send_groupchat(room, "%s: %s" % (res, "pong"))
+            self.send_groupchat(room, f"{res}: pong")
 
         # Listing of channels is not admin privs
         elif re.match(r"^channels list", cmd, re.I):
@@ -793,13 +792,13 @@ I currently do not support any commands, sorry.""" % (
                     )
                 else:
                     err = (
-                        "%s: Error, channels are less than 24 characters!"
-                    ) % (res,)
+                        f"{res}: Error, channels are less than 24 characters!"
+                    )
                     self.send_groupchat(room, err)
             else:
                 err = (
-                    "%s: Sorry, you must be a room admin to add a channel"
-                ) % (res,)
+                    f"{res}: Sorry, you must be a room admin to add a channel"
+                )
                 self.send_groupchat(room, err)
 
         # Del a channel to the room's subscriptions
@@ -811,8 +810,8 @@ I currently do not support any commands, sorry.""" % (
                 df.addErrback(botutil.email_error, self, room + " -> " + cmd)
             else:
                 err = (
-                    "%s: Sorry, you must be a room admin to add a channel"
-                ) % (res,)
+                    f"{res}: Sorry, you must be a room admin to add a channel"
+                )
                 self.send_groupchat(room, err)
 
         # Look for users request
@@ -820,20 +819,20 @@ I currently do not support any commands, sorry.""" % (
             if aff in ["owner", "admin"]:
                 rmess = ""
                 for hndle in self.rooms[room]["occupants"].keys():
-                    rmess += ("%s (%s), ") % (
-                        hndle,
-                        self.rooms[room]["occupants"][hndle]["jid"],
+                    rmess += (
+                        f"{hndle} "
+                        f"({self.rooms[room]['occupants'][hndle]['jid']}), "
                     )
-                self.send_privatechat(_jid, "JIDs in room: %s" % (rmess,))
+                self.send_privatechat(_jid, f"JIDs in room: {rmess}")
             else:
                 err = (
-                    "%s: Sorry, you must be a room admin to query users"
-                ) % (res,)
+                    f"{res}: Sorry, you must be a room admin to query users"
+                )
                 self.send_groupchat(room, err)
 
         # Else send error message about what I support
         else:
-            err = "ERROR: unsupported command: '%s'" % (cmd,)
+            err = f"ERROR: unsupported command: '{cmd}'"
             self.send_groupchat(room, err)
             self.send_groupchat_help(room)
 
@@ -843,16 +842,16 @@ I currently do not support any commands, sorry.""" % (
         """
         msg = (
             "Current Supported Commands:\n"
-            "%(i)s: channels add channelname[,channelname] "
+            f"{self.myjid.user}: channels add channelname[,channelname] "
             "### Add channel subscription(s) for this room\n"
-            "%(i)s: channels del channelname[,channelname] "
+            f"{self.myjid.user}: channels del channelname[,channelname] "
             "### Delete channel subscriptions(s) for this room\n"
-            "%(i)s: channels list "
+            f"{self.myjid.user}: channels list "
             "### List channels this room is subscribed to\n"
-            "%(i)s: ping          "
+            f"{self.myjid.user}: ping          "
             "### Test connectivity with a 'pong' response\n"
-            "%(i)s: users         ### Generates list of users in room"
-        ) % {"i": self.myjid.user}
+            f"{self.myjid.user}: users   ### Generates list of users in room"
+        )
 
         htmlmsg = msg.replace("\n", "<br />")
         self.send_groupchat(room, msg, htmlmsg)
