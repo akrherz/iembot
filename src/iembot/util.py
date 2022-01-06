@@ -25,6 +25,9 @@ from twitter.error import TwitterError
 from pyiem.util import utc
 from pyiem.reference import TWEET_CHARS
 
+# local
+import iembot
+
 
 def tweet(bot, oauth_token, twttxt, twitter_media):
     """Blocking tweet method."""
@@ -216,32 +219,19 @@ def email_error(exp, bot, message=""):
         log.msg("Email threshold exceeded, so no email sent!")
         return False
 
+    le = ' '.join([f'{_:.2f}' for _ in os.getloadavg()])
     msg = MIMEText(
-        """
-System          : %s@%s [CWD: %s]
-System UTC date : %s
-process id      : %s
-system load     : %s
-Exception       :
-%s
-%s
-
-Message:
-%s"""
-        % (
-            pwd.getpwuid(os.getuid())[0],
-            socket.gethostname(),
-            os.getcwd(),
-            utc(),
-            os.getpid(),
-            " ".join(["%.2f" % (_,) for _ in os.getloadavg()]),
-            cstr.read(),
-            exp,
-            message,
-        )
+        f"System          : {pwd.getpwuid(os.getuid())[0]}@"
+        f"{socket.gethostname()} [CWD: {os.getcwd()}]\n"
+        f"System UTC date : {utc()}\n"
+        f"process id      : {os.getpid()}\n"
+        f"iembot.version  : {iembot.__version__}\n"
+        f"system load     : {le}\n"
+        f"Exception       : {cstr.read()}\n"
+        f"{exp}\n"
+        f"Message: {message}\n"
     )
-
-    msg["subject"] = "[bot] Traceback -- %s" % (socket.gethostname(),)
+    msg["subject"] = f"[bot] Traceback -- {socket.gethostname()}"
 
     msg["From"] = bot.config.get("bot.email_errors_from", "root@localhost")
     msg["To"] = bot.config.get("bot.email_errors_to", "root@localhost")
