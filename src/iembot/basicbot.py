@@ -69,7 +69,6 @@ class basicbot:
         self.tw_users = {}  # Storage by user_id => {screen_name: ..., oauth:}
         self.tw_routingtable = {}  # Storage by channel => [user_id, ]
         self.webhooks_routingtable = {}
-        self.has_football = True
         self.xmlstream = None
         self.firstlogin = False
         self.channelkeys = {}
@@ -83,30 +82,19 @@ class basicbot:
         with open(fn, "r", encoding="utf-8") as fp:
             self.fortunes = fp.read().split("\n%\n")
         self.twitter_oauth_consumer = None
-        self.logins = 0
         botutil.load_chatlog(self)
 
         lc2 = LoopingCall(botutil.purge_logs, self)
         lc2.start(60 * 60 * 24)
-        lc3 = LoopingCall(self.save_chatlog)
+        lc3 = LoopingCall(reactor.callInThread, self.save_chatlog)
         lc3.start(600)  # Every 10 minutes
 
     def save_chatlog(self):
-        """persist"""
-
-        def really_save_chat_log():
-            """called from a thread"""
-            log.msg(f"Saving CHATLOG to {self.PICKLEFILE}")
+        """called from a thread"""
+        log.msg(f"Saving CHATLOG to {self.PICKLEFILE}")
+        with open(self.PICKLEFILE, "wb") as fh:
             # unsure if deepcopy is necessary, but alas
-            pickle.dump(
-                copy.deepcopy(self.chatlog), open(self.PICKLEFILE, "wb")
-            )
-
-        reactor.callInThread(really_save_chat_log)
-
-    def on_firstlogin(self):
-        """callbacked when we are first logged in"""
-        return
+            pickle.dump(copy.deepcopy(self.chatlog), fh)
 
     def authd(self, _xs=None):
         """callback when we are logged into the server!"""
@@ -115,7 +103,6 @@ class basicbot:
         )
         if not self.firstlogin:
             self.compute_daily_caller()
-            self.on_firstlogin()
             self.firstlogin = True
 
         # Resets associated with the previous login session, perhaps
@@ -123,13 +110,12 @@ class basicbot:
         self.IQ = {}
 
         self.load_twitter()
-        self.send_presence()
         self.load_chatrooms(True)
         self.load_webhooks()
 
         lc = LoopingCall(self.housekeeping)
         lc.start(60)
-        self.xmlstream.addObserver(STREAM_END_EVENT, lambda _: lc.stop())
+        self.xmlstream.addObserver(STREAM_END_EVENT, lc.stop)
 
     def next_seqnum(self):
         """
@@ -147,6 +133,9 @@ class basicbot:
         df = self.dbpool.runInteraction(
             botutil.load_chatrooms_from_db, self, always_join
         )
+        # Send a presence update, which in the case of the first login will
+        # provoke any offline messages to be sent.
+        df.addCallback(self.send_presence)
         df.addErrback(botutil.email_error, self, "load_chatrooms() failure")
 
     def load_twitter(self):
@@ -160,11 +149,6 @@ class basicbot:
         log.msg("load_webhooks() called...")
         df = self.dbpool.runInteraction(botutil.load_webhooks_from_db, self)
         df.addErrback(botutil.email_error, self, "load_webhooks() failure")
-
-    def check_for_football(self):
-        """Logic to check if we have the football or not, this should
-        be over-ridden"""
-        self.has_football = True
 
     def fire_client_with_config(self, res, serviceCollection):
         """Calledback once bot has loaded its database configuration"""
@@ -247,11 +231,9 @@ class basicbot:
         """
         This gets exec'd every minute to keep up after ourselves
         1. XMPP Server Ping
-        2. Check if we have the football
-        3. Update presence
+        2. Update presence
         """
         utcnow = utc()
-        self.check_for_football()
 
         if self.IQ:
             log.msg(f"ERROR: missing IQs {list(self.IQ.keys())}")
@@ -276,8 +258,6 @@ class basicbot:
             self.xmlstream.send(ping)
             if utcnow.minute % 10 == 0:
                 self.send_presence()
-                # Reset our service guard
-                self.logins = 1
 
     def send_privatechat(self, to, mess, htmlstr=None):
         """
@@ -359,15 +339,16 @@ class basicbot:
                     f"ABORT of send to room: {room}, msg: {elem}, not in room"
                 )
                 return
-            log.msg(f"delaying send to room: {room}, not in room yet")
+            secs = random.randint(0, 10)
+            log.msg(f"delaying by {secs}s send to: {room}, not in room yet")
             # Need to prevent elem['to'] object overwriting
-            reactor.callLater(300, self.send_groupchat_elem, elem, elem["to"])
+            reactor.callLater(secs, self.send_groupchat_elem, elem, elem["to"])
             return
         self.xmlstream.send(elem)
 
-    def send_presence(self):
+    def send_presence(self, _=None):
         """
-        Set a presence for my login
+        Set a presence for my login, could be from a callback (load_chatrooms).
         """
         presence = domish.Element(("jabber:client", "presence"))
         msg = (
@@ -696,7 +677,7 @@ class basicbot:
                 df = self.dbpool.runInteraction(
                     botutil.channels_room_del, self, room, cmd[12:]
                 )
-                df.addErrback(botutil.email_error, self, room + " -> " + cmd)
+                df.addErrback(botutil.email_error, self, f"{room} -> {cmd}")
             else:
                 err = (
                     f"{res}: Sorry, you must be a room admin to add a channel"
@@ -705,7 +686,10 @@ class basicbot:
 
         # Look for users request
         elif re.match(r"^users", cmd, re.I):
-            if aff in ["owner", "admin"]:
+            if _jid is None:
+                err = "Sorry, I am not able to see room occupants."
+                self.send_groupchat(room, err)
+            elif aff in ["owner", "admin"]:
                 rmess = ""
                 for hndle in self.rooms[room]["occupants"].keys():
                     rmess += (

@@ -25,7 +25,6 @@ class JabberClient(basicbot.basicbot):
 
     1. Twisted .tac calls 'basicbot.fire_client_with_config'
     2. jabber.client callsback 'authd' when we login
-       -> 'authd' will call on_firstlogin when this is the first_run
        -> 'auth' will call on_login
     3-inf. jabber.client callsback 'authd' when we get logged in
        -> 'auth' will call on_login
