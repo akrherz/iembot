@@ -5,7 +5,6 @@ from io import StringIO
 import random
 from collections import namedtuple
 import copy
-import urllib.parse as urlparse
 import pickle
 import re
 import os
@@ -20,7 +19,6 @@ from twisted.application import internet
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
 from twisted.internet.task import LoopingCall
-from twisted.web import client as webclient
 
 from oauth import oauth
 
@@ -70,8 +68,6 @@ class basicbot:
         self.routingtable = {}
         self.tw_users = {}  # Storage by user_id => {screen_name: ..., oauth:}
         self.tw_routingtable = {}  # Storage by channel => [user_id, ]
-        self.fb_access_tokens = {}
-        self.fb_routingtable = {}
         self.webhooks_routingtable = {}
         self.has_football = True
         self.xmlstream = None
@@ -129,7 +125,6 @@ class basicbot:
         self.load_twitter()
         self.send_presence()
         self.load_chatrooms(True)
-        self.load_facebook()
         self.load_webhooks()
 
         lc = LoopingCall(self.housekeeping)
@@ -165,14 +160,6 @@ class basicbot:
         log.msg("load_webhooks() called...")
         df = self.dbpool.runInteraction(botutil.load_webhooks_from_db, self)
         df.addErrback(botutil.email_error, self, "load_webhooks() failure")
-
-    def load_facebook(self):
-        """
-        Load up the facebook configuration page/channel subscriptions
-        """
-        log.msg("load_facebook() called...")
-        df = self.dbpool.runInteraction(botutil.load_facebook_from_db, self)
-        df.addErrback(botutil.email_error, self)
 
     def check_for_football(self):
         """Logic to check if we have the football or not, this should
@@ -571,9 +558,6 @@ class basicbot:
         alertedRooms = []
         for channel in channels:
             for room in self.routingtable.setdefault(channel, []):
-                # hack attribute to avoid MUC relay alltogether
-                if elem.x and elem.x.hasAttribute("facebookonly"):
-                    continue
                 # Don't send a message twice, this may be from redundant subs
                 if room in alertedRooms:
                     continue
@@ -587,8 +571,6 @@ class basicbot:
                     continue
                 elem["to"] = f"{room}@{self.conference}"
                 self.send_groupchat_elem(elem)
-        # Facebook Routing
-        alertedPages = []
         alertedTwitter = []
         for channel in channels:
             if channel == "":
@@ -630,19 +612,6 @@ class basicbot:
                     else:
                         log.msg("No Twitter since we have no football")
                         self.send_groupchat("twitter", f"NO FOOTBALL {twt}")
-
-            if channel in self.fb_routingtable:
-                log.msg("Facebook wants channel: %s" % (channel,))
-                for page in self.fb_routingtable[channel]:
-                    log.msg(
-                        "Facebook Page: %s wants channel: %s" % (page, channel)
-                    )
-                    if page in alertedPages:
-                        continue
-                    alertedPages.append(page)
-                    if elem.x and elem.x.hasAttribute("nwschatonly"):
-                        continue
-                    self.send_fb_fanpage(elem, page)
 
     def iq_processor(self, elem):
         """
@@ -913,46 +882,3 @@ I currently do not support any commands, sorry.""" % (
                 "should no longer appear"
             ),
         )
-
-    def send_fb_fanpage(self, elem, page):
-        """
-        Post something to facebook fanpage
-        """
-        log.msg("attempting to send to facebook page %s" % (page,))
-        bstring = elem.body
-        post_args = {}
-        post_args["access_token"] = self.fb_access_tokens[page]
-        tokens = bstring.split("http")
-        if len(tokens) == 1:
-            post_args["message"] = bstring
-        else:
-            post_args["message"] = tokens[0]
-            post_args["link"] = "http" + tokens[1]
-            post_args["name"] = "Product Link"
-        if elem.x:
-            for key in ["picture", "name", "link", "caption", "description"]:
-                if elem.x.hasAttribute(key):
-                    post_args[key] = elem.x[key]
-
-        url = "https://graph.facebook.com/me/feed?"
-        postdata = urlparse.urlencode(post_args)
-        if self.has_football:
-            cf = webclient.getPage(url, method="POST", postdata=postdata)
-            cf.addCallback(
-                botutil.fbsuccess,
-                self,
-                None,
-                "nwsbot_ingest",
-                post_args["message"],
-            )
-            cf.addErrback(
-                botutil.fbfail,
-                self,
-                None,
-                "nwsbot_ingest",
-                post_args["message"],
-                page,
-            )
-            cf.addErrback(log.err)
-        else:
-            log.msg("Skipping facebook relay as I don't have the football")

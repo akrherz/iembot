@@ -415,75 +415,6 @@ def tweet_eb(
     # return err.value.response
 
 
-def fbfail(err, bot, room, myjid, message, fbpage):
-    """We got a failure from facebook API!"""
-    log.msg("=== Facebook API Failure ===")
-    log.err(err)
-    err.trap(weberror.Error)
-    j = None
-    try:
-        j = json.loads(err.value.response)
-    except Exception as exp:
-        log.err(exp)
-    log.msg(err.getErrorMessage())
-    log.msg(err.value.response)
-    bot.email_error(
-        err,
-        ("FBError room: %s\nmyjid: %s\nmessage: %s\n" "Error:%s")
-        % (room, myjid, message, err.value.response),
-    )
-
-    msg = "Posting to facebook failed! Got this message: %s" % (
-        err.getErrorMessage(),
-    )
-    if j is not None:
-        msg = "Posting to facebook failed with this message: %s" % (
-            j.get("error", {}).get("message", "Missing"),
-        )
-
-    if room is not None:
-        bot.send_groupchat(room, msg)
-
-    # Log this
-    df = bot.dbpool.runOperation(
-        "INSERT into nwsbot_social_log(medium, source, message, "
-        "response, response_code, resource_uri) values (%s,%s,%s,%s,%s,%s)",
-        (
-            "facebook",
-            myjid,
-            message,
-            err.value.response,
-            err.value.status,
-            fbpage,
-        ),
-    )
-    df.addErrback(log.err)
-
-
-def fbsuccess(response, bot, room, myjid, message):
-    """Got a response from facebook!"""
-    d = json.loads(response)
-    (pageid, postid) = d["id"].split("_")
-    url = "http://www.facebook.com/permalink.php?story_fbid=%s&id=%s" % (
-        postid,
-        pageid,
-    )
-    html = 'Posted Facebook Message! View <a href="%s">here</a>' % (
-        url.replace("&", "&amp;"),
-    )
-    plain = "Posted Facebook Message! %s" % (url,)
-    if room is not None:
-        bot.send_groupchat(room, plain, html)
-
-    # Log this
-    df = bot.dbpool.runOperation(
-        "INSERT into nwsbot_social_log(medium, source, resource_uri, "
-        "message, response, response_code) values (%s,%s,%s,%s,%s,%s)",
-        ("facebook", myjid, url, message, response, 200),
-    )
-    df.addErrback(log.err)
-
-
 def load_chatrooms_from_db(txn, bot, always_join):
     """Load database configuration and do work
 
@@ -541,7 +472,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
 
     # Load up a list of chatrooms
     txn.execute(
-        f"SELECT roomname, fbpage, twitter from {bot.name}_rooms "
+        f"SELECT roomname, twitter from {bot.name}_rooms "
         "WHERE roomname is not null ORDER by roomname ASC"
     )
     oldrooms = list(bot.rooms.keys())
@@ -551,12 +482,10 @@ def load_chatrooms_from_db(txn, bot, always_join):
         # Setup Room Config Dictionary
         if rm not in bot.rooms:
             bot.rooms[rm] = {
-                "fbpage": None,
                 "twitter": None,
                 "occupants": {},
                 "joined": False,
             }
-        bot.rooms[rm]["fbpage"] = row["fbpage"]
         bot.rooms[rm]["twitter"] = row["twitter"]
 
         if always_join or rm not in oldrooms:
@@ -640,32 +569,6 @@ def load_twitter_from_db(txn, bot):
         }
     bot.tw_users = twusers
     log.msg("load_twitter_from_db(): %s oauth tokens found" % (txn.rowcount,))
-
-
-def load_facebook_from_db(txn, bot):
-    """Load facebook config from database"""
-    txn.execute(
-        f"SELECT fbpid, channel from {bot.name}_fb_subscriptions "
-        "WHERE fbpid is not null and channel is not null"
-    )
-    fbrt = {}
-    for row in txn.fetchall():
-        page = row["fbpid"]
-        channel = row["channel"]
-        if channel not in fbrt:
-            fbrt[channel] = []
-        fbrt[channel].append(page)
-    bot.fb_routingtable = fbrt
-
-    txn.execute(
-        f"SELECT fbpid, access_token from {bot.name}_fb_access_tokens "
-        "WHERE fbpid is not null and access_token is not null"
-    )
-
-    for row in txn.fetchall():
-        page = row["fbpid"]
-        at = row["access_token"]
-        bot.fb_access_tokens[page] = at
 
 
 def load_chatlog(bot):
