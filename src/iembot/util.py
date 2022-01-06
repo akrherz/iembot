@@ -144,13 +144,11 @@ def channels_room_del(txn, bot, room, channel):
 
     for ch in channel.split(","):
         if ch not in bot.routingtable:
-            bot.send_groupchat(room, "Unknown channel: '%s'" % (ch,))
+            bot.send_groupchat(room, f"Unknown channel: '{ch}'")
             continue
 
         if room not in bot.routingtable[ch]:
-            bot.send_groupchat(
-                room, ("Room not subscribed to channel: '%s'") % (ch,)
-            )
+            bot.send_groupchat(room, f"Room not subscribed to channel: '{ch}'")
             continue
 
         # Remove from routing table
@@ -175,7 +173,7 @@ def purge_logs(bot):
         ts = datetime.datetime.strptime(fn, "logs/xmllog.%Y_%m_%d")
         ts = ts.replace(tzinfo=pytz.UTC)
         if ts < basets:
-            log.msg("Purging logfile %s" % (fn,))
+            log.msg(f"Purging logfile {fn}")
             os.remove(fn)
 
 
