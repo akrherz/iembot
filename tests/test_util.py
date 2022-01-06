@@ -1,9 +1,23 @@
 """Tests, gasp"""
 from unittest import mock
-import psycopg2
 
+# Third party modules
+import psycopg2
+from twitter.error import TwitterError
+
+# local
 import iembot.util as botutil
 from iembot.basicbot import basicbot
+
+
+def test_error_conversion():
+    """Test that we can convert errors."""
+    err = TwitterError("BLAH")
+    assert botutil.twittererror_exp_to_code(err) is None
+    err = TwitterError(
+        "[{'code': 185, 'message': 'User is over daily status update limit.'}]"
+    )
+    assert botutil.twittererror_exp_to_code(err) == 185
 
 
 def test_load_chatrooms_fromdb():
