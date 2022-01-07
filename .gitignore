@@ -12,3 +12,5 @@
 /.eggs
 /logs
 /settings.json
+/*.pickle
+/*.pid

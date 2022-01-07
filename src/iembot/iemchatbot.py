@@ -25,7 +25,6 @@ class JabberClient(basicbot.basicbot):
 
     1. Twisted .tac calls 'basicbot.fire_client_with_config'
     2. jabber.client callsback 'authd' when we login
-       -> 'authd' will call on_firstlogin when this is the first_run
        -> 'auth' will call on_login
     3-inf. jabber.client callsback 'authd' when we get logged in
        -> 'auth' will call on_login
@@ -47,10 +46,10 @@ class JabberClient(basicbot.basicbot):
 
         body = xpath.queryForString("/message/body", elem)
         if body is not None and len(body) >= 4 and body[:4] == "ping":
-            self.send_groupchat(room, "%s: %s" % (res, self.get_fortune()))
+            self.send_groupchat(room, f"{res}: {self.get_fortune()}")
 
         # Look for bot commands
-        if re.match(r"^%s:" % (self.name,), body):
+        if re.match(r"^" f"{self.name}:", body):
             self.process_groupchat_cmd(room, res, body[7:].strip())
 
         # In order for the message to be logged, it needs to be from iembot
@@ -139,8 +138,9 @@ class JabberClient(basicbot.basicbot):
             log.msg("ERROR: message is MUC private chat")
             return
 
-        if _from.userhost() != "iembot_ingest@%s" % (
-            self.config["bot.xmppdomain"]
+        if (
+            _from.userhost()
+            != f"iembot_ingest@{self.config['bot.xmppdomain']}"
         ):
             log.msg("ERROR: message not from iembot_ingest")
             return
@@ -162,7 +162,7 @@ class JabberClient(basicbot.basicbot):
             # elem.body.children[0] = meat
 
         # Always send to botstalk
-        elem["to"] = "botstalk@%s" % (self.config["bot.mucservice"],)
+        elem["to"] = f"botstalk@{self.config['bot.mucservice']}"
         elem["type"] = "groupchat"
         self.send_groupchat_elem(elem)
 
@@ -173,14 +173,13 @@ class JabberClient(basicbot.basicbot):
                 if room in alertedRooms:
                     continue
                 alertedRooms.append(room)
-                elem["to"] = "%s@%s" % (room, self.config["bot.mucservice"])
+                elem["to"] = f"{room}@{self.config['bot.mucservice']}"
                 self.send_groupchat_elem(elem)
             for user_id in self.tw_routingtable.get(channel, []):
                 twuser = self.tw_users.get(user_id)
                 if twuser is None:
                     log.msg(
-                        ("Failed to tweet due to no access_tokens for %s")
-                        % (user_id,)
+                        f"Failed to tweet due to no access_tokens {user_id}"
                     )
                     continue
                 # Require the x.twitter attribute to be set to prevent
@@ -199,8 +198,8 @@ class JabberClient(basicbot.basicbot):
                     twtextra["lat"] = elem.x["lat"]
                     twtextra["long"] = elem.x["long"]
                 log.msg(
-                    "Sending tweet '%s' to %s (%s)"
-                    % (elem.x["twitter"], user_id, twuser["screen_name"])
+                    f"Sending tweet '{elem.x['twitter']}' to {user_id} "
+                    f"({twuser['screen_name']})"
                 )
                 # Finally, actually tweet, this is in basicbot
                 self.tweet(
