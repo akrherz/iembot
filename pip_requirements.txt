@@ -1,5 +1,4 @@
 # generates RSS
 feedgen
-git+https://github.com/Weasyl/txyam2.git#egg=txyam2
-git+https://github.com/akrherz/twitty-twister.git@issue15
-git+https://github.com/akrherz/python-oauth.git@six#egg=oauth
+# twisted memcached
+txyam2

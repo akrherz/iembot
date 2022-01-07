@@ -176,8 +176,7 @@ class JabberClient(basicbot.basicbot):
                 elem["to"] = f"{room}@{self.config['bot.mucservice']}"
                 self.send_groupchat_elem(elem)
             for user_id in self.tw_routingtable.get(channel, []):
-                twuser = self.tw_users.get(user_id)
-                if twuser is None:
+                if user_id not in self.tw_users:
                     log.msg(
                         f"Failed to tweet due to no access_tokens {user_id}"
                     )
@@ -189,24 +188,20 @@ class JabberClient(basicbot.basicbot):
                 if user_id in alertedPages:
                     continue
                 alertedPages.append(user_id)
-                twtextra = {}
+                lat = long = None
                 if (
                     elem.x
                     and elem.x.hasAttribute("lat")
                     and elem.x.hasAttribute("long")
                 ):
-                    twtextra["lat"] = elem.x["lat"]
-                    twtextra["long"] = elem.x["long"]
-                log.msg(
-                    f"Sending tweet '{elem.x['twitter']}' to {user_id} "
-                    f"({twuser['screen_name']})"
-                )
+                    lat = elem.x["lat"]
+                    long = elem.x["long"]
                 # Finally, actually tweet, this is in basicbot
                 self.tweet(
+                    user_id,
                     elem.x["twitter"],
-                    twuser["access_token"],
-                    twtextra=twtextra,
-                    user_id=user_id,
                     twitter_media=elem.x.getAttribute("twitter_media"),
+                    latitude=lat,
+                    longitude=long,
                 )
         webhooks_route(self, channels, elem)
