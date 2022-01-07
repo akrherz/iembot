@@ -223,11 +223,17 @@ class basicbot:
 
     def rawDataInFn(self, data):
         """write xmllog"""
-        self.xmllog.write(f"{utc():%Y-%m-%d %H:%M:%S} RECV {data}\n")
+        self.xmllog.write(
+            f"{utc():%Y-%m-%d %H:%M:%S} RECV "
+            f"{data.decode('utf-8', 'ignore')}\n"
+        )
 
     def rawDataOutFn(self, data):
         """write xmllog"""
-        self.xmllog.write(f"{utc():%Y-%m-%d %H:%M:%S} SEND {data}\n")
+        self.xmllog.write(
+            f"{utc():%Y-%m-%d %H:%M:%S} SEND "
+            f"{data.decode('utf-8', 'ignore')}\n"
+        )
 
     def housekeeping(self):
         """
