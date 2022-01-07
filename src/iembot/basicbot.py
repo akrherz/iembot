@@ -61,7 +61,9 @@ class basicbot:
         self.dbpool = dbpool
         self.memcache_client = memcache_client
         self.config = {}
-        self.IQ = {}
+        # Adds entries of ping requests made to the server and if we get
+        # a response. If this gets to 5 items, we reconnect.
+        self.outstanding_pings = []
         self.rooms = {}
         self.chatlog = {}
         self.seqnum = 0
@@ -107,7 +109,7 @@ class basicbot:
 
         # Resets associated with the previous login session, perhaps
         self.rooms = {}
-        self.IQ = {}
+        self.outstanding_pings = []
 
         self.load_twitter()
         self.load_chatrooms(True)
@@ -233,12 +235,10 @@ class basicbot:
         1. XMPP Server Ping
         2. Update presence
         """
-        utcnow = utc()
-
-        if self.IQ:
-            log.msg(f"ERROR: missing IQs {list(self.IQ.keys())}")
-        if len(self.IQ) > 5:
-            self.IQ = {}
+        if self.outstanding_pings:
+            log.msg(f"Currently unresponded pings: {self.outstanding_pings}")
+        if len(self.outstanding_pings) > 5:
+            self.outstanding_pings = []
             botutil.email_error(
                 "Logging out of Chat!", self, "IQ error limit reached..."
             )
@@ -247,17 +247,21 @@ class basicbot:
                 exc = error.StreamError("gone")
                 self.xmlstream.sendStreamError(exc)
             return
+        if self.xmlstream is None:
+            log.msg("xmlstream is None, not sending ping")
+            return
+        utcnow = utc()
         ping = domish.Element((None, "iq"))
         ping["to"] = self.myjid.host
         ping["type"] = "get"
         pingid = f"{utcnow:%Y%m%d%H%M}"
         ping["id"] = pingid
         ping.addChild(domish.Element(("urn:xmpp:ping", "ping")))
-        if self.xmlstream is not None:
-            self.IQ[pingid] = 1
-            self.xmlstream.send(ping)
-            if utcnow.minute % 10 == 0:
-                self.send_presence()
+        self.outstanding_pings.append(pingid)
+        self.xmlstream.send(ping)
+        # Update our presence every ten minutes with some debugging info
+        if utcnow.minute % 10 == 0:
+            self.send_presence()
 
     def send_privatechat(self, to, mess, htmlstr=None):
         """
@@ -496,12 +500,22 @@ class basicbot:
                 "role": role,
             }
 
-    def iq_processor(self, elem):
-        """
-        Something to process IQ messages
-        """
-        if elem.hasAttribute("id") and elem["id"] in self.IQ:
-            del self.IQ[elem["id"]]
+    def iq_processor(self, elem: domish.Element):
+        """Response to IQ stanzas."""
+        typ = elem.getAttribute("type")
+        # A response is being requested of us.
+        if typ == "get" and elem.firstChildElement().name == "ping":
+            # Respond to a ping request.
+            pong = domish.Element((None, "iq"))
+            pong["type"] = "result"
+            pong["to"] = elem["from"]
+            pong["from"] = elem["to"]
+            pong["id"] = elem["id"]
+            self.xmlstream.send(pong)
+        # We are getting a response to a request we sent, maybe.
+        elif typ == "result":
+            if elem.getAttribute("id") in self.outstanding_pings:
+                self.outstanding_pings.remove(elem.getAttribute("id"))
 
     def processMessagePC(self, elem):
         """
