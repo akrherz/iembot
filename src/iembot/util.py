@@ -13,13 +13,12 @@ import traceback
 import pwd
 from io import BytesIO
 
+# Third Party
 import pytz
 import twitter
-from oauth import oauth
 from twisted.internet import reactor
 from twisted.mail import smtp
 from twisted.python import log
-import twisted.web.error as weberror
 from twisted.words.xish import domish
 from twitter.error import TwitterError
 from pyiem.util import utc
@@ -29,32 +28,50 @@ from pyiem.reference import TWEET_CHARS
 import iembot
 
 
-def tweet(bot, oauth_token, twttxt, twitter_media):
+def tweet(bot, user_id, twttxt, **kwargs):
     """Blocking tweet method."""
     api = twitter.Api(
         consumer_key=bot.config["bot.twitter.consumerkey"],
         consumer_secret=bot.config["bot.twitter.consumersecret"],
-        access_token_key=oauth_token.key,
-        access_token_secret=oauth_token.secret,
+        access_token_key=bot.tw_users[user_id]["access_token"],
+        access_token_secret=bot.tw_users[user_id]["access_token_secret"],
+    )
+    log.msg(
+        f"Tweeting {bot.tw_users[user_id]['screen_name']}({user_id}) "
+        f"'{twttxt}' media:{kwargs.get('twitter_media')}"
     )
     try:
-        res = api.PostUpdate(twttxt, media=twitter_media)
+        res = api.PostUpdate(
+            twttxt,
+            latitude=kwargs.get("latitude", None),
+            longitude=kwargs.get("longitude", None),
+            media=kwargs.get("twitter_media"),
+        )
     except twitter.error.TwitterError as exp:
         # Something bad happened with submitting this to twitter
         if str(exp).startswith("media type unrecognized"):
             # The media content hit some error, just send it without it
-            log.msg(f"Sending '{twitter_media}' to twitter failed, stripping")
+            log.msg(f"Sending '{kwargs.get('twitter_media')}' fail, stripping")
             res = api.PostUpdate(twttxt)
         else:
             log.err(exp)
             # Since this called from a thread, sleeping should not jam us up
             time.sleep(10)
-            res = api.PostUpdate(twttxt, media=twitter_media)
+            res = api.PostUpdate(
+                twttxt,
+                latitude=kwargs.get("latitude", None),
+                longitude=kwargs.get("longitude", None),
+                media=kwargs.get("twitter_media"),
+            )
     except Exception as exp:
         log.err(exp)
         # Since this called from a thread, sleeping should not jam us up
         time.sleep(10)
-        res = api.PostUpdate(twttxt)
+        res = api.PostUpdate(
+            twttxt,
+            latitude=kwargs.get("latitude", None),
+            longitude=kwargs.get("longitude", None),
+        )
     return res
 
 
@@ -345,83 +362,6 @@ def twitter_errback(err, bot, user_id, tweettext):
     email_error(err, bot, msg)
 
 
-def tweet_eb(
-    err, bot, twttxt, access_token, room, myjid, user_id, twtextra, trip
-):
-    """
-    Called after error going to twitter
-    """
-    log.msg("--> tweet_eb called")
-
-    # Make sure we only are trapping API errors
-    err.trap(weberror.Error)
-    # Don't email duplication errors
-    j = {}
-    try:
-        j = json.loads(err.value.response.decode("utf-8", "ignore"))
-    except Exception as exp:
-        log.msg(
-            f"Unable to parse response |{err.value.response}| as JSON {exp}"
-        )
-    if j.get("errors", []):
-        errcode = j["errors"][0].get("code", 0)
-        if errcode in [130, 131]:
-            # 130: over capacity
-            # 131: Internal error
-            reactor.callLater(
-                15,  # @UndefinedVariable
-                bot.tweet,
-                twttxt,
-                access_token,
-                room,
-                myjid,
-                user_id,
-                twtextra,
-                trip + 1,
-            )
-            return
-        if errcode in [89, 185, 326, 64]:
-            # 89: Expired token, so we shall revoke for now
-            # 185: User is over quota
-            # 326: User is temporarily locked out
-            # 64: User is suspended
-            disable_twitter_user(bot, user_id, errcode)
-        if errcode not in [187]:
-            # 187 duplicate message
-            twuser = bot.tw_users.get(user_id, {})
-            email_error(
-                err,
-                bot,
-                (
-                    f"Room: {room}\n"
-                    f"myjid: {myjid}\n"
-                    f"user: {twuser.get('screen_name')} [{user_id}]\n"
-                    f"tweet: {twttxt}\n"
-                    f"Error:{err.value.response}\n"
-                ),
-            )
-
-    log.msg(err.getErrorMessage())
-    log.msg(err.value.response)
-
-    # Log this
-    deffered = bot.dbpool.runOperation(
-        f"INSERT into {bot.name}_social_log(medium, source, message, "
-        "response, response_code, resource_uri) values (%s,%s,%s,%s,%s,%s)",
-        (
-            "twitter",
-            myjid,
-            twttxt,
-            err.value.response,
-            int(err.value.status),
-            user_id,
-        ),
-    )
-    deffered.addErrback(log.err)
-
-    # return err.value.response
-
-
 def load_chatrooms_from_db(txn, bot, always_join):
     """Load database configuration and do work
 
@@ -567,11 +507,10 @@ def load_twitter_from_db(txn, bot):
     )
     for row in txn.fetchall():
         user_id = row["user_id"]
-        at = row["access_token"]
-        ats = row["access_token_secret"]
         twusers[user_id] = {
             "screen_name": row["screen_name"],
-            "access_token": oauth.OAuthToken(at, ats),
+            "access_token": row["access_token"],
+            "access_token_secret": row["access_token_secret"],
         }
     bot.tw_users = twusers
     log.msg(f"load_twitter_from_db(): {txn.rowcount} oauth tokens found")

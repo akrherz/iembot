@@ -19,11 +19,8 @@ from twisted.application import internet
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
 from twisted.internet.task import LoopingCall
-
-from oauth import oauth
-
-from twittytwister import twitter
 from pyiem.util import utc
+
 import iembot.util as botutil
 
 DATADIR = os.sep.join([os.path.dirname(__file__), "data"])
@@ -83,7 +80,6 @@ class basicbot:
         fn = os.path.join(DATADIR, "startrek")
         with open(fn, "r", encoding="utf-8") as fp:
             self.fortunes = fp.read().split("\n%\n")
-        self.twitter_oauth_consumer = None
         botutil.load_chatlog(self)
 
         lc2 = LoopingCall(botutil.purge_logs, self)
@@ -169,11 +165,6 @@ class basicbot:
             f"{self.config['bot.xmppdomain']}"
         )
         self.conference = self.config["bot.mucservice"]
-
-        self.twitter_oauth_consumer = oauth.OAuthConsumer(
-            self.config["bot.twitter.consumerkey"],
-            self.config["bot.twitter.consumersecret"],
-        )
 
         factory = client.XMPPClientFactory(
             self.myjid, self.config["bot.password"]
@@ -370,66 +361,30 @@ class basicbot:
         if self.xmlstream is not None:
             self.xmlstream.send(presence)
 
-    def tweet(
-        self,
-        twttxt,
-        access_token,
-        room=None,
-        myjid=None,
-        user_id=None,
-        twtextra=None,
-        trip=0,
-        twitter_media=None,
-    ):
+    def tweet(self, user_id, twttxt, **kwargs):
         """
         Tweet a message
         """
-        if trip > 3:
-            botutil.email_error("tweet retries exhausted", self, twttxt)
-            return
         twttxt = botutil.safe_twitter_text(twttxt)
-        if twitter_media:
-            # hacky end-around to some blocking code
-            df = threads.deferToThread(
-                botutil.tweet,
-                self,
-                access_token,
-                twttxt,
-                twitter_media,
-            )
-            df.addCallback(botutil.tweet_cb, self, twttxt, "", "", user_id)
-            df.addErrback(
-                botutil.twitter_errback,
-                self,
-                user_id,
-                twttxt,
-            )
-            df.addErrback(
-                botutil.email_error,
-                self,
-                f"User: {user_id}, Text: {twttxt} Hit double exception",
-            )
-            return
-        twt = twitter.Twitter(
-            consumer=self.twitter_oauth_consumer, token=access_token
-        )
-        if twtextra is None:
-            twtextra = dict()
-        df = twt.update(twttxt, None, twtextra)
-        df.addCallback(botutil.tweet_cb, self, twttxt, room, myjid, user_id)
-        df.addErrback(
-            botutil.tweet_eb,
+        df = threads.deferToThread(
+            botutil.tweet,
             self,
-            twttxt,
-            access_token,
-            room,
-            myjid,
             user_id,
-            twtextra,
-            trip,
+            twttxt,
+            **kwargs,
         )
-        df.addErrback(log.err)
-
+        df.addCallback(botutil.tweet_cb, self, twttxt, "", "", user_id)
+        df.addErrback(
+            botutil.twitter_errback,
+            self,
+            user_id,
+            twttxt,
+        )
+        df.addErrback(
+            botutil.email_error,
+            self,
+            f"User: {user_id}, Text: {twttxt} Hit double exception",
+        )
         return df
 
     def compute_daily_caller(self):
