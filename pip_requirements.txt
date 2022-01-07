@@ -1,3 +1,4 @@
 # generates RSS
 feedgen
-git+https://github.com/Weasyl/txyam2.git#egg=txyam2
+# twisted memcached
+txyam2
