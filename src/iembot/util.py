@@ -220,6 +220,12 @@ def email_error(exp, bot, message=""):
         return False
 
     le = ' '.join([f'{_:.2f}' for _ in os.getloadavg()])
+    tb = cstr.getvalue().decode("utf-8")
+    if tb != "":
+        tb = f"Exception       : {tb}\n"
+    expmsg = ""
+    if exp is not None:
+        expmsg = f"Exception       : {exp}\n"
     msg = MIMEText(
         f"System          : {pwd.getpwuid(os.getuid())[0]}@"
         f"{socket.gethostname()} [CWD: {os.getcwd()}]\n"
@@ -227,8 +233,8 @@ def email_error(exp, bot, message=""):
         f"process id      : {os.getpid()}\n"
         f"iembot.version  : {iembot.__version__}\n"
         f"system load     : {le}\n"
-        f"Exception       : {cstr.read()}\n"
-        f"{exp}\n"
+        f"{tb}"
+        f"{expmsg}"
         f"Message: {message}\n"
     )
     msg["subject"] = f"[bot] Traceback -- {socket.gethostname()}"
