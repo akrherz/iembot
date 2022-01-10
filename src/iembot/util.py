@@ -370,14 +370,6 @@ def load_chatrooms_from_db(txn, bot, always_join):
       bot (basicbot): the running bot instance
       always_join (boolean): do we force joining each room, regardless
     """
-    # Load up the channel keys
-    txn.execute(
-        f"SELECT id, channel_key from {bot.name}_channels "
-        "WHERE id is not null and channel_key is not null"
-    )
-    for row in txn.fetchall():
-        bot.channelkeys[row["channel_key"]] = row["id"]
-
     # Load up the routingtable for bot products
     rt = {}
     txn.execute(
