@@ -370,14 +370,6 @@ def load_chatrooms_from_db(txn, bot, always_join):
       bot (basicbot): the running bot instance
       always_join (boolean): do we force joining each room, regardless
     """
-    # Load up the channel keys
-    txn.execute(
-        f"SELECT id, channel_key from {bot.name}_channels "
-        "WHERE id is not null and channel_key is not null"
-    )
-    for row in txn.fetchall():
-        bot.channelkeys[row["channel_key"]] = row["id"]
-
     # Load up the routingtable for bot products
     rt = {}
     txn.execute(
@@ -485,9 +477,12 @@ def load_webhooks_from_db(txn, bot):
 
 def load_twitter_from_db(txn, bot):
     """Load twitter config from database"""
+    # Don't waste time by loading up subs from unauthed users
     txn.execute(
-        f"SELECT user_id, channel from {bot.name}_twitter_subs "
-        "WHERE user_id is not null and channel is not null"
+        f"select s.user_id, channel from {bot.name}_twitter_subs s "
+        "JOIN iembot_twitter_oauth o on (s.user_id = o.user_id) "
+        "WHERE s.user_id is not null and s.channel is not null "
+        "and o.access_token is not null"
     )
     twrt = {}
     for row in txn.fetchall():
