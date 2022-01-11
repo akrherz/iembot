@@ -48,6 +48,11 @@ def tweet(bot, user_id, twttxt, **kwargs):
             media=kwargs.get("twitter_media"),
         )
     except twitter.error.TwitterError as exp:
+        errcode = twittererror_exp_to_code(exp)
+        if errcode in [187, ]:
+            # 187: duplicate tweet
+            return None
+
         # Something bad happened with submitting this to twitter
         if str(exp).startswith("media type unrecognized"):
             # The media content hit some error, just send it without it
