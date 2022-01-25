@@ -22,7 +22,7 @@ def test_error_conversion():
 
 def test_load_chatrooms_fromdb():
     """Can we load up chatroom details?"""
-    dbconn = psycopg2.connect("dbname=iembot host=localhost")
+    dbconn = psycopg2.connect("dbname=mesosite host=localhost")
     cursor = dbconn.cursor()
     bot = mock.Mock()
     bot.name = "iembot"
