@@ -22,7 +22,7 @@ jobs:
         . .ci_tooling/miniconda.sh
         pip install codecov
         python -m pip install . --upgrade
-        cd database; sh bootstraph.sh
+        cd database; sh bootstrap.sh
         python schema_manager.py
         cd ..
         coverage run --source=src setup.py test
