@@ -49,7 +49,8 @@ def tweet(bot, user_id, twttxt, **kwargs):
         )
     except twitter.error.TwitterError as exp:
         errcode = twittererror_exp_to_code(exp)
-        if errcode in [187, ]:
+        if errcode in [185, 187]:
+            # 185: Over quota
             # 187: duplicate tweet
             return None
 
@@ -359,12 +360,13 @@ def twitter_errback(err, bot, user_id, tweettext):
         # 326: User is temporarily locked out
         # 64: User is suspended
         disable_twitter_user(bot, user_id, errcode)
-    sn = bot.tw_users.get(user_id, {}).get("screen_name", "")
-    msg = (
-        f"User: {user_id} ({sn})\n"
-        f"Failed to tweet: {tweettext}"
-    )
-    email_error(err, bot, msg)
+    else:
+        sn = bot.tw_users.get(user_id, {}).get("screen_name", "")
+        msg = (
+            f"User: {user_id} ({sn})\n"
+            f"Failed to tweet: {tweettext}"
+        )
+        email_error(err, bot, msg)
 
 
 def load_chatrooms_from_db(txn, bot, always_join):
