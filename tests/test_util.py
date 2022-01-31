@@ -3,6 +3,8 @@ from unittest import mock
 
 # Third party modules
 import psycopg2
+from psycopg2.extras import RealDictCursor
+from twisted.python.failure import Failure
 from twitter.error import TwitterError
 
 # local
@@ -18,12 +20,13 @@ def test_error_conversion():
         "[{'code': 185, 'message': 'User is over daily status update limit.'}]"
     )
     assert botutil.twittererror_exp_to_code(err) == 185
+    assert botutil.twittererror_exp_to_code(Failure(err)) == 185
 
 
 def test_load_chatrooms_fromdb():
     """Can we load up chatroom details?"""
     dbconn = psycopg2.connect("dbname=mesosite host=localhost")
-    cursor = dbconn.cursor()
+    cursor = dbconn.cursor(cursor_factory=RealDictCursor)
     bot = mock.Mock()
     bot.name = "iembot"
     bot.rooms = {}

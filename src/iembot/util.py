@@ -47,7 +47,7 @@ def tweet(bot, user_id, twttxt, **kwargs):
             longitude=kwargs.get("longitude", None),
             media=kwargs.get("twitter_media"),
         )
-    except twitter.error.TwitterError as exp:
+    except TwitterError as exp:
         errcode = twittererror_exp_to_code(exp)
         if errcode in [185, 187]:
             # 185: Over quota
@@ -338,14 +338,14 @@ def twittererror_exp_to_code(exp) -> int:
       exp (TwitterError): The exception to convert
     """
     errcode = None
-    if isinstance(exp, TwitterError):
-        errmsg = str(exp)
-        errmsg = errmsg[errmsg.find("["):].replace("'", '"')
-        try:
-            errobj = json.loads(errmsg)
-            errcode = errobj[0].get("code", 0)
-        except Exception as exp2:
-            log.msg(f"Failed to parse code TwitterError: {exp2}")
+    errmsg = str(exp)
+    # brittle :(
+    errmsg = errmsg[errmsg.find("[{"):errmsg.find("}]") + 2].replace("'", '"')
+    try:
+        errobj = json.loads(errmsg)
+        errcode = errobj[0].get("code", 0)
+    except Exception as exp2:
+        log.msg(f"Failed to parse code TwitterError: {exp2}")
     return errcode
 
 
