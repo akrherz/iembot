@@ -287,7 +287,7 @@ def disable_twitter_user(bot, user_id, errcode=0):
         log.msg(f"Failed to disable unknown twitter user_id {user_id}")
         return False
     screen_name = twuser["screen_name"]
-    if screen_name.startswith("iembot_"):
+    if twuser["iem_owned"]:
         log.msg(f"Skipping disabling of twitter for {user_id} ({screen_name})")
         return False
     bot.tw_users.pop(user_id, None)
@@ -502,7 +502,8 @@ def load_twitter_from_db(txn, bot):
 
     twusers = {}
     txn.execute(
-        "SELECT user_id, access_token, access_token_secret, screen_name from "
+        "SELECT user_id, access_token, access_token_secret, screen_name, "
+        "iem_owned from "
         f"{bot.name}_twitter_oauth WHERE access_token is not null and "
         "access_token_secret is not null and user_id is not null and "
         "screen_name is not null and not disabled"
@@ -513,6 +514,7 @@ def load_twitter_from_db(txn, bot):
             "screen_name": row["screen_name"],
             "access_token": row["access_token"],
             "access_token_secret": row["access_token_secret"],
+            "iem_owned": row["iem_owned"],
         }
     bot.tw_users = twusers
     log.msg(f"load_twitter_from_db(): {txn.rowcount} oauth tokens found")
