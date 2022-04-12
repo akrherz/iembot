@@ -30,6 +30,9 @@ import iembot
 
 def tweet(bot, user_id, twttxt, **kwargs):
     """Blocking tweet method."""
+    if user_id not in bot.tw_users:
+        log.msg(f"tweet() called with unknown user_id: {user_id}")
+        return None
     api = twitter.Api(
         consumer_key=bot.config["bot.twitter.consumerkey"],
         consumer_secret=bot.config["bot.twitter.consumersecret"],
