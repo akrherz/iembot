@@ -2,7 +2,7 @@ name: Install and Test
 on: [push]
 jobs:
   build-linux:
-    name: Python (${{ matrix.python-version }})
+    name: Python (${{ matrix.PYTHON_VERSION }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
