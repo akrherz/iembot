@@ -172,7 +172,7 @@ class basicbot:
         factory.maxDelay = 60
         factory.addBootstrap(xmlstream.STREAM_CONNECTED_EVENT, self.connected)
         factory.addBootstrap(xmlstream.STREAM_AUTHD_EVENT, self.authd)
-        factory.addBootstrap(xmlstream.INIT_FAILED_EVENT, self.init_failed)
+        factory.addBootstrap(xmlstream.INIT_FAILED_EVENT, log.err)
         factory.addBootstrap(xmlstream.STREAM_END_EVENT, self.disconnected)
 
         # pylint: disable=no-member
@@ -194,22 +194,10 @@ class basicbot:
         """disconnected callback"""
         log.msg("disconnected() was called...")
 
-    def init_failed(self, failure):
-        """init failed for some reason"""
-        log.err(failure)
-
     def get_fortune(self):
         """Get a random value from the array"""
         offset = int((len(self.fortunes) - 1) * random.random())
         return " ".join(self.fortunes[offset].replace("\n", "").split())
-
-    def failure(self, f):
-        """Some failure"""
-        log.err(f)
-
-    def debug(self, elem):
-        """Debug"""
-        log.msg(elem)
 
     def rawDataInFn(self, data):
         """write xmllog"""
