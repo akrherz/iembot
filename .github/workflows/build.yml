@@ -6,7 +6,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        PYTHON_VERSION: ["3.8", "3.9", "3.10"]
+    env:
+      PYTHON_VERSION: ${{ matrix.PYTHON_VERSION }}
     steps:
     - uses: actions/checkout@v2
 
@@ -26,6 +28,6 @@ jobs:
         python schema_manager.py
         cd ..
         coverage run --source=src setup.py test
-        if [[ ${{ matrix.python-version }} == "3.8" ]]; then
+        if [[ ${{ matrix.PYTHON_VERSION }} == "3.8" ]]; then
           codecov;
         fi
