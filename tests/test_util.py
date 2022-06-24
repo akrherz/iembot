@@ -1,4 +1,5 @@
 """Tests, gasp"""
+import tempfile
 from unittest import mock
 
 # Third party modules
@@ -6,10 +7,33 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from twisted.python.failure import Failure
 from twitter.error import TwitterError
+from twisted.words.xish.domish import Element
 
 # local
 import iembot.util as botutil
 from iembot.basicbot import basicbot
+from iembot.iemchatbot import JabberClient
+
+
+def test_load_chatlog():
+    """Test our pickling fun."""
+    bot = JabberClient(None, None, xml_log_path="/tmp")
+    bot.PICKLEFILE = tempfile.mkstemp()[1]
+    bot.save_chatlog()
+    botutil.load_chatlog(bot)
+    assert bot.seqnum == 0
+
+    # Create a faked message
+    message = Element(("jabber:client", "message"))
+    message["from"] = f"lotchat@{bot.conference}/iembot"
+    message["type"] = "groupchat"
+    message.addElement("body", None, "Hello World")
+    xelem = message.addElement("x", "nwschat:nwsbot")
+    xelem["channels"] = "ABC"
+    bot.processMessageGC(message)
+    bot.save_chatlog()
+    botutil.load_chatlog(bot)
+    assert bot.seqnum == 1
 
 
 def test_error_conversion():
