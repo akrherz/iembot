@@ -1,4 +1,5 @@
 """Utility functions for IEMBot"""
+import copy
 import datetime
 from html import unescape
 import re
@@ -526,12 +527,18 @@ def load_twitter_from_db(txn, bot):
 def load_chatlog(bot):
     """load up our pickled chatlog"""
     if not os.path.isfile(bot.PICKLEFILE):
+        log.msg(f"pickfile not found: {bot.PICKLEFILE}")
         return
     try:
-        oldlog = pickle.load(open(bot.PICKLEFILE, "rb"))
+        with open(bot.PICKLEFILE, "rb") as fh:
+            oldlog = pickle.load(fh)
         for rm in oldlog:
-            bot.chatlog[rm] = oldlog[rm]
-            seq = bot.chatlog[rm][-1].seqnum
+            rmlog = oldlog[rm]
+            bot.chatlog[rm] = copy.deepcopy(rmlog)
+            if not rmlog:
+                continue
+            # First message in list is the newest :/
+            seq = rmlog[0].seqnum
             if seq is not None and int(seq) > bot.seqnum:
                 bot.seqnum = int(seq)
         log.msg(
