@@ -29,7 +29,7 @@ dbpool = adbapi.ConnectionPool(
     gssencmode="disable",
 )
 
-memcache_client = YamClient(reactor, ['tcp:iem-memcached3:11211', ])
+memcache_client = YamClient(reactor, ['tcp:iem-memcached:11211', ])
 memcache_client.connect()
 
 jabber = iemchatbot.JabberClient("iembot", dbpool, memcache_client)
