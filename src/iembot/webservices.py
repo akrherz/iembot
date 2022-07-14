@@ -5,6 +5,7 @@ import datetime
 
 from twisted.web import resource
 from twisted.python import log
+from twisted.internet import reactor
 from feedgen.feed import FeedGenerator
 from pyiem.util import utc
 
@@ -198,6 +199,25 @@ class ReloadChannel(resource.Resource):
         return json.dumps("OK").encode("utf-8")
 
 
+class StatusChannel(resource.Resource):
+    """respond to /status requests"""
+
+    def __init__(self, iembot):
+        """Constructor"""
+        resource.Resource.__init__(self)
+        self.iembot = iembot
+
+    def render(self, _request):
+        """Answer the call."""
+        tp = reactor.getThreadPool()
+        res = {
+            "threadpool.max": tp.max,
+            "threadpool.waiters": len(tp.waiters),
+            "threadpool.working": len(tp.working),
+        }
+        return json.dumps(res).encode("utf-8")
+
+
 class JSONRootResource(resource.Resource):
     """answer /iembot-json/ requests"""
 
@@ -206,3 +226,4 @@ class JSONRootResource(resource.Resource):
         resource.Resource.__init__(self)
         self.putChild(b"room", RoomChannel(iembot))
         self.putChild(b"reload", ReloadChannel(iembot))
+        self.putChild(b"status", StatusChannel(iembot))

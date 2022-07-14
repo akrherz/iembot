@@ -12,7 +12,8 @@ from txyam.client import YamClient
 # Local Import
 from iembot import iemchatbot, webservices
 
-dbconfig = json.load(open('settings.json'))
+with open('settings.json', encoding="utf-8") as fh:
+    dbconfig = json.load(fh)
 
 application = service.Application("Public IEMBOT")
 serviceCollection = service.IServiceCollection(application)
@@ -46,3 +47,6 @@ x.setServiceParent(serviceCollection)
 rss = server.Site(webservices.RSSRootResource(jabber), logPath="/dev/null")
 r = internet.TCPServer(9004, rss)  # pylint: disable=no-member
 r.setServiceParent(serviceCollection)
+
+# Increase threadpool size to do more work at once
+reactor.getThreadPool().adjustPoolsize(maxthreads=128)
