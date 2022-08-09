@@ -112,7 +112,7 @@ class basicbot:
 
         lc = LoopingCall(self.housekeeping)
         lc.start(60)
-        self.xmlstream.addObserver(STREAM_END_EVENT, lc.stop)
+        self.xmlstream.addObserver(STREAM_END_EVENT, lambda _x: lc.stop)
 
     def next_seqnum(self):
         """
