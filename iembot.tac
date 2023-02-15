@@ -51,4 +51,5 @@ r = internet.TCPServer(9004, rss)  # pylint: disable=no-member
 r.setServiceParent(serviceCollection)
 
 # Increase threadpool size to do more work at once
-reactor.getThreadPool().adjustPoolsize(maxthreads=128)
+# 128 not large enough when SPC's products come through :/
+reactor.getThreadPool().adjustPoolsize(maxthreads=256)
