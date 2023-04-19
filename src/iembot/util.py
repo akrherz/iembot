@@ -1,4 +1,5 @@
 """Utility functions for IEMBot"""
+# pylint: disable=protected-access
 import copy
 import datetime
 from html import unescape
@@ -16,6 +17,7 @@ from io import BytesIO
 
 # Third Party
 import pytz
+from requests_oauthlib import OAuth1
 import twitter
 from twisted.internet import reactor
 from twisted.mail import smtp
@@ -27,6 +29,8 @@ from pyiem.reference import TWEET_CHARS
 
 # local
 import iembot
+
+TWEET_API = "https://api.twitter.com/2/tweets"
 
 
 def tweet(bot, user_id, twttxt, **kwargs):
@@ -40,17 +44,35 @@ def tweet(bot, user_id, twttxt, **kwargs):
         access_token_key=bot.tw_users[user_id]["access_token"],
         access_token_secret=bot.tw_users[user_id]["access_token_secret"],
     )
+    # Le Sigh, api.__auth is private
+    auth = OAuth1(
+        bot.config["bot.twitter.consumerkey"],
+        bot.config["bot.twitter.consumersecret"],
+        bot.tw_users[user_id]["access_token"],
+        bot.tw_users[user_id]["access_token_secret"],
+    )
     log.msg(
         f"Tweeting {bot.tw_users[user_id]['screen_name']}({user_id}) "
         f"'{twttxt}' media:{kwargs.get('twitter_media')}"
     )
+    media = kwargs.get("twitter_media")
+    media_id = None
+
+    def _helper(params):
+        """Wrap common stuff"""
+        resp = api._session.post(TWEET_API, auth=auth, json=params)
+        return api._ParseAndCheckTwitter(resp.content.decode('utf-8'))
+
     try:
-        res = api.PostUpdate(
-            twttxt,
-            latitude=kwargs.get("latitude", None),
-            longitude=kwargs.get("longitude", None),
-            media=kwargs.get("twitter_media"),
-        )
+        params = {
+            "text": twttxt,
+        }
+        # If we have media, we have some work to do!
+        if media is not None:
+            media_id = api.UploadMediaSimple(media)
+            # string required
+            params["media"] = {"media_ids": [f"{media_id}"]}
+            res = _helper(params)
     except TwitterError as exp:
         errcode = twittererror_exp_to_code(exp)
         if errcode in [185, 187]:
@@ -62,26 +84,19 @@ def tweet(bot, user_id, twttxt, **kwargs):
         if str(exp).startswith("media type unrecognized"):
             # The media content hit some error, just send it without it
             log.msg(f"Sending '{kwargs.get('twitter_media')}' fail, stripping")
-            res = api.PostUpdate(twttxt)
+            params.pop("media", None)
+            res = _helper(params)
         else:
             log.err(exp)
             # Since this called from a thread, sleeping should not jam us up
             time.sleep(10)
-            res = api.PostUpdate(
-                twttxt,
-                latitude=kwargs.get("latitude", None),
-                longitude=kwargs.get("longitude", None),
-                media=kwargs.get("twitter_media"),
-            )
+            res = _helper(params)
     except Exception as exp:
         log.err(exp)
         # Since this called from a thread, sleeping should not jam us up
         time.sleep(10)
-        res = api.PostUpdate(
-            twttxt,
-            latitude=kwargs.get("latitude", None),
-            longitude=kwargs.get("longitude", None),
-        )
+        params.pop("media", None)
+        res = _helper(params)
     return res
 
 
@@ -319,11 +334,7 @@ def tweet_cb(response, bot, twttxt, room, myjid, user_id):
     if twuser is None:
         return response
     screen_name = twuser["screen_name"]
-    url = f"https://twitter.com/{screen_name}"
-    if isinstance(response, twitter.Status):
-        url = f"{url}/status/{response.id}"
-    else:
-        url = f"{url}/status/{response}"
+    url = f"https://twitter.com/{screen_name}/status/{response['data']['id']}"
 
     # Log
     df = bot.dbpool.runOperation(
