@@ -16,6 +16,7 @@ from io import BytesIO
 
 # Third Party
 import pytz
+import requests
 import twitter
 from twisted.internet import reactor
 from twisted.mail import smtp
@@ -30,6 +31,26 @@ import iembot
 
 
 def tweet(bot, user_id, twttxt, **kwargs):
+    """Send tweet signal to a backend process."""
+    if user_id not in bot.tw_users:
+        log.msg(f"tweet() called with unknown user_id: {user_id}")
+        return
+    screen_name = bot.tw_users[user_id]['screen_name']
+    # Done from a thread, so we can be sloopy
+    req = requests.post(
+        "http://iem19.local:10101",
+        json={
+            "screen_name": screen_name,
+            "secret": bot.config["iembot2secret"],
+            "msg": twttxt,
+            "media": kwargs.get('twitter_media'),
+        },
+        timeout=30,
+    )
+    log.msg(f"Sending |{twttxt}| for {screen_name} got {req.content}")
+
+
+def tweet_legacy(bot, user_id, twttxt, **kwargs):
     """Blocking tweet method."""
     if user_id not in bot.tw_users:
         log.msg(f"tweet() called with unknown user_id: {user_id}")
