@@ -6,8 +6,8 @@ from unittest import mock
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from twisted.python.failure import Failure
-from twitter.error import TwitterError
 from twisted.words.xish.domish import Element
+from twitter.error import TwitterError
 
 # local
 import iembot.util as botutil
