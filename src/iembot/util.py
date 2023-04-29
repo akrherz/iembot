@@ -490,10 +490,12 @@ def load_twitter_from_db(txn, bot):
     """Load twitter config from database"""
     # Don't waste time by loading up subs from unauthed users
     txn.execute(
-        f"select s.user_id, channel from {bot.name}_twitter_subs s "
-        "JOIN iembot_twitter_oauth o on (s.user_id = o.user_id) "
-        "WHERE s.user_id is not null and s.channel is not null "
-        "and o.access_token is not null and not o.disabled"
+        """
+        select s.user_id, channel from iembot_twitter_subs s
+        JOIN iembot_twitter_oauth o on (s.user_id = o.user_id)
+        WHERE s.user_id is not null and s.channel is not null
+        and o.access_token is not null and not o.disabled and o.iem_owned
+        """
     )
     twrt = {}
     for row in txn.fetchall():
@@ -506,11 +508,13 @@ def load_twitter_from_db(txn, bot):
 
     twusers = {}
     txn.execute(
-        "SELECT user_id, access_token, access_token_secret, screen_name, "
-        "iem_owned from "
-        f"{bot.name}_twitter_oauth WHERE access_token is not null and "
-        "access_token_secret is not null and user_id is not null and "
-        "screen_name is not null and not disabled"
+        """
+        SELECT user_id, access_token, access_token_secret, screen_name,
+        iem_owned from
+        iembot_twitter_oauth WHERE access_token is not null and
+        access_token_secret is not null and user_id is not null and
+        screen_name is not null and not disabled and iem_owned
+        """
     )
     for row in txn.fetchall():
         user_id = row["user_id"]
