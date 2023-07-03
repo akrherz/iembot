@@ -1,29 +1,29 @@
 """Utility functions for IEMBot"""
 import copy
 import datetime
-from html import unescape
-import re
-import os
-import socket
-import json
 import glob
+import json
+import os
 import pickle
-from email.mime.text import MIMEText
+import pwd
+import re
+import socket
 import time
 import traceback
-import pwd
+from email.mime.text import MIMEText
+from html import unescape
 from io import BytesIO
 
 # Third Party
 import pytz
 import twitter
+from pyiem.reference import TWEET_CHARS
+from pyiem.util import utc
 from twisted.internet import reactor
 from twisted.mail import smtp
 from twisted.python import log
 from twisted.words.xish import domish
 from twitter.error import TwitterError
-from pyiem.util import utc
-from pyiem.reference import TWEET_CHARS
 
 # local
 import iembot

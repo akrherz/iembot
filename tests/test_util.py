@@ -2,17 +2,17 @@
 import tempfile
 from unittest import mock
 
-# Third party modules
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from twisted.python.failure import Failure
-from twitter.error import TwitterError
-from twisted.words.xish.domish import Element
-
 # local
 import iembot.util as botutil
+
+# Third party modules
+import psycopg2
 from iembot.basicbot import basicbot
 from iembot.iemchatbot import JabberClient
+from psycopg2.extras import RealDictCursor
+from twisted.python.failure import Failure
+from twisted.words.xish.domish import Element
+from twitter.error import TwitterError
 
 
 def test_load_chatlog():
