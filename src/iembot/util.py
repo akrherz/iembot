@@ -358,9 +358,10 @@ def twitter_errback(err, bot, user_id, tweettext):
     # Always log it
     log.err(err)
     errcode = twittererror_exp_to_code(err)
-    if errcode in [89, 185, 326, 64]:
+    if errcode in [89, 185, 226, 326, 64]:
         # 89: Expired token, so we shall revoke for now
         # 185: User is over quota
+        # 226: Twitter thinks this tweeting user is spammy, le sigh
         # 326: User is temporarily locked out
         # 64: User is suspended
         disable_twitter_user(bot, user_id, errcode)
