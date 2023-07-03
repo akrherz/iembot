@@ -1,29 +1,29 @@
 """Utility functions for IEMBot"""
 import copy
 import datetime
-from html import unescape
-import re
-import os
-import socket
-import json
 import glob
+import json
+import os
 import pickle
-from email.mime.text import MIMEText
+import pwd
+import re
+import socket
 import time
 import traceback
-import pwd
+from email.mime.text import MIMEText
+from html import unescape
 from io import BytesIO
 
 # Third Party
 import pytz
 import twitter
+from pyiem.reference import TWEET_CHARS
+from pyiem.util import utc
 from twisted.internet import reactor
 from twisted.mail import smtp
 from twisted.python import log
 from twisted.words.xish import domish
 from twitter.error import TwitterError
-from pyiem.util import utc
-from pyiem.reference import TWEET_CHARS
 
 # local
 import iembot
@@ -358,9 +358,10 @@ def twitter_errback(err, bot, user_id, tweettext):
     # Always log it
     log.err(err)
     errcode = twittererror_exp_to_code(err)
-    if errcode in [89, 185, 326, 64]:
+    if errcode in [89, 185, 226, 326, 64]:
         # 89: Expired token, so we shall revoke for now
         # 185: User is over quota
+        # 226: Twitter thinks this tweeting user is spammy, le sigh
         # 326: User is temporarily locked out
         # 64: User is suspended
         disable_twitter_user(bot, user_id, errcode)

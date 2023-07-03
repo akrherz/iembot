@@ -1,25 +1,24 @@
 """ Basic iembot/nwsbot implementation. """
-import datetime
-import traceback
-from io import StringIO
-import random
-from collections import namedtuple
 import copy
-import pickle
-import re
+import datetime
 import os
+import pickle
+import random
+import re
+import traceback
+from collections import namedtuple
+from io import StringIO
 from xml.etree import ElementTree as ET
 
-from twisted.words.xish import domish
-from twisted.words.xish import xpath
-from twisted.words.protocols.jabber import jid, client, error, xmlstream
-from twisted.words.xish.xmlstream import STREAM_END_EVENT
-from twisted.internet import reactor, threads
+from pyiem.util import utc
 from twisted.application import internet
+from twisted.internet import reactor, threads
+from twisted.internet.task import LoopingCall
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
-from twisted.internet.task import LoopingCall
-from pyiem.util import utc
+from twisted.words.protocols.jabber import client, error, jid, xmlstream
+from twisted.words.xish import domish, xpath
+from twisted.words.xish.xmlstream import STREAM_END_EVENT
 
 import iembot.util as botutil
 

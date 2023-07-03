@@ -1,5 +1,6 @@
 """Remove a twitter user's oauth tokens and reload iembot"""
 from __future__ import print_function
+
 import json
 import sys
 

@@ -2,11 +2,10 @@
 import json
 from io import BytesIO
 
-from twisted.python import log
 from twisted.internet import reactor
-from twisted.web.client import Agent, readBody
+from twisted.python import log
+from twisted.web.client import Agent, FileBodyProducer, readBody
 from twisted.web.http_headers import Headers
-from twisted.web.client import FileBodyProducer
 
 
 def route(bot, channels, elem):

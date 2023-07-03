@@ -1,6 +1,7 @@
 """Test basicbot API."""
 
 from unittest.mock import Mock
+
 from iembot.basicbot import basicbot
 
 

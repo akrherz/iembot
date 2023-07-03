@@ -1,5 +1,11 @@
 repos:
--   repo: https://github.com/python/black
-    rev: 22.3.0
+  - repo: https://github.com/python/black
+    rev: 23.3.0
     hooks:
     - id: black
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: "v0.0.275"
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+
