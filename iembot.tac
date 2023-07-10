@@ -2,37 +2,42 @@
 # Base Python
 import json
 
-from psycopg2.extras import DictCursor
-# Twisted Bits
-from twisted.application import service, internet
-from twisted.web import server
-from twisted.internet import reactor
-from twisted.enterprise import adbapi
-from txyam.client import YamClient
-
 # Local Import
 from iembot import iemchatbot, webservices
+from psycopg2.extras import DictCursor
 
-with open('settings.json', encoding="utf-8") as fh:
+# Twisted Bits
+from twisted.application import internet, service
+from twisted.enterprise import adbapi
+from twisted.internet import reactor
+from twisted.web import server
+from txyam.client import YamClient
+
+with open("settings.json", encoding="utf-8") as fh:
     dbconfig = json.load(fh)
 
 application = service.Application("Public IEMBOT")
 serviceCollection = service.IServiceCollection(application)
 
 # This provides DictCursors!
-dbrw = dbconfig.get('databaserw')
+dbrw = dbconfig.get("databaserw")
 dbpool = adbapi.ConnectionPool(
     "psycopg2",
     cp_reconnect=True,
-    database=dbrw.get('openfire'),
-    host=dbrw.get('host'),
-    password=dbrw.get('password'),
-    user=dbrw.get('user'),
+    database=dbrw.get("openfire"),
+    host=dbrw.get("host"),
+    password=dbrw.get("password"),
+    user=dbrw.get("user"),
     gssencmode="disable",
     cursor_factory=DictCursor,
 )
 
-memcache_client = YamClient(reactor, ['tcp:iem-memcached:11211', ])
+memcache_client = YamClient(
+    reactor,
+    [
+        "tcp:iem-memcached:11211",
+    ],
+)
 memcache_client.connect()
 
 jabber = iemchatbot.JabberClient("iembot", dbpool, memcache_client)
@@ -41,7 +46,7 @@ defer = dbpool.runQuery("select propname, propvalue from properties")
 defer.addCallback(jabber.fire_client_with_config, serviceCollection)
 
 # 2. JSON channel requests
-json = server.Site(webservices.JSONRootResource(jabber), logPath='/dev/null')
+json = server.Site(webservices.JSONRootResource(jabber), logPath="/dev/null")
 x = internet.TCPServer(9003, json)  # pylint: disable=no-member
 x.setServiceParent(serviceCollection)
 
