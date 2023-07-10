@@ -246,7 +246,7 @@ def email_error(exp, bot, message=""):
         log.msg("Email threshold exceeded, so no email sent!")
         return False
 
-    le = ' '.join([f'{_:.2f}' for _ in os.getloadavg()])
+    le = " ".join([f"{_:.2f}" for _ in os.getloadavg()])
     tb = cstr.getvalue().decode("utf-8")
     if tb != "":
         tb = f"Exception       : {tb}\n"
@@ -344,7 +344,9 @@ def twittererror_exp_to_code(exp) -> int:
     errcode = None
     errmsg = str(exp)
     # brittle :(
-    errmsg = errmsg[errmsg.find("[{"):errmsg.find("}]") + 2].replace("'", '"')
+    errmsg = errmsg[errmsg.find("[{") : errmsg.find("}]") + 2].replace(
+        "'", '"'
+    )
     try:
         errobj = json.loads(errmsg)
         errcode = errobj[0].get("code", 0)
@@ -367,10 +369,7 @@ def twitter_errback(err, bot, user_id, tweettext):
         disable_twitter_user(bot, user_id, errcode)
     else:
         sn = bot.tw_users.get(user_id, {}).get("screen_name", "")
-        msg = (
-            f"User: {user_id} ({sn})\n"
-            f"Failed to tweet: {tweettext}"
-        )
+        msg = f"User: {user_id} ({sn})\n" f"Failed to tweet: {tweettext}"
         email_error(err, bot, msg)
 
 

@@ -483,7 +483,7 @@ class basicbot:
         )
         htmlmsg = msg.replace("\n", "<br />").replace(
             self.myjid.user,
-            f'<a href="https://{self.myjid.host}/{me}faq.php">%s</a>'
+            f'<a href="https://{self.myjid.host}/{me}faq.php">%s</a>',
         )
         self.send_privatechat(user, msg, htmlmsg)
 
@@ -594,7 +594,7 @@ class basicbot:
                     "  Please consider rejoining the "
                     "chatroom if you really wish to "
                     "speak with me."
-                )
+                ),
             )
             return
 
@@ -659,9 +659,7 @@ class basicbot:
                     )
                 self.send_privatechat(_jid, f"JIDs in room: {rmess}")
             else:
-                err = (
-                    f"{res}: Sorry, you must be a room admin to query users"
-                )
+                err = f"{res}: Sorry, you must be a room admin to query users"
                 self.send_groupchat(room, err)
 
         # Else send error message about what I support
