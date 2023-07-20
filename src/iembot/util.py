@@ -63,6 +63,7 @@ def tweet(bot, user_id, twttxt, **kwargs):
         resp = api._session.post(TWEET_API, auth=auth, json=params)
         return api._ParseAndCheckTwitter(resp.content.decode('utf-8'))
 
+    res = None
     try:
         params = {
             "text": twttxt,
