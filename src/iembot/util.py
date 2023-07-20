@@ -17,10 +17,10 @@ from io import BytesIO
 
 # Third Party
 import pytz
-from requests_oauthlib import OAuth1
 import twitter
 from pyiem.reference import TWEET_CHARS
 from pyiem.util import utc
+from requests_oauthlib import OAuth1
 from twisted.internet import reactor
 from twisted.mail import smtp
 from twisted.python import log
@@ -61,8 +61,9 @@ def tweet(bot, user_id, twttxt, **kwargs):
     def _helper(params):
         """Wrap common stuff"""
         resp = api._session.post(TWEET_API, auth=auth, json=params)
-        return api._ParseAndCheckTwitter(resp.content.decode('utf-8'))
+        return api._ParseAndCheckTwitter(resp.content.decode("utf-8"))
 
+    res = None
     try:
         params = {
             "text": twttxt,
