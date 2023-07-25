@@ -61,6 +61,11 @@ def tweet(bot, user_id, twttxt, **kwargs):
     def _helper(params):
         """Wrap common stuff"""
         resp = api._session.post(TWEET_API, auth=auth, json=params)
+        hh = "x-app-limit-24hour-remaining"
+        log.msg(
+            f"x-rate-limit-limit {resp.headers.get('x-rate-limit-limit')} + "
+            f"{hh} {resp.headers.get(hh)}"
+        )
         return api._ParseAndCheckTwitter(resp.content.decode("utf-8"))
 
     res = None
@@ -334,6 +339,9 @@ def tweet_cb(response, bot, twttxt, room, myjid, user_id):
     twuser = bot.tw_users.get(user_id)
     if twuser is None:
         return response
+    if "data" not in response:
+        log.msg(f"Got response without data {repr(response)}")
+        return
     screen_name = twuser["screen_name"]
     url = f"https://twitter.com/{screen_name}/status/{response['data']['id']}"
 
