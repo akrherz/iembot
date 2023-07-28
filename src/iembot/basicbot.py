@@ -66,6 +66,8 @@ class basicbot:
         self.routingtable = {}
         self.tw_users = {}  # Storage by user_id => {screen_name: ..., oauth:}
         self.tw_routingtable = {}  # Storage by channel => [user_id, ]
+        self.md_users = {}  # Storage by user_id => {access_token: ..., api_base_url: ...}
+        self.md_routingtable = {}  # Storage by channel => [user_id, ]
         self.webhooks_routingtable = {}
         self.xmlstream = None
         self.firstlogin = False
@@ -139,6 +141,12 @@ class basicbot:
         log.msg("load_twitter() called...")
         df = self.dbpool.runInteraction(botutil.load_twitter_from_db, self)
         df.addErrback(botutil.email_error, self, "load_twitter() failure")
+
+    def load_mastodon(self):
+        """Load the Mastodon subscriptions and access tokens"""
+        log.msg("load_mastodon() called...")
+        df = self.dbpool.runInteraction(botutil.load_mastodon_from_db, self)
+        df.addErrback(botutil.email_error, self, "load_mastodon() failure")
 
     def load_webhooks(self):
         """Load the twitter subscriptions and access tokens"""
@@ -362,6 +370,32 @@ class basicbot:
         df.addCallback(botutil.tweet_cb, self, twttxt, "", "", user_id)
         df.addErrback(
             botutil.twitter_errback,
+            self,
+            user_id,
+            twttxt,
+        )
+        df.addErrback(
+            botutil.email_error,
+            self,
+            f"User: {user_id}, Text: {twttxt} Hit double exception",
+        )
+        return df
+
+    def toot(self, user_id, twttxt, **kwargs):
+        """
+        Send a message to Mastodon
+        """
+        twttxt = botutil.safe_twitter_text(twttxt)
+        df = threads.deferToThread(
+            botutil.toot,
+            self,
+            user_id,
+            twttxt,
+            **kwargs,
+        )
+        df.addCallback(botutil.toot_cb, self, twttxt, "", "", user_id)
+        df.addErrback(
+            botutil.mastodon_errback,
             self,
             user_id,
             twttxt,
