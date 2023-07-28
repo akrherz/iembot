@@ -15,10 +15,11 @@ from email.mime.text import MIMEText
 from html import unescape
 from io import BytesIO
 
+import mastodon
+
 # Third Party
 import pytz
 import twitter
-import mastodon
 from pyiem.reference import TWEET_CHARS
 from pyiem.util import utc
 from requests_oauthlib import OAuth1
@@ -130,7 +131,9 @@ def toot(bot, user_id, twttxt, **kwargs):
         }
         # If we have media, we have some work to do!
         if media is not None:
-            media_id = api.media_post(media, mime_type="image/png")  # TODO: Is this always image/png?
+            media_id = api.media_post(
+                media, mime_type="image/png"
+            )  # TODO: Is this always image/png?
             params["media_ids"] = [media_id]
         res = api.status_post(**params)
     except mastodon.errors.MastodonRateLimitError as exp:
@@ -456,7 +459,9 @@ def disable_mastodon_user(bot, user_id, errcode=0):
         return False
     screen_name = mduser["screen_name"]
     if mduser["iem_owned"]:
-        log.msg(f"Skipping disabling of Mastodon for {user_id} ({screen_name})")
+        log.msg(
+            f"Skipping disabling of Mastodon for {user_id} ({screen_name})"
+        )
         return False
     bot.md_users.pop(user_id, None)
     log.msg(
@@ -485,10 +490,12 @@ def toot_cb(response, bot, twttxt, room, myjid, user_id):
     if "content" not in response:
         log.msg(f"Got response without content {repr(response)}")
         return
-    screen_name = mduser["screen_name"]
+    mduser["screen_name"]
     url = response["url"]
 
-    response.pop("account", None)  # Remove extra junk, there's still a lot more though...
+    response.pop(
+        "account", None
+    )  # Remove extra junk, there's still a lot more though...
 
     # Log
     df = bot.dbpool.runOperation(

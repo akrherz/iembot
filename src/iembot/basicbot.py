@@ -66,7 +66,9 @@ class basicbot:
         self.routingtable = {}
         self.tw_users = {}  # Storage by user_id => {screen_name: ..., oauth:}
         self.tw_routingtable = {}  # Storage by channel => [user_id, ]
-        self.md_users = {}  # Storage by user_id => {access_token: ..., api_base_url: ...}
+        self.md_users = (
+            {}
+        )  # Storage by user_id => {access_token: ..., api_base_url: ...}
         self.md_routingtable = {}  # Storage by channel => [user_id, ]
         self.webhooks_routingtable = {}
         self.xmlstream = None
