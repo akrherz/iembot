@@ -66,9 +66,8 @@ class basicbot:
         self.routingtable = {}
         self.tw_users = {}  # Storage by user_id => {screen_name: ..., oauth:}
         self.tw_routingtable = {}  # Storage by channel => [user_id, ]
-        self.md_users = (
-            {}
-        )  # Storage by user_id => {access_token: ..., api_base_url: ...}
+        # Storage by user_id => {access_token: ..., api_base_url: ...}
+        self.md_users = {}
         self.md_routingtable = {}  # Storage by channel => [user_id, ]
         self.webhooks_routingtable = {}
         self.xmlstream = None
@@ -110,6 +109,7 @@ class basicbot:
         self.outstanding_pings = []
 
         self.load_twitter()
+        self.load_mastodon()
         self.load_chatrooms(True)
         self.load_webhooks()
 
