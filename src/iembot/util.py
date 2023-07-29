@@ -16,9 +16,8 @@ from html import unescape
 from io import BytesIO
 
 import mastodon
-
-# Third Party
 import pytz
+import requests
 import twitter
 from pyiem.reference import TWEET_CHARS
 from pyiem.util import utc
@@ -114,8 +113,8 @@ def toot(bot, user_id, twttxt, **kwargs):
         log.msg(f"toot() called with unknown Mastodon user_id: {user_id}")
         return None
     api = mastodon.Mastodon(
-        access_token=bot.config["bot.mastodon.access_token"],
-        api_base_url=bot.config["bot.mastodon.api_base_url"],
+        access_token=bot.md_users[user_id]["access_token"],
+        api_base_url=bot.md_users[user_id]["api_base_url"],
     )
     log.msg(
         f"Sending to Mastodon {bot.md_users[user_id]['screen_name']}({user_id}) "
@@ -131,12 +130,12 @@ def toot(bot, user_id, twttxt, **kwargs):
         }
         # If we have media, we have some work to do!
         if media is not None:
-            media_id = api.media_post(
-                media, mime_type="image/png"
-            )  # TODO: Is this always image/png?
+            req = requests.get(media, timeout=30, stream=True)
+            # TODO: Is this always image/png?
+            media_id = api.media_post(req.raw, mime_type="image/png")
             params["media_ids"] = [media_id]
         res = api.status_post(**params)
-    except mastodon.errors.MastodonRateLimitError as exp:
+    except mastodon.errors.MastodonRatelimitError as exp:
         # Submitted too quickly
         log.err(exp)
         # Since this called from a thread, sleeping should not jam us up
@@ -652,7 +651,7 @@ def load_twitter_from_db(txn, bot):
         channel = row["channel"]
         d = twrt.setdefault(channel, [])
         d.append(user_id)
-    bot.tw_routingtable = twrt
+    # bot.tw_routingtable = twrt
     log.msg(f"load_twitter_from_db(): {txn.rowcount} subs found")
 
     twusers = {}
@@ -677,36 +676,32 @@ def load_twitter_from_db(txn, bot):
 
 def load_mastodon_from_db(txn, bot):
     """Load Mastodon config from database"""
-    # Don't waste time by loading up subs from unauthed users
     txn.execute(
-        f"select s.user_id, channel from {bot.name}_mastodon_subs s "
-        "JOIN iembot_mastodon_oauth o on (s.user_id = o.user_id) "
-        "WHERE s.user_id is not null and s.channel is not null "
-        "and o.access_token is not null and not o.disabled"
+        """
+        select s.channel, o.id from
+        iembot_twitter_subs s, iembot_mastodon_oauth o
+        WHERE s.screen_name = o.screen_name
+        """
     )
     mdrt = {}
     for row in txn.fetchall():
-        user_id = row["user_id"]
-        channel = row["channel"]
-        d = mdrt.setdefault(channel, [])
-        d.append(user_id)
+        mdrt.setdefault(row["channel"], []).append(row["id"])
     bot.md_routingtable = mdrt
     log.msg(f"load_mastodon_from_db(): {txn.rowcount} subs found")
 
     mdusers = {}
     txn.execute(
-        "SELECT user_id, access_token, api_base_url, screen_name, "
-        "iem_owned from "
-        f"{bot.name}_mastodon_oauth WHERE access_token is not null and "
-        "api_base_url is not null and user_id is not null and "
-        "screen_name is not null and not disabled"
+        """
+        select server, o.id, o.access_token, o.screen_name, o.iem_owned
+        from iembot_mastodon_apps a JOIN iembot_mastodon_oauth o
+            on (a.id = o.appid)
+        """
     )
     for row in txn.fetchall():
-        user_id = row["user_id"]
-        mdusers[user_id] = {
+        mdusers[row["id"]] = {
             "screen_name": row["screen_name"],
             "access_token": row["access_token"],
-            "api_base_url": row["api_base_url"],
+            "api_base_url": row["server"],
             "iem_owned": row["iem_owned"],
         }
     bot.md_users = mdusers
