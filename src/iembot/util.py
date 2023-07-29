@@ -15,6 +15,8 @@ from email.mime.text import MIMEText
 from html import unescape
 from io import BytesIO
 
+import mastodon
+
 # Third Party
 import pytz
 import twitter
@@ -103,6 +105,57 @@ def tweet(bot, user_id, twttxt, **kwargs):
         time.sleep(10)
         params.pop("media", None)
         res = _helper(params)
+    return res
+
+
+def toot(bot, user_id, twttxt, **kwargs):
+    """Blocking Mastodon toot method."""
+    if user_id not in bot.md_users:
+        log.msg(f"toot() called with unknown Mastodon user_id: {user_id}")
+        return None
+    api = mastodon.Mastodon(
+        access_token=bot.config["bot.mastodon.access_token"],
+        api_base_url=bot.config["bot.mastodon.api_base_url"],
+    )
+    log.msg(
+        f"Sending to Mastodon {bot.md_users[user_id]['screen_name']}({user_id}) "
+        f"'{twttxt}' media:{kwargs.get('twitter_media')}"
+    )
+    media = kwargs.get("twitter_media")
+    media_id = None
+
+    res = None
+    try:
+        params = {
+            "status": twttxt,
+        }
+        # If we have media, we have some work to do!
+        if media is not None:
+            media_id = api.media_post(
+                media, mime_type="image/png"
+            )  # TODO: Is this always image/png?
+            params["media_ids"] = [media_id]
+        res = api.status_post(**params)
+    except mastodon.errors.MastodonRateLimitError as exp:
+        # Submitted too quickly
+        log.err(exp)
+        # Since this called from a thread, sleeping should not jam us up
+        time.sleep(10)
+        res = api.status_post(**params)
+    except mastodon.errors.MastodonError as exp:
+        # Something else bad happened when submitting this to the Mastodon server
+        log.err(exp)
+        params.pop("media_ids", None)  # Try again without media
+        # Since this called from a thread, sleeping should not jam us up
+        time.sleep(10)
+        res = api.status_post(**params)
+    except Exception as exp:
+        # Something beyond Mastodon went wrong
+        log.err(exp)
+        params.pop("media_ids", None)  # Try again without media
+        # Since this called from a thread, sleeping should not jam us up
+        time.sleep(10)
+        res = api.status_post(**params)
     return res
 
 
@@ -393,6 +446,84 @@ def twitter_errback(err, bot, user_id, tweettext):
         email_error(err, bot, msg)
 
 
+def disable_mastodon_user(bot, user_id, errcode=0):
+    """Disable the Mastodon subs for this user_id
+
+    Args:
+        user_id (big_id): The Mastodon user to disable
+        errcode (int): The HTTP-like errorcode
+    """
+    mduser = bot.md_users.get(user_id)
+    if mduser is None:
+        log.msg(f"Failed to disable unknown Mastodon user_id {user_id}")
+        return False
+    screen_name = mduser["screen_name"]
+    if mduser["iem_owned"]:
+        log.msg(
+            f"Skipping disabling of Mastodon for {user_id} ({screen_name})"
+        )
+        return False
+    bot.md_users.pop(user_id, None)
+    log.msg(
+        f"Removing Mastodon access token for user: {user_id} ({screen_name}) "
+        f"errcode: {errcode}"
+    )
+    df = bot.dbpool.runOperation(
+        f"UPDATE {bot.name}_mastodon_oauth SET updated = now(), "
+        "access_token = null, api_base_url = null "
+        "WHERE user_id = %s",
+        (user_id,),
+    )
+    df.addErrback(log.err)
+    return True
+
+
+def toot_cb(response, bot, twttxt, room, myjid, user_id):
+    """
+    Called after success going to Mastodon
+    """
+    if response is None:
+        return
+    mduser = bot.md_users.get(user_id)
+    if mduser is None:
+        return response
+    if "content" not in response:
+        log.msg(f"Got response without content {repr(response)}")
+        return
+    mduser["screen_name"]
+    url = response["url"]
+
+    response.pop(
+        "account", None
+    )  # Remove extra junk, there's still a lot more though...
+
+    # Log
+    df = bot.dbpool.runOperation(
+        f"INSERT into {bot.name}_social_log(medium, source, resource_uri, "
+        "message, response, response_code) values (%s,%s,%s,%s,%s,%s)",
+        ("mastodon", myjid, url, twttxt, repr(response), 200),
+    )
+    df.addErrback(log.err)
+    return response
+
+
+def mastodon_errback(err, bot, user_id, tweettext):
+    """Error callback when simple Mastodon workflow fails."""
+    # Always log it
+    log.err(err)
+    errcode = None
+    if isinstance(err, mastodon.errors.MastodonNotFoundError):
+        errcode = 404
+        disable_mastodon_user(bot, user_id, errcode)
+    elif isinstance(err, mastodon.errors.MastodonUnauthorizedError):
+        errcode = 401
+        disable_mastodon_user(bot, user_id, errcode)
+    else:
+        sn = bot.md_users.get(user_id, {}).get("screen_name", "")
+        msg = f"User: {user_id} ({sn})\n" f"Failed to toot: {tweettext}"
+        email_error(err, bot, msg)
+
+
 def load_chatrooms_from_db(txn, bot, always_join):
     """Load database configuration and do work
 
@@ -542,6 +673,44 @@ def load_twitter_from_db(txn, bot):
         }
     bot.tw_users = twusers
     log.msg(f"load_twitter_from_db(): {txn.rowcount} oauth tokens found")
+
+
+def load_mastodon_from_db(txn, bot):
+    """Load Mastodon config from database"""
+    # Don't waste time by loading up subs from unauthed users
+    txn.execute(
+        f"select s.user_id, channel from {bot.name}_mastodon_subs s "
+        "JOIN iembot_mastodon_oauth o on (s.user_id = o.user_id) "
+        "WHERE s.user_id is not null and s.channel is not null "
+        "and o.access_token is not null and not o.disabled"
+    )
+    mdrt = {}
+    for row in txn.fetchall():
+        user_id = row["user_id"]
+        channel = row["channel"]
+        d = mdrt.setdefault(channel, [])
+        d.append(user_id)
+    bot.md_routingtable = mdrt
+    log.msg(f"load_mastodon_from_db(): {txn.rowcount} subs found")
+
+    mdusers = {}
+    txn.execute(
+        "SELECT user_id, access_token, api_base_url, screen_name, "
+        "iem_owned from "
+        f"{bot.name}_mastodon_oauth WHERE access_token is not null and "
+        "api_base_url is not null and user_id is not null and "
+        "screen_name is not null and not disabled"
+    )
+    for row in txn.fetchall():
+        user_id = row["user_id"]
+        mdusers[user_id] = {
+            "screen_name": row["screen_name"],
+            "access_token": row["access_token"],
+            "api_base_url": row["api_base_url"],
+            "iem_owned": row["iem_owned"],
+        }
+    bot.md_users = mdusers
+    log.msg(f"load_mastodon_from_db(): {txn.rowcount} access tokens found")
 
 
 def load_chatlog(bot):
