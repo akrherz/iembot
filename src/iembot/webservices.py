@@ -195,6 +195,7 @@ class ReloadChannel(resource.Resource):
         log.msg("Reloading iembot room configuration....")
         self.iembot.load_chatrooms(False)
         self.iembot.load_twitter()
+        self.iembot.load_mastodon()
         self.iembot.load_webhooks()
         return json.dumps("OK").encode("utf-8")
 
