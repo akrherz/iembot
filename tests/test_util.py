@@ -7,12 +7,21 @@ import iembot.util as botutil
 
 # Third party modules
 import psycopg2
+import pytest
 from iembot.basicbot import basicbot
 from iembot.iemchatbot import JabberClient
 from psycopg2.extras import RealDictCursor
 from twisted.python.failure import Failure
 from twisted.words.xish.domish import Element
 from twitter.error import TwitterError
+
+
+@pytest.mark.parametrize("database", ["mesosite"])
+def test_load_mastodon_from_db(dbcursor):
+    """Test the method."""
+    bot = JabberClient(None, None, xml_log_path="/tmp")
+    botutil.load_mastodon_from_db(dbcursor, bot)
+    assert isinstance(bot.md_users, dict)
 
 
 def test_load_chatlog():

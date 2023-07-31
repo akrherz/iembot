@@ -28,6 +28,8 @@ jobs:
         python schema_manager.py
         cd ..
         coverage run --source=src setup.py test
-        if [[ ${{ matrix.PYTHON_VERSION }} == "3.11" ]]; then
-          codecov;
-        fi
+        coverage xml
+
+    - name: Code coverage
+      if: ${{ matrix.PYTHON_VERSION == '3.10' }}
+      uses: codecov/codecov-action@v3

@@ -676,16 +676,10 @@ def load_twitter_from_db(txn, bot):
 
 def load_mastodon_from_db(txn, bot):
     """Load Mastodon config from database"""
-    txn.execute(
-        """
-        select s.channel, o.id from
-        iembot_twitter_subs s, iembot_mastodon_oauth o
-        WHERE s.screen_name = o.screen_name
-        """
-    )
+    txn.execute("select channel, user_id from iembot_mastodon_subs")
     mdrt = {}
     for row in txn.fetchall():
-        mdrt.setdefault(row["channel"], []).append(row["id"])
+        mdrt.setdefault(row["channel"], []).append(row["user_id"])
     bot.md_routingtable = mdrt
     log.msg(f"load_mastodon_from_db(): {txn.rowcount} subs found")
 
