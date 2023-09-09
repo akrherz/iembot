@@ -14,9 +14,9 @@ import traceback
 from email.mime.text import MIMEText
 from html import unescape
 from io import BytesIO
+from zoneinfo import ZoneInfo
 
 import mastodon
-import pytz
 import requests
 import twitter
 from pyiem.reference import TWEET_CHARS
@@ -274,7 +274,7 @@ def purge_logs(bot):
     )
     for fn in glob.glob("logs/xmllog.*"):
         ts = datetime.datetime.strptime(fn, "logs/xmllog.%Y_%m_%d")
-        ts = ts.replace(tzinfo=pytz.UTC)
+        ts = ts.replace(tzinfo=ZoneInfo("UTC"))
         if ts < basets:
             log.msg(f"Purging logfile {fn}")
             os.remove(fn)
