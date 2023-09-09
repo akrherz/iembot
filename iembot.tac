@@ -4,7 +4,7 @@ import json
 
 # Local Import
 from iembot import iemchatbot, webservices
-from psycopg2.extras import DictCursor
+from psycopg2.extras import RealDictCursor
 
 # Twisted Bits
 from twisted.application import internet, service
@@ -29,7 +29,7 @@ dbpool = adbapi.ConnectionPool(
     password=dbrw.get("password"),
     user=dbrw.get("user"),
     gssencmode="disable",
-    cursor_factory=DictCursor,
+    cursor_factory=RealDictCursor,
 )
 
 memcache_client = YamClient(
