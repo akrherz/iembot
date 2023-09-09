@@ -6,7 +6,6 @@ pytest-cov
 pytest-runner
 # bot non-async twitter
 python-twitter
-pytz
 service_identity
 # cython is a lame requirement from rabbit hole of cartopy
 cython
