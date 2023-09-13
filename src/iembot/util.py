@@ -170,10 +170,7 @@ def channels_room_list(bot, room):
 
     # Need to add a space in the channels listing so that the string does
     # not get so long that it causes chat clients to bail
-    msg = (
-        f"This room is subscribed to {len(channels)} channels "
-        f"({'', ''.join(channels)})"
-    )
+    msg = f"This room is subscribed to {len(channels)} channels ({channels})"
     bot.send_groupchat(room, msg)
 
 

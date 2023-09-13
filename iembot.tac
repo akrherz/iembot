@@ -24,7 +24,7 @@ dbrw = dbconfig.get("databaserw")
 dbpool = adbapi.ConnectionPool(
     "psycopg",
     cp_reconnect=True,
-    database=dbrw.get("openfire"),
+    dbname=dbrw.get("openfire"),
     host=dbrw.get("host"),
     password=dbrw.get("password"),
     user=dbrw.get("user"),
