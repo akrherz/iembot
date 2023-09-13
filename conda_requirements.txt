@@ -1,6 +1,5 @@
 twisted>=18.4.0
-psycopg2
-pyiem
+psycopg
 pytest
 pytest-cov
 pytest-runner

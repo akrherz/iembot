@@ -170,10 +170,7 @@ def channels_room_list(bot, room):
 
     # Need to add a space in the channels listing so that the string does
     # not get so long that it causes chat clients to bail
-    msg = (
-        f"This room is subscribed to {len(channels)} channels "
-        f"({'', ''.join(channels)})"
-    )
+    msg = f"This room is subscribed to {len(channels)} channels ({channels})"
     bot.send_groupchat(room, msg)
 
 
@@ -181,7 +178,7 @@ def channels_room_add(txn, bot, room, channel):
     """Add a channel subscription to a chatroom
 
     Args:
-        txn (psycopg2.transaction): database transaction
+        txn (cursor): database transaction
         bot (iembot.Basicbot): bot instance
         room (str): the chatroom to add the subscription to
         channel (str): the channel to subscribe to for the room
@@ -236,7 +233,7 @@ def channels_room_del(txn, bot, room, channel):
     """Removes a channel subscription for a given room
 
     Args:
-        txn (psycopg2.transaction): database cursor
+        txn (cursor): database cursor
         room (str): room to unsubscribe
         channel (str): channel to unsubscribe from
     """

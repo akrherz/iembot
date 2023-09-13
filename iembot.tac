@@ -4,7 +4,7 @@ import json
 
 # Local Import
 from iembot import iemchatbot, webservices
-from psycopg2.extras import RealDictCursor
+from psycopg.rows import dict_row
 
 # Twisted Bits
 from twisted.application import internet, service
@@ -22,14 +22,14 @@ serviceCollection = service.IServiceCollection(application)
 # This provides DictCursors!
 dbrw = dbconfig.get("databaserw")
 dbpool = adbapi.ConnectionPool(
-    "psycopg2",
+    "psycopg",
     cp_reconnect=True,
-    database=dbrw.get("openfire"),
+    dbname=dbrw.get("openfire"),
     host=dbrw.get("host"),
     password=dbrw.get("password"),
     user=dbrw.get("user"),
     gssencmode="disable",
-    cursor_factory=RealDictCursor,
+    row_factory=dict_row,
 )
 
 memcache_client = YamClient(
