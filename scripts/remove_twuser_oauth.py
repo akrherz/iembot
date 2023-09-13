@@ -1,23 +1,15 @@
 """Remove a twitter user's oauth tokens and reload iembot"""
-from __future__ import print_function
 
-import json
 import sys
 
-import psycopg2
 import requests
+from pyiem.database import get_dbconnc
 
 
 def main(argv):
     """Run for a given username"""
     screen_name = argv[1]
-    settings = json.load(open("../settings.json"))
-    pgconn = psycopg2.connect(
-        database=settings["databaserw"]["openfire"],
-        user=settings["databaserw"]["user"],
-        host=settings["databaserw"]["host"],
-    )
-    cursor = pgconn.cursor()
+    pgconn, cursor = get_dbconnc("openfire")
     cursor.execute(
         """
     DELETE from iembot_twitter_oauth where screen_name = %s

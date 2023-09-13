@@ -6,11 +6,9 @@ from unittest import mock
 import iembot.util as botutil
 
 # Third party modules
-import psycopg2
 import pytest
 from iembot.basicbot import basicbot
 from iembot.iemchatbot import JabberClient
-from psycopg2.extras import RealDictCursor
 from twisted.python.failure import Failure
 from twisted.words.xish.domish import Element
 from twitter.error import TwitterError
@@ -56,14 +54,13 @@ def test_error_conversion():
     assert botutil.twittererror_exp_to_code(Failure(err)) == 185
 
 
-def test_load_chatrooms_fromdb():
+@pytest.mark.parametrize("database", ["mesosite"])
+def test_load_chatrooms_fromdb(dbcursor):
     """Can we load up chatroom details?"""
-    dbconn = psycopg2.connect("dbname=mesosite host=localhost")
-    cursor = dbconn.cursor(cursor_factory=RealDictCursor)
     bot = mock.Mock()
     bot.name = "iembot"
     bot.rooms = {}
-    botutil.load_chatrooms_from_db(cursor, bot, True)
+    botutil.load_chatrooms_from_db(dbcursor, bot, True)
     assert bot
 
 
