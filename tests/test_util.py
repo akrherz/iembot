@@ -17,9 +17,42 @@ from twitter.error import TwitterError
 @pytest.mark.parametrize("database", ["mesosite"])
 def test_load_mastodon_from_db(dbcursor):
     """Test the method."""
+    # create some faked entries
+    dbcursor.execute(
+        """
+        insert into iembot_mastodon_apps(server, client_id, client_secret)
+        values('localhost', '123', '123') RETURNING id
+        """
+    )
+    appid = dbcursor.fetchone()["id"]
+    dbcursor.execute(
+        """
+        insert into iembot_mastodon_oauth(appid, screen_name, access_token,
+        iem_owned, disabled) values (%s, 'iembot', '123', 't', 'f')
+        returning id
+        """,
+        (appid,),
+    )
+    userid = dbcursor.fetchone()["id"]
+    dbcursor.execute(
+        """
+        insert into iembot_mastodon_subs(user_id, channel) values (%s, 'ABC')
+        """,
+        (userid,),
+    )
     bot = JabberClient(None, None, xml_log_path="/tmp")
     botutil.load_mastodon_from_db(dbcursor, bot)
-    assert isinstance(bot.md_users, dict)
+    assert bot.md_users[userid]["screen_name"] == "iembot"
+
+    # Now disable the user
+    dbcursor.execute(
+        """
+        update iembot_mastodon_oauth SET disabled = 't' where id = %s
+        """,
+        (userid,),
+    )
+    botutil.load_mastodon_from_db(dbcursor, bot)
+    assert userid not in bot.md_users
 
 
 def test_util_toot():

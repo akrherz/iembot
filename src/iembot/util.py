@@ -688,7 +688,8 @@ def load_mastodon_from_db(txn, bot):
         """
         select server, o.id, o.access_token, o.screen_name, o.iem_owned
         from iembot_mastodon_apps a JOIN iembot_mastodon_oauth o
-            on (a.id = o.appid)
+            on (a.id = o.appid) WHERE o.access_token is not null and
+        not o.disabled
         """
     )
     for row in txn.fetchall():
