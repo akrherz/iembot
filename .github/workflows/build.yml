@@ -48,10 +48,11 @@ jobs:
   
     - name: Build and Test
       run: |
+        set -e
         # pip install from requirements.txt
         python -m pip install -r pip_requirements.txt
         python -m pip install . --upgrade
-        coverage run --source=src setup.py test
+        coverage run --source=iembot setup.py test
         coverage xml
 
     - name: Code coverage
