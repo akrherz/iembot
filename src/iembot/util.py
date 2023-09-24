@@ -139,21 +139,24 @@ def toot(bot, user_id, twttxt, **kwargs):
         # Submitted too quickly
         log.err(exp)
         # Since this called from a thread, sleeping should not jam us up
-        time.sleep(10)
+        time.sleep(kwargs.get("sleep", 10))
         res = api.status_post(**params)
     except mastodon.errors.MastodonError as exp:
         # Something else bad happened when submitting this to the Mastodon server
         log.err(exp)
         params.pop("media_ids", None)  # Try again without media
         # Since this called from a thread, sleeping should not jam us up
-        time.sleep(10)
-        res = api.status_post(**params)
+        time.sleep(kwargs.get("sleep", 10))
+        try:
+            res = api.status_post(**params)
+        except mastodon.errors.MastodonError as exp2:
+            log.err(exp2)
     except Exception as exp:
         # Something beyond Mastodon went wrong
         log.err(exp)
         params.pop("media_ids", None)  # Try again without media
         # Since this called from a thread, sleeping should not jam us up
-        time.sleep(10)
+        time.sleep(kwargs.get("sleep", 10))
         res = api.status_post(**params)
     return res
 
