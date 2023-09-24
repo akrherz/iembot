@@ -25,7 +25,13 @@ def test_load_mastodon_from_db(dbcursor):
 def test_util_toot():
     """Test the method."""
     bot = JabberClient(None, None, xml_log_path="/tmp")
-    bot.md_users = {"123": {"screen_name": "iembot", "access_token": "123", "api_base_url": "https://localhost"}}
+    bot.md_users = {
+        "123": {
+            "screen_name": "iembot",
+            "access_token": "123",
+            "api_base_url": "https://localhost",
+        }
+    }
     botutil.toot(bot, "123", "test", sleep=0)
 
 
