@@ -2,9 +2,14 @@
 
 # third party
 import pytest
-
-# This repo
+from iembot.basicbot import basicbot
 from pyiem.database import get_dbconnc
+
+
+@pytest.fixture()
+def bot():
+    """A basicbot."""
+    return basicbot("iembot", None, xml_log_path="/tmp")
 
 
 @pytest.fixture()
