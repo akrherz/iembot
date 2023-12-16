@@ -117,7 +117,8 @@ def toot(bot, user_id, twttxt, **kwargs):
         api_base_url=bot.md_users[user_id]["api_base_url"],
     )
     log.msg(
-        f"Sending to Mastodon {bot.md_users[user_id]['screen_name']}({user_id}) "
+        "Sending to Mastodon "
+        f"{bot.md_users[user_id]['screen_name']}({user_id}) "
         f"'{twttxt}' media:{kwargs.get('twitter_media')}"
     )
     media = kwargs.get("twitter_media")
@@ -142,7 +143,7 @@ def toot(bot, user_id, twttxt, **kwargs):
         time.sleep(kwargs.get("sleep", 10))
         res = api.status_post(**params)
     except mastodon.errors.MastodonError as exp:
-        # Something else bad happened when submitting this to the Mastodon server
+        # Something else bad happened when submitting this to the Mastodon
         log.err(exp)
         params.pop("media_ids", None)  # Try again without media
         # Since this called from a thread, sleeping should not jam us up

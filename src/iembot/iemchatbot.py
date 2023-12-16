@@ -205,7 +205,8 @@ class JabberClient(basicbot.basicbot):
             for user_id in self.md_routingtable.get(channel, []):
                 if user_id not in self.md_users:
                     log.msg(
-                        f"Failed to send to Mastodon due to no access_tokens {user_id}"
+                        "Failed to send to Mastodon due to no "
+                        f"access_tokens {user_id}"
                     )
                     continue
                 # Require the x.twitter attribute to be set to prevent
