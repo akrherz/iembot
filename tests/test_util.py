@@ -1,4 +1,5 @@
 """Tests, gasp"""
+
 import tempfile
 from unittest import mock
 

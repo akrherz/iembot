@@ -1,4 +1,5 @@
 """Utility functions for IEMBot"""
+
 # pylint: disable=protected-access
 import copy
 import datetime

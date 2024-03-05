@@ -1,4 +1,5 @@
 """Some random tests"""
+
 from iembot.basicbot import basicbot
 from iembot.util import safe_twitter_text
 

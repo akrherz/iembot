@@ -1,4 +1,5 @@
-""" Basic iembot/nwsbot implementation. """
+"""Basic iembot/nwsbot implementation."""
+
 import copy
 import datetime
 import os
@@ -16,9 +17,8 @@ from twisted.internet import reactor, threads
 from twisted.internet.task import LoopingCall
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
-from twisted.words.protocols.jabber import client, error, jid, xmlstream
+from twisted.words.protocols.jabber import client, jid, xmlstream
 from twisted.words.xish import domish, xpath
-from twisted.words.xish.xmlstream import STREAM_END_EVENT
 
 import iembot.util as botutil
 
@@ -78,6 +78,7 @@ class basicbot:
         self.ingestjid = None
         self.conference = None
         self.email_timestamps = []
+        self.keepalive_lc = None  # Keepalive LoopingCall
         fn = os.path.join(DATADIR, "startrek")
         with open(fn, "r", encoding="utf-8") as fp:
             self.fortunes = fp.read().split("\n%\n")
@@ -113,9 +114,10 @@ class basicbot:
         self.load_chatrooms(True)
         self.load_webhooks()
 
-        lc = LoopingCall(self.housekeeping)
-        lc.start(60)
-        self.xmlstream.addObserver(STREAM_END_EVENT, lambda _x: lc.stop)
+        # Start the keepalive loop
+        if self.keepalive_lc is None:
+            self.keepalive_lc = LoopingCall(self.housekeeping)
+            self.keepalive_lc.start(60)
 
     def next_seqnum(self):
         """
@@ -236,9 +238,8 @@ class basicbot:
                 "Logging out of Chat!", self, "IQ error limit reached..."
             )
             if self.xmlstream is not None:
-                # Unsure of the proper code that a client should generate
-                exc = error.StreamError("gone")
-                self.xmlstream.sendStreamError(exc)
+                # send a disconnect
+                self.xmlstream.sendFooter()
             return
         if self.xmlstream is None:
             log.msg("xmlstream is None, not sending ping")
@@ -247,7 +248,7 @@ class basicbot:
         ping = domish.Element((None, "iq"))
         ping["to"] = self.myjid.host
         ping["type"] = "get"
-        pingid = f"{utcnow:%Y%m%d%H%M}"
+        pingid = f"{utcnow:%Y%m%d%H%M.%S}"
         ping["id"] = pingid
         ping.addChild(domish.Element(("urn:xmpp:ping", "ping")))
         self.outstanding_pings.append(pingid)
