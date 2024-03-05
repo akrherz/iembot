@@ -1,4 +1,5 @@
-""" Basic iembot/nwsbot implementation. """
+"""Basic iembot/nwsbot implementation."""
+
 import copy
 import datetime
 import os

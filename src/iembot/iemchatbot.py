@@ -1,4 +1,5 @@
-""" Chat bot implementation of IEMBot """
+"""Chat bot implementation of IEMBot"""
+
 import datetime
 import re
 

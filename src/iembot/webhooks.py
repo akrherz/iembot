@@ -1,4 +1,5 @@
 """Send content to various webhooks."""
+
 import json
 from io import BytesIO
 
