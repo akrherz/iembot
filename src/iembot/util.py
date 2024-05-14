@@ -653,7 +653,7 @@ def load_twitter_from_db(txn, bot):
         channel = row["channel"]
         d = twrt.setdefault(channel, [])
         d.append(user_id)
-    # bot.tw_routingtable = twrt
+    bot.tw_routingtable = twrt
     log.msg(f"load_twitter_from_db(): {txn.rowcount} subs found")
 
     twusers = {}
