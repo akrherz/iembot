@@ -80,7 +80,7 @@ def tweet(bot, user_id, twttxt, **kwargs):
             media_id = api.UploadMediaSimple(media)
             # string required
             params["media"] = {"media_ids": [f"{media_id}"]}
-            res = _helper(params)
+        res = _helper(params)
     except TwitterError as exp:
         errcode = twittererror_exp_to_code(exp)
         if errcode in [185, 187]:
@@ -93,12 +93,11 @@ def tweet(bot, user_id, twttxt, **kwargs):
             # The media content hit some error, just send it without it
             log.msg(f"Sending '{kwargs.get('twitter_media')}' fail, stripping")
             params.pop("media", None)
-            res = _helper(params)
         else:
             log.err(exp)
             # Since this called from a thread, sleeping should not jam us up
             time.sleep(10)
-            res = _helper(params)
+        res = _helper(params)
     except Exception as exp:
         log.err(exp)
         # Since this called from a thread, sleeping should not jam us up
