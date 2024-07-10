@@ -33,6 +33,12 @@ from twitter.error import TwitterError
 import iembot
 
 TWEET_API = "https://api.twitter.com/2/tweets"
+# 89: Expired token, so we shall revoke for now
+# 185: User is over quota
+# 226: Twitter thinks this tweeting user is spammy, le sigh
+# 326: User is temporarily locked out
+# 64: User is suspended
+DISABLE_TWITTER_CODES = [89, 185, 226, 326, 64]
 
 
 def tweet(bot, user_id, twttxt, **kwargs):
@@ -86,6 +92,9 @@ def tweet(bot, user_id, twttxt, **kwargs):
         if errcode in [185, 187]:
             # 185: Over quota
             # 187: duplicate tweet
+            return None
+        if errcode in DISABLE_TWITTER_CODES:
+            disable_twitter_user(bot, user_id, errcode)
             return None
 
         # Something bad happened with submitting this to twitter
@@ -433,12 +442,7 @@ def twitter_errback(err, bot, user_id, tweettext):
     # Always log it
     log.err(err)
     errcode = twittererror_exp_to_code(err)
-    if errcode in [89, 185, 226, 326, 64]:
-        # 89: Expired token, so we shall revoke for now
-        # 185: User is over quota
-        # 226: Twitter thinks this tweeting user is spammy, le sigh
-        # 326: User is temporarily locked out
-        # 64: User is suspended
+    if errcode in DISABLE_TWITTER_CODES:
         disable_twitter_user(bot, user_id, errcode)
     else:
         sn = bot.tw_users.get(user_id, {}).get("screen_name", "")
