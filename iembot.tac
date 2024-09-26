@@ -58,4 +58,5 @@ r.setServiceParent(serviceCollection)
 
 # Increase threadpool size to do more work at once
 # 128 not large enough when SPC's products come through :/
-reactor.getThreadPool().adjustPoolsize(maxthreads=256)
+# 256 is not enough for hurricanes
+reactor.getThreadPool().adjustPoolsize(maxthreads=512)
