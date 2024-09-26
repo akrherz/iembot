@@ -3,8 +3,6 @@
 # Base Python
 import json
 
-# Local Import
-from iembot import iemchatbot, webservices
 from psycopg.rows import dict_row
 
 # Twisted Bits
@@ -13,6 +11,9 @@ from twisted.enterprise import adbapi
 from twisted.internet import reactor
 from twisted.web import server
 from txyam.client import YamClient
+
+# Local Import
+from iembot import iemchatbot, webservices
 
 with open("settings.json", encoding="utf-8") as fh:
     dbconfig = json.load(fh)
@@ -58,4 +59,5 @@ r.setServiceParent(serviceCollection)
 
 # Increase threadpool size to do more work at once
 # 128 not large enough when SPC's products come through :/
-reactor.getThreadPool().adjustPoolsize(maxthreads=256)
+# 256 is not enough for hurricanes
+reactor.getThreadPool().adjustPoolsize(maxthreads=512)
