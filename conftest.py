@@ -2,8 +2,9 @@
 
 # third party
 import pytest
-from iembot.basicbot import basicbot
 from pyiem.database import get_dbconnc
+
+from iembot.basicbot import basicbot
 
 
 @pytest.fixture()

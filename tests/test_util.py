@@ -3,16 +3,16 @@
 import tempfile
 from unittest import mock
 
-# local
-import iembot.util as botutil
-
 # Third party modules
 import pytest
-from iembot.basicbot import basicbot
-from iembot.iemchatbot import JabberClient
 from twisted.python.failure import Failure
 from twisted.words.xish.domish import Element
 from twitter.error import TwitterError
+
+# local
+import iembot.util as botutil
+from iembot.basicbot import basicbot
+from iembot.iemchatbot import JabberClient
 
 
 @pytest.mark.parametrize("database", ["mesosite"])

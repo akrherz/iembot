@@ -1,6 +1,7 @@
 """Test things done with channel subs."""
 
 import pytest
+
 from iembot.util import (
     channels_room_add,
     channels_room_del,
