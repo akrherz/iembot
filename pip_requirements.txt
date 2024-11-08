@@ -1,6 +1,4 @@
 # generates RSS
 feedgen
-# get pyiem from github
-git+https://github.com/akrherz/pyIEM.git
 # twisted memcached
 txyam2
