@@ -44,7 +44,7 @@ DISABLE_TWITTER_CODES = [89, 185, 226, 326, 64]
 
 def at_send_message(bot, user_id, msg: str, **kwargs):
     """Send a message to the ATmosphere."""
-    if bot.tw_users.get(user_id, {}).get("at_handle", "") == "":
+    if bot.tw_users.get(user_id, {}).get("at_handle") is None:
         return None
     media = kwargs.get("twitter_media")
     img = None
@@ -74,7 +74,7 @@ def at_send_message(bot, user_id, msg: str, **kwargs):
     else:
         res = client.send_post(msg)
     # for now
-    log.info(res)
+    log.msg(repr(res))
     return res
 
 
