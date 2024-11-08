@@ -1,0 +1,2 @@
+recursive-include iembot *.py
+include src/iembot/data/startrek
