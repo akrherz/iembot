@@ -1,3 +1,16 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iembot"
+description = "A poorly written XMPP bot that does other things"
+dynamic = ["version"]
+version = "0.0.1"
+readme = "README.md"
+
+[project.urls]
+"homepage" = "https://github.com/akrherz/iembot"
 
 [tool.ruff]
 line-length = 79
@@ -9,3 +22,6 @@ select = [
     "F",
     "I",
 ]
+
+[tool.setuptools_scm]
+# can be empty if no extra settings are needed, presence enables setuptools_scm
