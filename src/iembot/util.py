@@ -53,6 +53,9 @@ def at_send_message(bot, user_id, msg: str, **kwargs):
             resp = httpx.get(media, timeout=30)
             resp.raise_for_status()
             img = resp.content
+            # AT has a size limit of 976.56KB
+            if len(img) > 1_000_000:
+                img = None
         except Exception as exp:
             log.err(exp)
 
