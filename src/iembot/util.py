@@ -17,6 +17,8 @@ from html import unescape
 from io import BytesIO
 from zoneinfo import ZoneInfo
 
+import atproto
+import httpx
 import mastodon
 import requests
 import twitter
@@ -29,7 +31,6 @@ from twisted.python import log
 from twisted.words.xish import domish
 from twitter.error import TwitterError
 
-# local
 import iembot
 
 TWEET_API = "https://api.twitter.com/2/tweets"
@@ -39,6 +40,42 @@ TWEET_API = "https://api.twitter.com/2/tweets"
 # 326: User is temporarily locked out
 # 64: User is suspended
 DISABLE_TWITTER_CODES = [89, 185, 226, 326, 64]
+
+
+def at_send_message(bot, user_id, msg: str, **kwargs):
+    """Send a message to the ATmosphere."""
+    if bot.tw_users.get(user_id, {}).get("at_handle", "") == "":
+        return None
+    media = kwargs.get("twitter_media")
+    img = None
+    if media is not None:
+        try:
+            resp = httpx.get(media, timeout=30)
+            resp.raise_for_status()
+            img = resp.content
+        except Exception as exp:
+            log.err(exp)
+
+    client = atproto.Client()
+    client.login(
+        bot.tw_users[user_id]["at_handle"],
+        bot.tw_users[user_id]["at_app_pass"],
+    )
+    if msg.find("http") > -1:
+        parts = msg.split("http")
+        msg = (
+            atproto.client_utils.TextBuilder()
+            .text(parts[0])
+            .link("link", f"http{parts[1]}")
+        )
+
+    if img:
+        res = client.send_image(msg, image=img, image_alt="IEMBot Image TBD")
+    else:
+        res = client.send_post(msg)
+    # for now
+    log.info(res)
+    return res
 
 
 def tweet(bot, user_id, twttxt, **kwargs):
@@ -662,8 +699,8 @@ def load_twitter_from_db(txn, bot):
     twusers = {}
     txn.execute(
         "SELECT user_id, access_token, access_token_secret, screen_name, "
-        "iem_owned from "
-        f"{bot.name}_twitter_oauth WHERE access_token is not null and "
+        "iem_owned, at_handle, at_app_pass from "
+        "iembot_twitter_oauth WHERE access_token is not null and "
         "access_token_secret is not null and user_id is not null and "
         "screen_name is not null and not disabled"
     )
@@ -674,6 +711,8 @@ def load_twitter_from_db(txn, bot):
             "access_token": row["access_token"],
             "access_token_secret": row["access_token_secret"],
             "iem_owned": row["iem_owned"],
+            "at_handle": row["at_handle"],
+            "at_app_pass": row["at_app_pass"],
         }
     bot.tw_users = twusers
     log.msg(f"load_twitter_from_db(): {txn.rowcount} oauth tokens found")

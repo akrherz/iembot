@@ -363,6 +363,18 @@ class basicbot:
         Tweet a message
         """
         twttxt = botutil.safe_twitter_text(twttxt)
+        adf = threads.deferToThread(
+            botutil.at_send_message,
+            self,
+            user_id,
+            twttxt,
+            **kwargs,
+        )
+        adf.addErrback(
+            botutil.email_error,
+            self,
+            f"User: {user_id}, Text: {twttxt} Hit double exception",
+        )
         df = threads.deferToThread(
             botutil.tweet,
             self,

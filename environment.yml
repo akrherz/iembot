@@ -1,5 +1,7 @@
 dependencies:
+ - atproto
  - codecov
+ - httpx
  - twisted>=18.4.0
  - psycopg
  - pytest
