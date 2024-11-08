@@ -4,12 +4,14 @@ dependencies:
  - httpx
  - twisted>=18.4.0
  - psycopg
+ - pyiem
  - pytest
  - pytest-cov
  - pytest-runner
  # bot non-async twitter
  - python-twitter
  - service_identity
+ - setuptools_scm
  # cython is a lame requirement from rabbit hole of cartopy
  - cython
  - cartopy

@@ -51,9 +51,10 @@ jobs:
         set -e
         # pip install from requirements.txt
         python -m pip install -r pip_requirements.txt
-        python -m pip install . --upgrade
-        coverage run --source=iembot setup.py test
-        coverage xml
+        python -m pip install . --upgrade --no-deps
+        python -m pytest --cov=iembot
+        python -m coverage xml
+
 
     - name: Code coverage
       if: ${{ matrix.PYTHON_VERSION == '3.12' }}
