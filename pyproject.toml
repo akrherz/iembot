@@ -1,27 +1,39 @@
 [build-system]
-requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
+requires = [ "setuptools" ]
 
 [project]
 name = "iembot"
 description = "A poorly written XMPP bot that does other things"
-dynamic = ["version"]
-version = "0.0.1"
 readme = "README.md"
-
-[project.urls]
-"homepage" = "https://github.com/akrherz/iembot"
-
-[tool.ruff]
-line-length = 79
-target-version = "py39"
-
-[tool.ruff.lint]
-select = [
-    "E",
-    "F",
-    "I",
+license = { "text" = "Apache" }
+authors = [
+  { name = "daryl herzmann", email = "akrherz@gmail.com" },
 ]
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dynamic = [
+  "version",
+]
+
+urls."Homepage" = "https://github.com/akrherz/iembot"
 
 [tool.setuptools_scm]
 # can be empty if no extra settings are needed, presence enables setuptools_scm
+
+[tool.ruff]
+target-version = "py39"
+
+line-length = 79
+lint.select = [
+  "E",
+  "F",
+  "I",
+]
