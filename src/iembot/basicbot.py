@@ -64,6 +64,7 @@ class basicbot:
         self.chatlog = {}
         self.seqnum = 0
         self.routingtable = {}
+        self.at_clients = {}  # handle -> Client
         self.tw_users = {}  # Storage by user_id => {screen_name: ..., oauth:}
         self.tw_routingtable = {}  # Storage by channel => [user_id, ]
         # Storage by user_id => {access_token: ..., api_base_url: ...}

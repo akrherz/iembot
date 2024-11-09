@@ -44,7 +44,8 @@ DISABLE_TWITTER_CODES = [89, 185, 226, 326, 64]
 
 def at_send_message(bot, user_id, msg: str, **kwargs):
     """Send a message to the ATmosphere."""
-    if bot.tw_users.get(user_id, {}).get("at_handle") is None:
+    at_handle = bot.tw_users.get(user_id, {}).get("at_handle")
+    if at_handle is None:
         return None
     media = kwargs.get("twitter_media")
     img = None
@@ -59,11 +60,13 @@ def at_send_message(bot, user_id, msg: str, **kwargs):
         except Exception as exp:
             log.err(exp)
 
-    client = atproto.Client()
-    client.login(
-        bot.tw_users[user_id]["at_handle"],
-        bot.tw_users[user_id]["at_app_pass"],
-    )
+    if at_handle not in bot.at_clients:
+        bot.at_clients[at_handle] = atproto.Client()
+        bot.at_clients[at_handle].login(
+            at_handle,
+            bot.tw_users[user_id]["at_app_pass"],
+        )
+
     if msg.find("http") > -1:
         parts = msg.split("http")
         msg = (
@@ -73,9 +76,11 @@ def at_send_message(bot, user_id, msg: str, **kwargs):
         )
 
     if img:
-        res = client.send_image(msg, image=img, image_alt="IEMBot Image TBD")
+        res = bot.at_clients[at_handle].send_image(
+            msg, image=img, image_alt="IEMBot Image TBD"
+        )
     else:
-        res = client.send_post(msg)
+        res = bot.at_clients[at_handle].send_post(msg)
     # for now
     log.msg(repr(res))
     return res
