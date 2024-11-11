@@ -61,11 +61,16 @@ def at_send_message(bot, user_id, msg: str, **kwargs):
             log.err(exp)
 
     if at_handle not in bot.at_clients:
-        bot.at_clients[at_handle] = atproto.Client()
-        bot.at_clients[at_handle].login(
+        # This is racey, so we need to not add the client until we are
+        # sure it is logged in
+        client = atproto.Client()
+        client.login(
             at_handle,
             bot.tw_users[user_id]["at_app_pass"],
         )
+        # Again, racey, so we need to check again
+        if at_handle not in bot.at_clients:
+            bot.at_clients[at_handle] = client
 
     if msg.find("http") > -1:
         parts = msg.split("http")
@@ -75,12 +80,20 @@ def at_send_message(bot, user_id, msg: str, **kwargs):
             .link("link", f"http{parts[1]}")
         )
 
-    if img:
-        res = bot.at_clients[at_handle].send_image(
-            msg, image=img, image_alt="IEMBot Image TBD"
-        )
-    else:
-        res = bot.at_clients[at_handle].send_post(msg)
+    for attempt in range(1, 4):
+        try:
+            if img:
+                res = bot.at_clients[at_handle].send_image(
+                    msg, image=img, image_alt="IEMBot Image TBD"
+                )
+            else:
+                res = bot.at_clients[at_handle].send_post(msg)
+            break
+        except Exception as exp:
+            log.err(exp)
+            time.sleep(attempt * 5)
+            if attempt == 3:
+                raise exp
     # for now
     log.msg(repr(res))
     return res
