@@ -21,6 +21,7 @@ from twisted.words.protocols.jabber import client, jid, xmlstream
 from twisted.words.xish import domish, xpath
 
 import iembot.util as botutil
+from iembot.atworker import ATManager
 
 DATADIR = os.sep.join([os.path.dirname(__file__), "data"])
 ROOM_LOG_ENTRY = namedtuple(
@@ -64,7 +65,7 @@ class basicbot:
         self.chatlog = {}
         self.seqnum = 0
         self.routingtable = {}
-        self.at_clients = {}  # handle -> Client
+        self.at_manager = ATManager()
         self.tw_users = {}  # Storage by user_id => {screen_name: ..., oauth:}
         self.tw_routingtable = {}  # Storage by channel => [user_id, ]
         # Storage by user_id => {access_token: ..., api_base_url: ...}
@@ -364,18 +365,8 @@ class basicbot:
         Tweet a message
         """
         twttxt = botutil.safe_twitter_text(twttxt)
-        adf = threads.deferToThread(
-            botutil.at_send_message,
-            self,
-            user_id,
-            twttxt,
-            **kwargs,
-        )
-        adf.addErrback(
-            botutil.email_error,
-            self,
-            f"User: {user_id}, Text: {twttxt} Hit double exception",
-        )
+        botutil.at_send_message(self, user_id, twttxt, **kwargs)
+
         df = threads.deferToThread(
             botutil.tweet,
             self,
