@@ -40,9 +40,8 @@ class ATWorkerThead(threading.Thread):
             except Exception as exp:
                 print(message)
                 print(exp)
-                # Invalidate session
-                if hasattr(self.client, "session"):
-                    delattr(self.client, "session")
+                # Invalidate session / set sentinal
+                self.client.me = None
             self.queue.task_done()
 
     def process_message(self, msgdict: dict):
@@ -62,7 +61,7 @@ class ATWorkerThead(threading.Thread):
                 log.err(exp)
 
         # Do we need to login?
-        if not hasattr(self.client, "session"):
+        if self.client.me is None:
             log.msg(f"Logging in as {self.at_handle}...")
             self.client.login(self.at_handle, self.at_password)
 
