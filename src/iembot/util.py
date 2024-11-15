@@ -44,7 +44,7 @@ def at_send_message(bot, user_id, msg: str, **kwargs):
     """Send a message to the ATmosphere."""
     at_handle = bot.tw_users.get(user_id, {}).get("at_handle")
     if at_handle is None:
-        return None
+        return
     message = {"msg": msg}
     message.update(kwargs)
     bot.at_manager.submit(at_handle, message)
