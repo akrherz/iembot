@@ -17,8 +17,6 @@ from html import unescape
 from io import BytesIO
 from zoneinfo import ZoneInfo
 
-import atproto
-import httpx
 import mastodon
 import requests
 import twitter
@@ -47,56 +45,9 @@ def at_send_message(bot, user_id, msg: str, **kwargs):
     at_handle = bot.tw_users.get(user_id, {}).get("at_handle")
     if at_handle is None:
         return None
-    media = kwargs.get("twitter_media")
-    img = None
-    if media is not None:
-        try:
-            resp = httpx.get(media, timeout=30)
-            resp.raise_for_status()
-            img = resp.content
-            # AT has a size limit of 976.56KB
-            if len(img) > 1_000_000:
-                img = None
-        except Exception as exp:
-            log.err(exp)
-
-    if at_handle not in bot.at_clients:
-        # This is racey, so we need to not add the client until we are
-        # sure it is logged in
-        client = atproto.Client()
-        client.login(
-            at_handle,
-            bot.tw_users[user_id]["at_app_pass"],
-        )
-        # Again, racey, so we need to check again
-        if at_handle not in bot.at_clients:
-            bot.at_clients[at_handle] = client
-
-    if msg.find("http") > -1:
-        parts = msg.split("http")
-        msg = (
-            atproto.client_utils.TextBuilder()
-            .text(parts[0])
-            .link("link", f"http{parts[1]}")
-        )
-
-    for attempt in range(1, 4):
-        try:
-            if img:
-                res = bot.at_clients[at_handle].send_image(
-                    msg, image=img, image_alt="IEMBot Image TBD"
-                )
-            else:
-                res = bot.at_clients[at_handle].send_post(msg)
-            break
-        except Exception as exp:
-            log.err(exp)
-            time.sleep(attempt * 5)
-            if attempt == 3:
-                raise exp
-    # for now
-    log.msg(repr(res))
-    return res
+    message = {"msg": msg}
+    message.update(kwargs)
+    bot.at_manager.submit(at_handle, message)
 
 
 def tweet(bot, user_id, twttxt, **kwargs):
@@ -733,8 +684,9 @@ def load_twitter_from_db(txn, bot):
             "access_token_secret": row["access_token_secret"],
             "iem_owned": row["iem_owned"],
             "at_handle": row["at_handle"],
-            "at_app_pass": row["at_app_pass"],
         }
+        if row["at_handle"]:
+            bot.at_manager.add_client(row["at_handle"], row["at_app_pass"])
     bot.tw_users = twusers
     log.msg(f"load_twitter_from_db(): {txn.rowcount} oauth tokens found")
 
