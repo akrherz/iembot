@@ -23,11 +23,11 @@ def wfo_rss(iembot, rm):
         rm = f"{rm[-3:]}chat"
     elif len(rm) == 3:
         rm = f"k{rm}chat"
+    if rm not in iembot.chatlog:
+        return ""
     if rm not in XML_CACHE:
         XML_CACHE[rm] = ""
         XML_CACHE_EXPIRES[rm] = -2
-    if rm not in iembot.chatlog:
-        return ""
     # should not be empty given the caller
     lastID = iembot.chatlog[rm][0].seqnum
     if lastID == XML_CACHE_EXPIRES[rm]:
@@ -45,7 +45,7 @@ def wfo_rss(iembot, rm):
 
     XML_CACHE[rm] = rss.rss_str()
     XML_CACHE_EXPIRES[rm] = lastID
-    return rss.rss_str()
+    return XML_CACHE[rm]
 
 
 class RSSService(resource.Resource):
