@@ -127,29 +127,11 @@ class JabberClient(basicbot.basicbot):
         memcache_fetch(0)
 
     def processMessagePC(self, elem):
-        # log.msg("processMessagePC() called from %s...." % (elem['from'],))
-        _from = jid.JID(elem["from"])
-        if elem["from"] == self.config["bot.xmppdomain"]:
-            log.msg("MESSAGE FROM SERVER?")
-            return
-        # Intercept private messages via a chatroom, can't do that :)
-        if _from.host == self.config["bot.mucservice"]:
-            log.msg("ERROR: message is MUC private chat")
+        
+        if not self._check_message_conditions(elem):
             return
 
-        if (
-            _from.userhost()
-            != f"iembot_ingest@{self.config['bot.xmppdomain']}"
-        ):
-            log.msg("ERROR: message not from iembot_ingest")
-            return
-
-        # Go look for body to see routing info!
-        # Get the body string
         bstring = xpath.queryForString("/message/body", elem)
-        if not bstring:
-            log.msg("Nothing found in body?")
-            return
 
         if elem.x and elem.x.hasAttribute("channels"):
             channels = elem.x["channels"].split(",")
@@ -168,69 +150,110 @@ class JabberClient(basicbot.basicbot):
         alertedRooms = []
         alertedPages = []
         for channel in channels:
-            for room in self.routingtable.get(channel, []):
-                if room in alertedRooms:
-                    continue
-                alertedRooms.append(room)
-                elem["to"] = f"{room}@{self.config['bot.mucservice']}"
-                self.send_groupchat_elem(elem)
-            for user_id in self.tw_routingtable.get(channel, []):
-                if user_id not in self.tw_users:
-                    log.msg(
-                        f"Failed to tweet due to no access_tokens {user_id}"
-                    )
-                    continue
-                # Require the x.twitter attribute to be set to prevent
-                # confusion with some ingestors still sending tweets themself
-                if not elem.x.hasAttribute("twitter"):
-                    continue
-                if user_id in alertedPages:
-                    continue
-                alertedPages.append(user_id)
-                lat = long = None
-                if (
-                    elem.x
-                    and elem.x.hasAttribute("lat")
-                    and elem.x.hasAttribute("long")
-                ):
-                    lat = elem.x["lat"]
-                    long = elem.x["long"]
-                # Finally, actually tweet, this is in basicbot
-                self.tweet(
-                    user_id,
-                    elem.x["twitter"],
-                    twitter_media=elem.x.getAttribute("twitter_media"),
-                    latitude=lat,
-                    longitude=long,
-                )
-            for user_id in self.md_routingtable.get(channel, []):
-                if user_id not in self.md_users:
-                    log.msg(
+
+            self._handle_rooms(elem, channel, alertedRooms)
+
+            self._handle_twitter_users(elem, channel, alertedPages)
+            self._handle_mastodon_users(elem, channel, alertedPages)
+        webhooks_route(self, channels, elem)
+
+    def _handle_mastodon_users(self, elem, channel, alertedPages):
+        for user_id in self.md_routingtable.get(channel, []):
+            if user_id not in self.md_users:
+                log.msg(
                         "Failed to send to Mastodon due to no "
                         f"access_tokens {user_id}"
                     )
-                    continue
+                continue
                 # Require the x.twitter attribute to be set to prevent
                 # confusion with some ingestors still sending tweets themselfs
-                if not elem.x.hasAttribute("twitter"):
-                    continue
-                if user_id in alertedPages:
-                    continue
-                alertedPages.append(user_id)
-                lat = long = None
-                if (
+            if not elem.x.hasAttribute("twitter"):
+                continue
+            if user_id in alertedPages:
+                continue
+            alertedPages.append(user_id)
+            lat = long = None
+            if (
                     elem.x
                     and elem.x.hasAttribute("lat")
                     and elem.x.hasAttribute("long")
                 ):
-                    lat = elem.x["lat"]
-                    long = elem.x["long"]
+                lat = elem.x["lat"]
+                long = elem.x["long"]
                 # Finally, actually post to Mastodon, this is in basicbot
-                self.toot(
+            self.toot(
                     user_id,
                     elem.x["twitter"],
                     twitter_media=elem.x.getAttribute("twitter_media"),
                     latitude=lat,  # TODO: unused
                     longitude=long,  # TODO: unused
                 )
-        webhooks_route(self, channels, elem)
+
+    def _handle_twitter_users(self, elem, channel, alertedPages):
+        for user_id in self.tw_routingtable.get(channel, []):
+            if user_id not in self.tw_users:
+                log.msg(
+                        f"Failed to tweet due to no access_tokens {user_id}"
+                    )
+                continue
+                # Require the x.twitter attribute to be set to prevent
+                # confusion with some ingestors still sending tweets themself
+            if not elem.x.hasAttribute("twitter"):
+                continue
+            if user_id in alertedPages:
+                continue
+            alertedPages.append(user_id)
+            lat = long = None
+            if (
+                    elem.x
+                    and elem.x.hasAttribute("lat")
+                    and elem.x.hasAttribute("long")
+                ):
+                lat = elem.x["lat"]
+                long = elem.x["long"]
+                # Finally, actually tweet, this is in basicbot
+            self.tweet(
+                    user_id,
+                    elem.x["twitter"],
+                    twitter_media=elem.x.getAttribute("twitter_media"),
+                    latitude=lat,
+                    longitude=long,
+                )
+
+    def _handle_rooms(self, elem, channel, alertedRooms):
+        for room in self.routingtable.get(channel, []):
+            if room in alertedRooms:
+                continue
+            alertedRooms.append(room)
+            elem["to"] = f"{room}@{self.config['bot.mucservice']}"
+            self.send_groupchat_elem(elem)
+
+    def _check_message_conditions(self, elem):
+        valid = True
+
+         # log.msg("processMessagePC() called from %s...." % (elem['from'],))
+        _from = jid.JID(elem["from"])
+        if elem["from"] == self.config["bot.xmppdomain"]:
+            log.msg("MESSAGE FROM SERVER?")
+            valid = False
+        # Intercept private messages via a chatroom, can't do that :)
+        elif _from.host == self.config["bot.mucservice"]:
+            log.msg("ERROR: message is MUC private chat")
+            valid = False
+
+        elif (
+            _from.userhost()
+            != f"iembot_ingest@{self.config['bot.xmppdomain']}"
+        ):
+            log.msg("ERROR: message not from iembot_ingest")
+            valid = False
+
+        # Go look for body to see routing info!
+        # Get the body string
+        if valid and not xpath.queryForString("/message/body", elem):
+            log.msg("Nothing found in body?")
+            valid = False
+
+
+        return valid
+       
