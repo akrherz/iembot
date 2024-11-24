@@ -503,7 +503,6 @@ def toot_cb(response, bot, twttxt, room, myjid, user_id):
     if "content" not in response:
         log.msg(f"Got response without content {repr(response)}")
         return
-    mduser["screen_name"]
     url = response["url"]
 
     response.pop(
