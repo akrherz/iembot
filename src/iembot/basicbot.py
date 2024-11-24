@@ -677,9 +677,9 @@ class basicbot:
             rmess = ""
             for hndle in self.rooms[room]["occupants"].keys():
                 rmess += (
-                        f"{hndle} "
-                        f"({self.rooms[room]['occupants'][hndle]['jid']}), "
-                    )
+                    f"{hndle} "
+                    f"({self.rooms[room]['occupants'][hndle]['jid']}), "
+                )
             self.send_privatechat(_jid, f"JIDs in room: {rmess}")
         else:
             err = f"{res}: Sorry, you must be a room admin to query users"
@@ -688,13 +688,11 @@ class basicbot:
     def _handle_del_channel(self, room, res, cmd, aff):
         if aff in ["owner", "admin"]:
             df = self.dbpool.runInteraction(
-                    botutil.channels_room_del, self, room, cmd[12:]
-                )
+                botutil.channels_room_del, self, room, cmd[12:]
+            )
             df.addErrback(botutil.email_error, self, f"{room} -> {cmd}")
         else:
-            err = (
-                    f"{res}: Sorry, you must be a room admin to add a channel"
-                )
+            err = f"{res}: Sorry, you must be a room admin to add a channel"
             self.send_groupchat(room, err)
 
     def _handle_add_channel(self, room, res, cmd, aff):
@@ -702,20 +700,14 @@ class basicbot:
         if aff in ["owner", "admin"]:
             if len(add_channel) < 24:
                 df = self.dbpool.runInteraction(
-                        botutil.channels_room_add, self, room, cmd[12:]
-                    )
-                df.addErrback(
-                        botutil.email_error, self, room + " -> " + cmd
-                    )
+                    botutil.channels_room_add, self, room, cmd[12:]
+                )
+                df.addErrback(botutil.email_error, self, room + " -> " + cmd)
             else:
-                err = (
-                        f"{res}: Error, channels are less than 24 characters!"
-                    )
+                err = f"{res}: Error, channels are less than 24 characters!"
                 self.send_groupchat(room, err)
         else:
-            err = (
-                    f"{res}: Sorry, you must be a room admin to add a channel"
-                )
+            err = f"{res}: Sorry, you must be a room admin to add a channel"
             self.send_groupchat(room, err)
 
     def send_groupchat_help(self, room):

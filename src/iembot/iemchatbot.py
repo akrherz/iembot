@@ -127,7 +127,6 @@ class JabberClient(basicbot.basicbot):
         memcache_fetch(0)
 
     def processMessagePC(self, elem):
-        
         if not self._check_message_conditions(elem):
             return
 
@@ -150,7 +149,6 @@ class JabberClient(basicbot.basicbot):
         alertedRooms = []
         alertedPages = []
         for channel in channels:
-
             self._handle_rooms(elem, channel, alertedRooms)
 
             self._handle_twitter_users(elem, channel, alertedPages)
@@ -161,9 +159,9 @@ class JabberClient(basicbot.basicbot):
         for user_id in self.md_routingtable.get(channel, []):
             if user_id not in self.md_users:
                 log.msg(
-                        "Failed to send to Mastodon due to no "
-                        f"access_tokens {user_id}"
-                    )
+                    "Failed to send to Mastodon due to no "
+                    f"access_tokens {user_id}"
+                )
                 continue
                 # Require the x.twitter attribute to be set to prevent
                 # confusion with some ingestors still sending tweets themselfs
@@ -174,27 +172,25 @@ class JabberClient(basicbot.basicbot):
             alertedPages.append(user_id)
             lat = long = None
             if (
-                    elem.x
-                    and elem.x.hasAttribute("lat")
-                    and elem.x.hasAttribute("long")
-                ):
+                elem.x
+                and elem.x.hasAttribute("lat")
+                and elem.x.hasAttribute("long")
+            ):
                 lat = elem.x["lat"]
                 long = elem.x["long"]
                 # Finally, actually post to Mastodon, this is in basicbot
             self.toot(
-                    user_id,
-                    elem.x["twitter"],
-                    twitter_media=elem.x.getAttribute("twitter_media"),
-                    latitude=lat,  # TODO: unused
-                    longitude=long,  # TODO: unused
-                )
+                user_id,
+                elem.x["twitter"],
+                twitter_media=elem.x.getAttribute("twitter_media"),
+                latitude=lat,  # TODO: unused
+                longitude=long,  # TODO: unused
+            )
 
     def _handle_twitter_users(self, elem, channel, alertedPages):
         for user_id in self.tw_routingtable.get(channel, []):
             if user_id not in self.tw_users:
-                log.msg(
-                        f"Failed to tweet due to no access_tokens {user_id}"
-                    )
+                log.msg(f"Failed to tweet due to no access_tokens {user_id}")
                 continue
                 # Require the x.twitter attribute to be set to prevent
                 # confusion with some ingestors still sending tweets themself
@@ -205,20 +201,20 @@ class JabberClient(basicbot.basicbot):
             alertedPages.append(user_id)
             lat = long = None
             if (
-                    elem.x
-                    and elem.x.hasAttribute("lat")
-                    and elem.x.hasAttribute("long")
-                ):
+                elem.x
+                and elem.x.hasAttribute("lat")
+                and elem.x.hasAttribute("long")
+            ):
                 lat = elem.x["lat"]
                 long = elem.x["long"]
                 # Finally, actually tweet, this is in basicbot
             self.tweet(
-                    user_id,
-                    elem.x["twitter"],
-                    twitter_media=elem.x.getAttribute("twitter_media"),
-                    latitude=lat,
-                    longitude=long,
-                )
+                user_id,
+                elem.x["twitter"],
+                twitter_media=elem.x.getAttribute("twitter_media"),
+                latitude=lat,
+                longitude=long,
+            )
 
     def _handle_rooms(self, elem, channel, alertedRooms):
         for room in self.routingtable.get(channel, []):
@@ -231,7 +227,7 @@ class JabberClient(basicbot.basicbot):
     def _check_message_conditions(self, elem):
         valid = True
 
-         # log.msg("processMessagePC() called from %s...." % (elem['from'],))
+        # log.msg("processMessagePC() called from %s...." % (elem['from'],))
         _from = jid.JID(elem["from"])
         if elem["from"] == self.config["bot.xmppdomain"]:
             log.msg("MESSAGE FROM SERVER?")
@@ -254,6 +250,4 @@ class JabberClient(basicbot.basicbot):
             log.msg("Nothing found in body?")
             valid = False
 
-
         return valid
-       
