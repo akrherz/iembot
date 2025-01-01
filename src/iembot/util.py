@@ -149,9 +149,10 @@ def toot(bot, user_id, twttxt, **kwargs):
         }
         # If we have media, we have some work to do!
         if media is not None:
-            req = requests.get(media, timeout=30, stream=True)
+            resp = requests.get(media, timeout=30, stream=True)
+            resp.raise_for_status()
             # TODO: Is this always image/png?
-            media_id = api.media_post(req.raw, mime_type="image/png")
+            media_id = api.media_post(resp.raw, mime_type="image/png")
             params["media_ids"] = [media_id]
         res = api.status_post(**params)
     except mastodon.errors.MastodonRatelimitError as exp:
