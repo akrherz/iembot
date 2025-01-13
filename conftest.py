@@ -16,6 +16,6 @@ def bot():
 @pytest.fixture()
 def dbcursor(database):
     """Yield a cursor for the given database."""
-    dbconn, cursor = get_dbconnc(database)
+    dbconn, cursor = get_dbconnc(database, user="mesonet")
     yield cursor
     dbconn.close()
