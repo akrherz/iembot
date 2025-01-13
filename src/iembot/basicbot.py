@@ -74,7 +74,6 @@ class basicbot:
         self.webhooks_routingtable = {}
         self.xmlstream = None
         self.firstlogin = False
-        self.syndication = {}
         self.xmllog = DailyLogFile("xmllog", xml_log_path)
         self.myjid = None
         self.ingestjid = None

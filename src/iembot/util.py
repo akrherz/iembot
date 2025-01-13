@@ -567,23 +567,6 @@ def load_chatrooms_from_db(txn, bot, always_join):
         f"{len(rooms)} rooms"
     )
 
-    # Now we need to load up the syndication
-    synd = {}
-    txn.execute(
-        f"SELECT roomname, endpoint from {bot.name}_room_syndications "
-        "WHERE roomname is not null and endpoint is not null"
-    )
-    for row in txn.fetchall():
-        rm = row["roomname"]
-        endpoint = row["endpoint"]
-        if rm not in synd:
-            synd[rm] = []
-        synd[rm].append(endpoint)
-    bot.syndication = synd
-    log.msg(
-        f"... loaded {txn.rowcount} room syndications for {len(synd)} rooms"
-    )
-
     # Load up a list of chatrooms
     txn.execute(
         f"SELECT roomname, twitter from {bot.name}_rooms "
