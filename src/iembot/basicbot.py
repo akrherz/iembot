@@ -1,13 +1,13 @@
 """Basic iembot/nwsbot implementation."""
 
 import copy
-import datetime
 import os
 import pickle
 import random
 import re
 import traceback
 from collections import namedtuple
+from datetime import timedelta
 from io import StringIO
 from xml.etree import ElementTree as ET
 
@@ -74,7 +74,6 @@ class basicbot:
         self.webhooks_routingtable = {}
         self.xmlstream = None
         self.firstlogin = False
-        self.syndication = {}
         self.xmllog = DailyLogFile("xmllog", xml_log_path)
         self.myjid = None
         self.ingestjid = None
@@ -418,7 +417,7 @@ class basicbot:
         """Figure out when to be called"""
         log.msg("compute_daily_caller() called...")
         # Figure out when to spam all rooms with a timestamp
-        utcnow = utc() + datetime.timedelta(days=1)
+        utcnow = utc() + timedelta(days=1)
         tnext = utcnow.replace(hour=0, minute=0, second=0)
         log.msg(
             "Initial Calling daily_timestamp in "
@@ -735,7 +734,7 @@ class basicbot:
         with star trek quotes, yes!
         """
         _from = jid.JID(elem["from"])
-        if not re.match(r"^nws-", _from.user):
+        if not re.match("^nws-", str(_from.user)):
             msg = "Sorry, you must be NWS to flood a chatroom!"
             self.send_privatechat(elem["from"], msg)
             return
