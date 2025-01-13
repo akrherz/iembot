@@ -456,7 +456,7 @@ def twitter_errback(err, bot, user_id, tweettext):
         disable_twitter_user(bot, user_id, errcode)
     else:
         sn = bot.tw_users.get(user_id, {}).get("screen_name", "")
-        msg = f"User: {user_id} ({sn})\n" f"Failed to tweet: {tweettext}"
+        msg = f"User: {user_id} ({sn})\nFailed to tweet: {tweettext}"
         email_error(err, bot, msg)
 
 
@@ -534,7 +534,7 @@ def mastodon_errback(err, bot, user_id, tweettext):
         disable_mastodon_user(bot, user_id, errcode)
     else:
         sn = bot.md_users.get(user_id, {}).get("screen_name", "")
-        msg = f"User: {user_id} ({sn})\n" f"Failed to toot: {tweettext}"
+        msg = f"User: {user_id} ({sn})\nFailed to toot: {tweettext}"
         email_error(err, bot, msg)
 
 
