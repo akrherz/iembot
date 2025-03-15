@@ -22,7 +22,7 @@ import requests
 import twitter
 from pyiem.reference import TWEET_CHARS
 from pyiem.util import utc
-from requests_oauthlib import OAuth1
+from requests_oauthlib import OAuth1, OAuth1Session
 from twisted.internet import reactor
 from twisted.mail import smtp
 from twisted.python import log
@@ -68,12 +68,17 @@ def tweet(bot, user_id, twttxt, **kwargs):
         bot.tw_users[user_id]["access_token"],
         bot.tw_users[user_id]["access_token_secret"],
     )
+    oauth = OAuth1Session(
+        bot.config["bot.twitter.consumerkey"],
+        bot.config["bot.twitter.consumersecret"],
+        bot.tw_users[user_id]["access_token"],
+        bot.tw_users[user_id]["access_token_secret"],
+    )
     log.msg(
         f"Tweeting {bot.tw_users[user_id]['screen_name']}({user_id}) "
         f"'{twttxt}' media:{kwargs.get('twitter_media')}"
     )
     media = kwargs.get("twitter_media")
-    media_id = None
 
     def _helper(params):
         """Wrap common stuff"""
@@ -92,9 +97,13 @@ def tweet(bot, user_id, twttxt, **kwargs):
         }
         # If we have media, we have some work to do!
         if media is not None:
-            media_id = api.UploadMediaSimple(media)
+            payload = requests.get(media, timeout=30).content
+            res = oauth.post(
+                "https://api.x.com/2/media/upload",
+                files={"media": (media, payload, "image/png")},
+            ).json()
             # string required
-            params["media"] = {"media_ids": [f"{media_id}"]}
+            params["media"] = {"media_ids": [f"{res['id']}"]}
         res = _helper(params)
     except TwitterError as exp:
         errcode = twittererror_exp_to_code(exp)
