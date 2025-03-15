@@ -55,6 +55,9 @@ def tweet(bot, user_id, twttxt, **kwargs):
     if user_id not in bot.tw_users:
         log.msg(f"tweet() called with unknown user_id: {user_id}")
         return None
+    if bot.tw_users[user_id]["access_token"] is None:
+        log.msg(f"tweet() called with no access token for {user_id}")
+        return None
     api = twitter.Api(
         consumer_key=bot.config["bot.twitter.consumerkey"],
         consumer_secret=bot.config["bot.twitter.consumersecret"],
@@ -645,12 +648,15 @@ def load_webhooks_from_db(txn, bot):
 
 def load_twitter_from_db(txn, bot):
     """Load twitter config from database"""
-    # Don't waste time by loading up subs from unauthed users
+    # Don't waste time by loading up subs from unauthed users, but we could
+    # have iem_owned accounts with bluesky only creds
     txn.execute(
-        f"select s.user_id, channel from {bot.name}_twitter_subs s "
-        "JOIN iembot_twitter_oauth o on (s.user_id = o.user_id) "
-        "WHERE s.user_id is not null and s.channel is not null "
-        "and o.access_token is not null and not o.disabled"
+        f"""
+    select s.user_id, channel from {bot.name}_twitter_subs s
+    JOIN iembot_twitter_oauth o on (s.user_id = o.user_id)
+    WHERE s.user_id is not null and s.channel is not null
+    and (o.iem_owned or (o.access_token is not null and not o.disabled))
+    """
     )
     twrt = {}
     for row in txn.fetchall():
@@ -663,11 +669,13 @@ def load_twitter_from_db(txn, bot):
 
     twusers = {}
     txn.execute(
-        "SELECT user_id, access_token, access_token_secret, screen_name, "
-        "iem_owned, at_handle, at_app_pass from "
-        "iembot_twitter_oauth WHERE access_token is not null and "
-        "access_token_secret is not null and user_id is not null and "
-        "screen_name is not null and not disabled"
+        """
+    SELECT user_id, access_token, access_token_secret, screen_name,
+    iem_owned, at_handle, at_app_pass from
+    iembot_twitter_oauth WHERE (iem_owned or (access_token is not null and
+    access_token_secret is not null)) and user_id is not null and
+    screen_name is not null and not disabled
+    """
     )
     for row in txn.fetchall():
         user_id = row["user_id"]
