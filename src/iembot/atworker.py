@@ -24,6 +24,7 @@ class ATWorkerThead(threading.Thread):
         self.queue = queue
         self.at_handle = at_handle
         self.at_password = at_password
+        self.logged_in = False
         self.client = Client()
         self.daemon = True  # Don't block on shutdown
 
@@ -39,9 +40,8 @@ class ATWorkerThead(threading.Thread):
                 self.process_message(message)
             except Exception as exp:
                 print(message)
-                print(exp)
-                # Invalidate session / set sentinal
-                self.client.me = None
+                log.err(exp)
+                self.logged_in = False
             self.queue.task_done()
 
     def process_message(self, msgdict: dict):
@@ -61,9 +61,11 @@ class ATWorkerThead(threading.Thread):
                 log.err(exp)
 
         # Do we need to login?
-        if self.client.me is None:
+        if not self.logged_in:
             log.msg(f"Logging in as {self.at_handle}...")
-            self.client.login(self.at_handle, self.at_password)
+            me = self.client.login(self.at_handle, self.at_password)
+            log.msg(repr(me))
+            self.logged_in = True
 
         msg = msgdict["msg"]
         if msg.find("http") > -1:
