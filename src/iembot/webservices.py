@@ -160,10 +160,7 @@ class RoomChannel(resource.Resource):
         seqnum = int(seqnum[0])
 
         r = {"messages": []}
-        if room not in self.iembot.chatlog:
-            log.msg(f"No CHATLOG |{room}|")
-            return self.wrap(request, json.dumps("ERROR"))
-        for entry in self.iembot.chatlog[room][::-1]:
+        for entry in self.iembot.chatlog.get(room, [])[::-1]:
             if entry.seqnum <= seqnum:
                 continue
             ts = datetime.datetime.strptime(entry.timestamp, "%Y%m%d%H%M%S")
