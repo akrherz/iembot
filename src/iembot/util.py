@@ -218,10 +218,11 @@ def channels_room_list(bot, room):
     Send a listing of channels that the room is subscribed to...
     @param room to list
     """
-    channels = []
-    for channel in bot.routingtable.keys():
-        if room in bot.routingtable[channel]:
-            channels.append(channel)
+    channels = [
+        channel
+        for channel in bot.routingtable.keys()
+        if room in bot.routingtable[channel]
+    ]
 
     # Need to add a space in the channels listing so that the string does
     # not get so long that it causes chat clients to bail
@@ -434,7 +435,7 @@ def disable_twitter_user(bot, user_id, errcode=0):
     return True
 
 
-def tweet_cb(response, bot, twttxt, room, myjid, user_id):
+def tweet_cb(response, bot, twttxt, _room, myjid, user_id):
     """
     Called after success going to twitter
     """
@@ -444,7 +445,7 @@ def tweet_cb(response, bot, twttxt, room, myjid, user_id):
     if twuser is None:
         return response
     if "data" not in response:
-        log.msg(f"Got response without data {repr(response)}")
+        log.msg(f"Got response without data {response}")
         return
     screen_name = twuser["screen_name"]
     url = f"https://twitter.com/{screen_name}/status/{response['data']['id']}"
@@ -524,7 +525,7 @@ def disable_mastodon_user(bot, user_id, errcode=0):
     return True
 
 
-def toot_cb(response, bot, twttxt, room, myjid, user_id):
+def toot_cb(response, bot, twttxt, _room, myjid, user_id):
     """
     Called after success going to Mastodon
     """
@@ -534,7 +535,7 @@ def toot_cb(response, bot, twttxt, room, myjid, user_id):
     if mduser is None:
         return response
     if "content" not in response:
-        log.msg(f"Got response without content {repr(response)}")
+        log.msg(f"Got response without content {response}")
         return
     mduser["screen_name"]
     url = response["url"]
@@ -871,7 +872,7 @@ def add_entry_to_rss(entry, rss):
         ltxt = "https://mesonet.agron.iastate.edu/projects/iembot/"
     fe = rss.add_entry(order="append")
     fe.title(txt[:urlpos].strip())
-    fe.link(link=dict(href=ltxt))
+    fe.link(link={"href": ltxt})
     txt = remove_control_characters(entry.product_text)
     fe.content(f"<pre>{htmlentities(txt)}</pre>", type="CDATA")
     fe.pubDate(ts.strftime("%a, %d %b %Y %H:%M:%S GMT"))

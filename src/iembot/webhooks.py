@@ -17,7 +17,6 @@ def route(bot, channels, elem):
       channels (list): channels for this message.
       elem: xish element.
     """
-    # {'DMX': [url, url, ...]}
     subs = [
         bot.webhooks_routingtable[channel]
         for channel in channels

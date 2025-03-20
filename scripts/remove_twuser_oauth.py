@@ -17,15 +17,15 @@ def main(argv):
         (screen_name,),
     )
     print(
-        ("Removed %s entries from the database for screen name '%s'")
-        % (cursor.rowcount, screen_name)
+        f"Removed {cursor.rowcount} entries from the database "
+        f"for screen name '{screen_name}'"
     )
     cursor.close()
     pgconn.commit()
 
     uri = "http://iembot:9003/reload"
     req = requests.get(uri, timeout=30)
-    print("reloading iembot %s" % (repr(req.content),))
+    print(f"reloading iembot {req.text}")
 
 
 if __name__ == "__main__":

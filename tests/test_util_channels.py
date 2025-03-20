@@ -2,6 +2,7 @@
 
 import pytest
 
+from iembot.basicbot import BasicBot
 from iembot.util import (
     channels_room_add,
     channels_room_del,
@@ -10,10 +11,10 @@ from iembot.util import (
 
 
 @pytest.mark.parametrize("database", ["mesosite"])
-def test_room_list(bot, dbcursor):
+def test_room_list(bot: BasicBot, dbcursor):
     """Test listing of channel subscriptions for the room."""
 
-    def _local(room, msg):
+    def _local(room, _msg):
         """Interception."""
         assert room == "test"
 

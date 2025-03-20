@@ -1,7 +1,6 @@
 """Chat bot implementation of IEMBot"""
 
 import datetime
-import re
 
 from twisted.internet import reactor
 from twisted.mail.smtp import SMTPSenderFactory
@@ -48,7 +47,7 @@ class JabberClient(BasicBot):
             self.send_groupchat(room, f"{res}: {self.get_fortune()}")
 
         # Look for bot commands
-        if re.match(r"^" f"{self.name}:", body):
+        if body.startswith(self.name):
             self.process_groupchat_cmd(room, res, body[7:].strip())
 
         # In order for the message to be logged, it needs to be from iembot
@@ -107,7 +106,6 @@ class JabberClient(BasicBot):
                 return
             if trip > 1:
                 log.msg(f"memcache lookup of {product_id} succeeded")
-            # log.msg("Got a response! res: %s" % (res, ))
             writelog(data.decode("ascii", "ignore"))
 
         def no_data(mixed):
@@ -127,7 +125,6 @@ class JabberClient(BasicBot):
         memcache_fetch(0)
 
     def processMessagePC(self, elem):
-        # log.msg("processMessagePC() called from %s...." % (elem['from'],))
         _from = jid.JID(elem["from"])
         if elem["from"] == self.config["bot.xmppdomain"]:
             log.msg("MESSAGE FROM SERVER?")
@@ -157,8 +154,6 @@ class JabberClient(BasicBot):
             # The body string contains
             channel = bstring.split(":", 1)[0]
             channels = [channel]
-            # Send to chatroom, clip body of channel notation
-            # elem.body.children[0] = meat
 
         # Always send to botstalk
         elem["to"] = f"botstalk@{self.config['bot.mucservice']}"

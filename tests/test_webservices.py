@@ -1,18 +1,15 @@
 """Try to test the webservices."""
 
 from iembot import webservices
-from iembot.basicbot import BasicBot
 
 
-def test_status():
+def test_status(bot):
     """Test the status renderer."""
-    bot = BasicBot("iembot", None, xml_log_path="/tmp")
     ss = webservices.StatusChannel(bot)
     assert ss.render(None) is not None
 
 
-def test_api():
+def test_api(bot):
     """Can we import API?"""
-    bot = BasicBot("iembot", None, xml_log_path="/tmp")
     res = webservices.wfo_rss(bot, "dmxchat")
     assert res is not None
