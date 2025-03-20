@@ -9,14 +9,14 @@ from twisted.python import log
 from twisted.words.protocols.jabber import jid
 from twisted.words.xish import xpath
 
-from iembot import basicbot
+from iembot.basicbot import ROOM_LOG_ENTRY, BasicBot
 from iembot.webhooks import route as webhooks_route
 
 # http://stackoverflow.com/questions/7016602
 SMTPSenderFactory.noisy = False
 
 
-class JabberClient(basicbot.basicbot):
+class JabberClient(BasicBot):
     """I am a Jabber Bot
 
     I provide some customizations that are not provided by basicbot, here are
@@ -81,7 +81,7 @@ class JabberClient(basicbot.basicbot):
                 product_text = "Sorry, product text is unavailable."
             roomlog.insert(
                 0,
-                basicbot.ROOM_LOG_ENTRY(
+                ROOM_LOG_ENTRY(
                     seqnum=self.next_seqnum(),
                     timestamp=ts.strftime("%Y%m%d%H%M%S"),
                     log=log_entry,

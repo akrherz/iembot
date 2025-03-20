@@ -11,7 +11,7 @@ from twitter.error import TwitterError
 
 # local
 import iembot.util as botutil
-from iembot.basicbot import basicbot
+from iembot.basicbot import BasicBot
 from iembot.iemchatbot import JabberClient
 
 
@@ -71,8 +71,8 @@ def test_util_toot():
 
 def test_load_chatlog():
     """Test our pickling fun."""
-    bot = JabberClient(None, None, xml_log_path="/tmp")
-    bot.PICKLEFILE = tempfile.mkstemp()[1]
+    bot = JabberClient("test", None, xml_log_path="/tmp")
+    bot.picklefile = tempfile.mkstemp()[1]
     bot.save_chatlog()
     botutil.load_chatlog(bot)
     assert bot.seqnum == 0
@@ -113,7 +113,7 @@ def test_load_chatrooms_fromdb(dbcursor):
 
 def test_daily_timestamp():
     """Does the daily timestamp algo return a deferred."""
-    bot = basicbot(None, None, xml_log_path="/tmp")
+    bot = BasicBot(None, None, xml_log_path="/tmp")
     assert botutil.daily_timestamp(bot) is not None
 
 

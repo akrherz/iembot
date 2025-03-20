@@ -2,13 +2,13 @@
 
 from unittest.mock import Mock
 
-from iembot.basicbot import basicbot
+from iembot.basicbot import BasicBot
 
 
 def test_authd_api():
     """Call authd."""
     dbpool = Mock()
-    bot = basicbot(None, dbpool, xml_log_path="/tmp/")
+    bot = BasicBot(None, dbpool, xml_log_path="/tmp/")
     xs = Mock()
     bot.connected(xs)
     bot.authd()

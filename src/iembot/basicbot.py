@@ -44,16 +44,15 @@ PRESENCE_MUC_STATUS = (
 )
 
 
-class basicbot:
+class BasicBot:
     """Here lies the Jabber Bot"""
-
-    PICKLEFILE = "iembot_chatlog_v2.pickle"
 
     def __init__(
         self, name, dbpool, memcache_client=None, xml_log_path="logs"
     ):
         """Constructor"""
         self.startup_time = utc()
+        self.picklefile = f"{name}_chatlog_v2.pickle"
         self.name = name
         self.dbpool = dbpool
         self.memcache_client = memcache_client
@@ -92,8 +91,8 @@ class basicbot:
 
     def save_chatlog(self):
         """called from a thread"""
-        log.msg(f"Saving CHATLOG to {self.PICKLEFILE}")
-        with open(self.PICKLEFILE, "wb") as fh:
+        log.msg(f"Saving CHATLOG to {self.picklefile}")
+        with open(self.picklefile, "wb") as fh:
             # unsure if deepcopy is necessary, but alas
             pickle.dump(copy.deepcopy(self.chatlog), fh)
 

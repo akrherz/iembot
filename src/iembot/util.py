@@ -575,7 +575,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
 
     Args:
       txn (dbtransaction): database cursor
-      bot (basicbot): the running bot instance
+      bot (BasicBot): the running bot instance
       always_join (boolean): do we force joining each room, regardless
     """
     # Load up the routingtable for bot products
@@ -743,11 +743,11 @@ def load_mastodon_from_db(txn, bot):
 
 def load_chatlog(bot):
     """load up our pickled chatlog"""
-    if not os.path.isfile(bot.PICKLEFILE):
-        log.msg(f"pickfile not found: {bot.PICKLEFILE}")
+    if not os.path.isfile(bot.picklefile):
+        log.msg(f"pickfile not found: {bot.picklefile}")
         return
     try:
-        with open(bot.PICKLEFILE, "rb") as fh:
+        with open(bot.picklefile, "rb") as fh:
             oldlog = pickle.load(fh)
         for rm in oldlog:
             rmlog = oldlog[rm]
@@ -759,7 +759,7 @@ def load_chatlog(bot):
             if seq is not None and int(seq) > bot.seqnum:
                 bot.seqnum = int(seq)
         log.msg(
-            f"Loaded CHATLOG pickle: {bot.PICKLEFILE}, seqnum: {bot.seqnum}"
+            f"Loaded CHATLOG pickle: {bot.picklefile}, seqnum: {bot.seqnum}"
         )
     except Exception as exp:
         log.err(exp)
