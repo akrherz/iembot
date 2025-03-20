@@ -15,11 +15,13 @@ import traceback
 from email.mime.text import MIMEText
 from html import unescape
 from io import BytesIO
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 import mastodon
 import requests
 import twitter
+from mastodon.errors import MastodonUnauthorizedError
 from pyiem.reference import TWEET_CHARS
 from pyiem.util import utc
 from requests_oauthlib import OAuth1, OAuth1Session
@@ -48,6 +50,24 @@ def at_send_message(bot, user_id, msg: str, **kwargs):
     message = {"msg": msg}
     message.update(kwargs)
     bot.at_manager.submit(at_handle, message)
+
+
+def _upload_media_to_twitter(oauth: OAuth1Session, url: str) -> Optional[str]:
+    """Upload Media to Twitter and return its ID"""
+    resp = requests.get(url, timeout=30)
+    if resp.status_code != 200:
+        log.msg(f"Fetching `{url}` got status_code: {resp.status_code}")
+        return None
+    payload = resp.content
+    resp = oauth.post(
+        "https://api.x.com/2/media/upload",
+        files={"media": (url, payload, "image/png")},
+    )
+    if resp.status_code != 200:
+        log.msg(f"Twitter API got status_code: {resp.status_code}")
+        return None
+    # string required
+    return str(resp.json()["id"])
 
 
 def tweet(bot, user_id, twttxt, **kwargs):
@@ -100,13 +120,9 @@ def tweet(bot, user_id, twttxt, **kwargs):
         }
         # If we have media, we have some work to do!
         if media is not None:
-            payload = requests.get(media, timeout=30).content
-            res = oauth.post(
-                "https://api.x.com/2/media/upload",
-                files={"media": (media, payload, "image/png")},
-            ).json()
-            # string required
-            params["media"] = {"media_ids": [f"{res['id']}"]}
+            media_id = _upload_media_to_twitter(oauth, media)
+            if media_id is not None:
+                params["media"] = {"media_ids": [media_id]}
         res = _helper(params)
     except TwitterError as exp:
         errcode = twittererror_exp_to_code(exp)
@@ -167,6 +183,10 @@ def toot(bot, user_id, twttxt, **kwargs):
             media_id = api.media_post(resp.raw, mime_type="image/png")
             params["media_ids"] = [media_id]
         res = api.status_post(**params)
+    except MastodonUnauthorizedError:
+        # Access token is no longer valid
+        disable_mastodon_user(bot, user_id)
+        return None
     except mastodon.errors.MastodonRatelimitError as exp:
         # Submitted too quickly
         log.err(exp)
