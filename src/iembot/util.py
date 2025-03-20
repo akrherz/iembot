@@ -15,11 +15,13 @@ import traceback
 from email.mime.text import MIMEText
 from html import unescape
 from io import BytesIO
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 import mastodon
 import requests
 import twitter
+from mastodon.errors import MastodonUnauthorizedError
 from pyiem.reference import TWEET_CHARS
 from pyiem.util import utc
 from requests_oauthlib import OAuth1, OAuth1Session
@@ -48,6 +50,24 @@ def at_send_message(bot, user_id, msg: str, **kwargs):
     message = {"msg": msg}
     message.update(kwargs)
     bot.at_manager.submit(at_handle, message)
+
+
+def _upload_media_to_twitter(oauth: OAuth1Session, url: str) -> Optional[str]:
+    """Upload Media to Twitter and return its ID"""
+    resp = requests.get(url, timeout=30)
+    if resp.status_code != 200:
+        log.msg(f"Fetching `{url}` got status_code: {resp.status_code}")
+        return None
+    payload = resp.content
+    resp = oauth.post(
+        "https://api.x.com/2/media/upload",
+        files={"media": (url, payload, "image/png")},
+    )
+    if resp.status_code != 200:
+        log.msg(f"Twitter API got status_code: {resp.status_code}")
+        return None
+    # string required
+    return str(resp.json()["id"])
 
 
 def tweet(bot, user_id, twttxt, **kwargs):
@@ -100,13 +120,9 @@ def tweet(bot, user_id, twttxt, **kwargs):
         }
         # If we have media, we have some work to do!
         if media is not None:
-            payload = requests.get(media, timeout=30).content
-            res = oauth.post(
-                "https://api.x.com/2/media/upload",
-                files={"media": (media, payload, "image/png")},
-            ).json()
-            # string required
-            params["media"] = {"media_ids": [f"{res['id']}"]}
+            media_id = _upload_media_to_twitter(oauth, media)
+            if media_id is not None:
+                params["media"] = {"media_ids": [media_id]}
         res = _helper(params)
     except TwitterError as exp:
         errcode = twittererror_exp_to_code(exp)
@@ -167,6 +183,10 @@ def toot(bot, user_id, twttxt, **kwargs):
             media_id = api.media_post(resp.raw, mime_type="image/png")
             params["media_ids"] = [media_id]
         res = api.status_post(**params)
+    except MastodonUnauthorizedError:
+        # Access token is no longer valid
+        disable_mastodon_user(bot, user_id)
+        return None
     except mastodon.errors.MastodonRatelimitError as exp:
         # Submitted too quickly
         log.err(exp)
@@ -198,10 +218,11 @@ def channels_room_list(bot, room):
     Send a listing of channels that the room is subscribed to...
     @param room to list
     """
-    channels = []
-    for channel in bot.routingtable.keys():
-        if room in bot.routingtable[channel]:
-            channels.append(channel)
+    channels = [
+        channel
+        for channel in bot.routingtable.keys()
+        if room in bot.routingtable[channel]
+    ]
 
     # Need to add a space in the channels listing so that the string does
     # not get so long that it causes chat clients to bail
@@ -414,7 +435,7 @@ def disable_twitter_user(bot, user_id, errcode=0):
     return True
 
 
-def tweet_cb(response, bot, twttxt, room, myjid, user_id):
+def tweet_cb(response, bot, twttxt, _room, myjid, user_id):
     """
     Called after success going to twitter
     """
@@ -424,7 +445,7 @@ def tweet_cb(response, bot, twttxt, room, myjid, user_id):
     if twuser is None:
         return response
     if "data" not in response:
-        log.msg(f"Got response without data {repr(response)}")
+        log.msg(f"Got response without data {response}")
         return
     screen_name = twuser["screen_name"]
     url = f"https://twitter.com/{screen_name}/status/{response['data']['id']}"
@@ -504,7 +525,7 @@ def disable_mastodon_user(bot, user_id, errcode=0):
     return True
 
 
-def toot_cb(response, bot, twttxt, room, myjid, user_id):
+def toot_cb(response, bot, twttxt, _room, myjid, user_id):
     """
     Called after success going to Mastodon
     """
@@ -514,7 +535,7 @@ def toot_cb(response, bot, twttxt, room, myjid, user_id):
     if mduser is None:
         return response
     if "content" not in response:
-        log.msg(f"Got response without content {repr(response)}")
+        log.msg(f"Got response without content {response}")
         return
     mduser["screen_name"]
     url = response["url"]
@@ -555,7 +576,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
 
     Args:
       txn (dbtransaction): database cursor
-      bot (basicbot): the running bot instance
+      bot (BasicBot): the running bot instance
       always_join (boolean): do we force joining each room, regardless
     """
     # Load up the routingtable for bot products
@@ -723,11 +744,11 @@ def load_mastodon_from_db(txn, bot):
 
 def load_chatlog(bot):
     """load up our pickled chatlog"""
-    if not os.path.isfile(bot.PICKLEFILE):
-        log.msg(f"pickfile not found: {bot.PICKLEFILE}")
+    if not os.path.isfile(bot.picklefile):
+        log.msg(f"pickfile not found: {bot.picklefile}")
         return
     try:
-        with open(bot.PICKLEFILE, "rb") as fh:
+        with open(bot.picklefile, "rb") as fh:
             oldlog = pickle.load(fh)
         for rm in oldlog:
             rmlog = oldlog[rm]
@@ -739,7 +760,7 @@ def load_chatlog(bot):
             if seq is not None and int(seq) > bot.seqnum:
                 bot.seqnum = int(seq)
         log.msg(
-            f"Loaded CHATLOG pickle: {bot.PICKLEFILE}, seqnum: {bot.seqnum}"
+            f"Loaded CHATLOG pickle: {bot.picklefile}, seqnum: {bot.seqnum}"
         )
     except Exception as exp:
         log.err(exp)
@@ -851,7 +872,7 @@ def add_entry_to_rss(entry, rss):
         ltxt = "https://mesonet.agron.iastate.edu/projects/iembot/"
     fe = rss.add_entry(order="append")
     fe.title(txt[:urlpos].strip())
-    fe.link(link=dict(href=ltxt))
+    fe.link(link={"href": ltxt})
     txt = remove_control_characters(entry.product_text)
     fe.content(f"<pre>{htmlentities(txt)}</pre>", type="CDATA")
     fe.pubDate(ts.strftime("%a, %d %b %Y %H:%M:%S GMT"))

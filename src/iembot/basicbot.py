@@ -6,9 +6,9 @@ import pickle
 import random
 import re
 import traceback
-from collections import namedtuple
 from datetime import timedelta
 from io import StringIO
+from typing import NamedTuple
 from xml.etree import ElementTree as ET
 
 from pyiem.util import utc
@@ -24,18 +24,18 @@ import iembot.util as botutil
 from iembot.atworker import ATManager
 
 DATADIR = os.sep.join([os.path.dirname(__file__), "data"])
-ROOM_LOG_ENTRY = namedtuple(
-    "ROOM_LOG_ENTRY",
-    [
-        "seqnum",
-        "timestamp",
-        "log",
-        "author",
-        "product_id",
-        "product_text",
-        "txtlog",
-    ],
-)
+
+
+class ROOM_LOG_ENTRY(NamedTuple):
+    seqnum: int
+    timestamp: str
+    log: str
+    author: str
+    product_id: str
+    product_text: str
+    txtlog: str
+
+
 PRESENCE_MUC_ITEM = (
     "/presence/x[@xmlns='http://jabber.org/protocol/muc#user']/item"
 )
@@ -44,16 +44,15 @@ PRESENCE_MUC_STATUS = (
 )
 
 
-class basicbot:
+class BasicBot:
     """Here lies the Jabber Bot"""
-
-    PICKLEFILE = "iembot_chatlog_v2.pickle"
 
     def __init__(
         self, name, dbpool, memcache_client=None, xml_log_path="logs"
     ):
         """Constructor"""
         self.startup_time = utc()
+        self.picklefile = f"{name}_chatlog_v2.pickle"
         self.name = name
         self.dbpool = dbpool
         self.memcache_client = memcache_client
@@ -81,7 +80,7 @@ class basicbot:
         self.email_timestamps = []
         self.keepalive_lc = None  # Keepalive LoopingCall
         fn = os.path.join(DATADIR, "startrek")
-        with open(fn, "r", encoding="utf-8") as fp:
+        with open(fn, encoding="utf-8") as fp:
             self.fortunes = fp.read().split("\n%\n")
         botutil.load_chatlog(self)
 
@@ -92,8 +91,8 @@ class basicbot:
 
     def save_chatlog(self):
         """called from a thread"""
-        log.msg(f"Saving CHATLOG to {self.PICKLEFILE}")
-        with open(self.PICKLEFILE, "wb") as fh:
+        log.msg(f"Saving CHATLOG to {self.picklefile}")
+        with open(self.picklefile, "wb") as fh:
             # unsure if deepcopy is necessary, but alas
             pickle.dump(copy.deepcopy(self.chatlog), fh)
 
@@ -452,7 +451,6 @@ class basicbot:
             </x>
         </presence>
         """
-        # log.msg("presence_processor() called")
         items = xpath.queryForNodes(PRESENCE_MUC_ITEM, elem)
         if items is None:
             return
@@ -510,7 +508,7 @@ class basicbot:
 
         @param elem: domish.Element stanza to process
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def send_help_message(self, user):
         """
@@ -557,9 +555,9 @@ class basicbot:
         )
         self.xmlstream.send(message)
 
-    def processMessageGC(self, elem):  # pylint: disable=unused-argument
+    def processMessageGC(self, _elem):
         """override me please"""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def message_processor(self, elem):
         """
@@ -643,15 +641,15 @@ class basicbot:
         _jid = self.rooms[room]["occupants"][res]["jid"]
 
         # Support legacy ping, return as done
-        if re.match(r"^ping", cmd, re.I):
+        if re.match(r"^ping", cmd, re.IGNORECASE):
             self.send_groupchat(room, f"{res}: pong")
 
         # Listing of channels is not admin privs
-        elif re.match(r"^channels list", cmd, re.I):
+        elif re.match(r"^channels list", cmd, re.IGNORECASE):
             botutil.channels_room_list(self, room)
 
         # Add a channel to the room's subscriptions
-        elif re.match(r"^channels add", cmd, re.I):
+        elif re.match(r"^channels add", cmd, re.IGNORECASE):
             add_channel = cmd[12:].strip().upper()
             if aff in ["owner", "admin"]:
                 if len(add_channel) < 24:
@@ -673,7 +671,7 @@ class basicbot:
                 self.send_groupchat(room, err)
 
         # Del a channel to the room's subscriptions
-        elif re.match(r"^channels del", cmd, re.I):
+        elif re.match(r"^channels del", cmd, re.IGNORECASE):
             if aff in ["owner", "admin"]:
                 df = self.dbpool.runInteraction(
                     botutil.channels_room_del, self, room, cmd[12:]
@@ -686,7 +684,7 @@ class basicbot:
                 self.send_groupchat(room, err)
 
         # Look for users request
-        elif re.match(r"^users", cmd, re.I):
+        elif re.match(r"^users", cmd, re.IGNORECASE):
             if _jid is None:
                 err = "Sorry, I am not able to see room occupants."
                 self.send_groupchat(room, err)

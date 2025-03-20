@@ -39,7 +39,6 @@ class ATWorkerThead(threading.Thread):
             try:
                 self.process_message(message)
             except Exception as exp:
-                print(message)
                 log.err(exp)
                 self.logged_in = False
             self.queue.task_done()

@@ -1,6 +1,5 @@
 """Some random tests"""
 
-from iembot.basicbot import basicbot
 from iembot.util import safe_twitter_text
 
 
@@ -19,8 +18,7 @@ def test_twittertext():
     )
 
 
-def test_xml():
-    bot = basicbot("testbot", None, xml_log_path="/tmp")
+def test_xml(bot):
     msg = bot.send_groupchat("roomname", "Hello Friend")
     assert msg is not None
 

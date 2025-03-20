@@ -139,7 +139,7 @@ class RoomChannel(resource.Resource):
         """Support specification of a JSONP callback"""
         if "callback" in request.args:
             request.setHeader("Content-type", "application/javascript")
-            return (f"{request.args['callback'][0]}({j});").encode("utf-8")
+            return (f"{request.args['callback'][0]}({j});").encode()
         return j.encode("utf-8")
 
     def render(self, request):
@@ -159,11 +159,8 @@ class RoomChannel(resource.Resource):
             return self.wrap(request, json.dumps("ERROR"))
         seqnum = int(seqnum[0])
 
-        r = dict(messages=[])
-        if room not in self.iembot.chatlog:
-            log.msg(f"No CHATLOG |{room}|")
-            return self.wrap(request, json.dumps("ERROR"))
-        for entry in self.iembot.chatlog[room][::-1]:
+        r = {"messages": []}
+        for entry in self.iembot.chatlog.get(room, [])[::-1]:
             if entry.seqnum <= seqnum:
                 continue
             ts = datetime.datetime.strptime(entry.timestamp, "%Y%m%d%H%M%S")
@@ -192,7 +189,7 @@ class ReloadChannel(resource.Resource):
         resource.Resource.__init__(self)
         self.iembot = iembot
 
-    def render(self, request):
+    def render(self, _request):
         log.msg("Reloading iembot room configuration....")
         self.iembot.load_chatrooms(False)
         self.iembot.load_twitter()
