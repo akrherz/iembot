@@ -15,7 +15,6 @@ import traceback
 from email.mime.text import MIMEText
 from html import unescape
 from io import BytesIO
-from typing import Optional
 from zoneinfo import ZoneInfo
 
 import mastodon
@@ -52,7 +51,7 @@ def at_send_message(bot, user_id, msg: str, **kwargs):
     bot.at_manager.submit(at_handle, message)
 
 
-def _upload_media_to_twitter(oauth: OAuth1Session, url: str) -> Optional[str]:
+def _upload_media_to_twitter(oauth: OAuth1Session, url: str) -> str | None:
     """Upload Media to Twitter and return its ID"""
     resp = requests.get(url, timeout=30)
     if resp.status_code != 200:
