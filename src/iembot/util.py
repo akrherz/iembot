@@ -60,13 +60,19 @@ def _upload_media_to_twitter(oauth: OAuth1Session, url: str) -> str | None:
     payload = resp.content
     resp = oauth.post(
         "https://api.x.com/2/media/upload",
+        data={"media_category": "tweet_image"},
         files={"media": (url, payload, "image/png")},
     )
     if resp.status_code != 200:
-        log.msg(f"Twitter API got status_code: {resp.status_code}")
+        log.msg(f"X API got status_code: {resp.status_code} {resp.content}")
         return None
     # string required
-    return str(resp.json()["id"])
+    jresponse = resp.json()
+    media_id = jresponse.get("data", {}).get("id")
+    if media_id is None:
+        log.msg(f"X API response did not contain id: {jresponse}")
+        return None
+    return str(media_id)
 
 
 def tweet(bot, user_id, twttxt, **kwargs):
