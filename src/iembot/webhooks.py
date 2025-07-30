@@ -26,9 +26,12 @@ def route(bot, channels, elem):
         return
     data = {"text": str(elem.body)}
     postdata = json.dumps(data).encode("utf-8", "ignore")
+    used = []
     for hooks in subs:
         for hook in hooks:
-            log.msg(hook)
+            if hook in used:
+                continue
+            used.append(hook)
             bp = FileBodyProducer(BytesIO(postdata))
             defer = Agent(reactor).request(
                 method=b"POST",
