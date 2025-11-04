@@ -32,7 +32,7 @@ from twitter.error import TwitterError
 
 import iembot
 
-TWEET_API = "https://api.twitter.com/2/tweets"
+TWEET_API = "https://api.x.com/2/tweets"
 # 89: Expired token, so we shall revoke for now
 # 185: User is over quota
 # 226: Twitter thinks this tweeting user is spammy, le sigh
@@ -453,7 +453,7 @@ def tweet_cb(response, bot, twttxt, _room, myjid, user_id):
         log.msg(f"Got response without data {response}")
         return
     screen_name = twuser["screen_name"]
-    url = f"https://twitter.com/{screen_name}/status/{response['data']['id']}"
+    url = f"https://x.com/{screen_name}/status/{response['data']['id']}"
 
     # Log
     df = bot.dbpool.runOperation(
