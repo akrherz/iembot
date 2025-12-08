@@ -814,20 +814,6 @@ def safe_twitter_text(text):
     return text[:TWEET_CHARS]
 
 
-def html_encode(s):
-    """Convert stuff in nws text to entities"""
-    htmlCodes = (
-        ("'", "&#39;"),
-        ('"', "&quot;"),
-        (">", "&gt;"),
-        ("<", "&lt;"),
-        ("&", "&amp;"),
-    )
-    for code in htmlCodes:
-        s = s.replace(code[0], code[1])
-    return s
-
-
 def htmlentities(text):
     """Escape chars in the text for HTML presentation
 

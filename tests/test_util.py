@@ -16,20 +16,6 @@ from iembot.basicbot import BasicBot
 from iembot.iemchatbot import JabberClient
 
 
-def test_html_encode():
-    """Test html_encode function.
-
-    Note: This function has a quirk where & is processed last, so entities
-    containing & get double-encoded. htmlentities() is the preferred function.
-    """
-    # Due to the ordering bug, all replacements get double-encoded
-    assert botutil.html_encode(">") == "&amp;gt;"
-    assert botutil.html_encode("<") == "&amp;lt;"
-    assert botutil.html_encode("&") == "&amp;"
-    # Plain text without special chars works fine
-    assert botutil.html_encode("test") == "test"
-
-
 def test_remove_control_characters():
     """Test remove_control_characters function."""
     # Test control characters are removed
