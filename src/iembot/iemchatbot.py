@@ -1,7 +1,6 @@
 """Chat bot implementation of IEMBot"""
 
-import datetime
-
+from pyiem.util import utc
 from twisted.internet import reactor
 from twisted.mail.smtp import SMTPSenderFactory
 from twisted.python import log
@@ -60,7 +59,7 @@ class JabberClient(BasicBot):
             return
 
         roomlog = self.chatlog.setdefault(room, [])
-        ts = datetime.datetime.utcnow()
+        ts = utc()
 
         product_id = ""
         if elem.x and elem.x.hasAttribute("product_id"):
