@@ -1,8 +1,8 @@
 """Our web services"""
 
-import datetime
 import json
 import re
+from datetime import datetime
 
 from feedgen.feed import FeedGenerator
 from pyiem.util import utc
@@ -95,11 +95,7 @@ class RSSService(resource.Resource):
                 href="http://mesonet.agron.iastate.edu/projects/iembot/",
                 rel="self",
             )
-            fe.pubDate(
-                datetime.datetime.utcnow().strftime(
-                    "%a, %d %b %Y %H:%M:%S GMT"
-                )
-            )
+            fe.pubDate(utc().strftime("%a, %d %b %Y %H:%M:%S GMT"))
             xml = rss.rss_str()
         else:
             xml = wfo_rss(self.iembot, rm)
@@ -163,7 +159,7 @@ class RoomChannel(resource.Resource):
         for entry in self.iembot.chatlog.get(room, [])[::-1]:
             if entry.seqnum <= seqnum:
                 continue
-            ts = datetime.datetime.strptime(entry.timestamp, "%Y%m%d%H%M%S")
+            ts = datetime.strptime(entry.timestamp, "%Y%m%d%H%M%S")
             r["messages"].append(
                 {
                     "seqnum": entry.seqnum,

@@ -15,4 +15,4 @@ refactoring during July 2018 and may be a bit more usable for others.
 
 For examples of start scripts, see `iembot` within [Weather.IM codebase](https://github.com/akrherz/weather.im/tree/master/iembot).
 
-Requires and tested on Python 3.8 through 3.10.
+Requires and tested on Python 3.10 through 3.14.
