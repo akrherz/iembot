@@ -1,5 +1,6 @@
 """Tests, gasp"""
 
+import os
 import tempfile
 from unittest import mock
 
@@ -13,6 +14,328 @@ from twitter.error import TwitterError
 import iembot.util as botutil
 from iembot.basicbot import BasicBot
 from iembot.iemchatbot import JabberClient
+
+
+def test_html_encode():
+    """Test html_encode function.
+
+    Note: This function has a quirk where & is processed last, so entities
+    containing & get double-encoded. htmlentities() is the preferred function.
+    """
+    # Due to the ordering bug, all replacements get double-encoded
+    assert botutil.html_encode(">") == "&amp;gt;"
+    assert botutil.html_encode("<") == "&amp;lt;"
+    assert botutil.html_encode("&") == "&amp;"
+    # Plain text without special chars works fine
+    assert botutil.html_encode("test") == "test"
+
+
+def test_remove_control_characters():
+    """Test remove_control_characters function."""
+    # Test control characters are removed
+    assert botutil.remove_control_characters("hello\x00world") == "helloworld"
+    assert botutil.remove_control_characters("test\x07data") == "testdata"
+    assert botutil.remove_control_characters("clean text") == "clean text"
+    # Tab and newline should be preserved (not in the removed range)
+    assert botutil.remove_control_characters("tab\there") == "tab\there"
+
+
+def test_at_send_message_unknown_user():
+    """Test at_send_message with unknown user."""
+    bot = mock.Mock()
+    bot.tw_users = {}
+    # Should not raise an error
+    botutil.at_send_message(bot, "unknown_user", "test message")
+
+
+def test_at_send_message_no_handle():
+    """Test at_send_message with user that has no at_handle."""
+    bot = mock.Mock()
+    bot.tw_users = {"123": {"at_handle": None}}
+    # Should not raise an error
+    botutil.at_send_message(bot, "123", "test message")
+
+
+def test_at_send_message_with_handle():
+    """Test at_send_message with valid at_handle."""
+    bot = mock.Mock()
+    bot.tw_users = {"123": {"at_handle": "test.bsky.social"}}
+    botutil.at_send_message(bot, "123", "test message", extra_key="value")
+    bot.at_manager.submit.assert_called_once_with(
+        "test.bsky.social", {"msg": "test message", "extra_key": "value"}
+    )
+
+
+def test_disable_twitter_user_unknown():
+    """Test disable_twitter_user with unknown user."""
+    bot = mock.Mock()
+    bot.tw_users = {}
+    assert botutil.disable_twitter_user(bot, "unknown") is False
+
+
+def test_disable_twitter_user_iem_owned():
+    """Test disable_twitter_user with IEM owned account."""
+    bot = mock.Mock()
+    bot.tw_users = {"123": {"screen_name": "iembot", "iem_owned": True}}
+    assert botutil.disable_twitter_user(bot, "123") is False
+
+
+def test_disable_twitter_user_success():
+    """Test disable_twitter_user with valid user."""
+    bot = mock.Mock()
+    bot.name = "iembot"
+    bot.tw_users = {"123": {"screen_name": "testuser", "iem_owned": False}}
+    bot.dbpool.runOperation.return_value = mock.Mock()
+    result = botutil.disable_twitter_user(bot, "123", errcode=185)
+    assert result is True
+    assert "123" not in bot.tw_users
+
+
+def test_disable_mastodon_user_unknown():
+    """Test disable_mastodon_user with unknown user."""
+    bot = mock.Mock()
+    bot.md_users = {}
+    assert botutil.disable_mastodon_user(bot, "unknown") is False
+
+
+def test_disable_mastodon_user_iem_owned():
+    """Test disable_mastodon_user with IEM owned account."""
+    bot = mock.Mock()
+    bot.md_users = {"123": {"screen_name": "iembot", "iem_owned": True}}
+    assert botutil.disable_mastodon_user(bot, "123") is False
+
+
+def test_disable_mastodon_user_success():
+    """Test disable_mastodon_user with valid user."""
+    bot = mock.Mock()
+    bot.name = "iembot"
+    bot.md_users = {"123": {"screen_name": "testuser", "iem_owned": False}}
+    bot.dbpool.runOperation.return_value = mock.Mock()
+    result = botutil.disable_mastodon_user(bot, "123", errcode=401)
+    assert result is True
+    assert "123" not in bot.md_users
+
+
+def test_purge_logs(tmp_path):
+    """Test purge_logs function."""
+    bot = mock.Mock()
+    bot.config = {"bot.purge_xmllog_days": "1"}
+    # Create a temporary log directory
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    # Create an old log file that should be deleted
+    old_log = log_dir / "xmllog.2020_01_01"
+    old_log.touch()
+    # Create a recent log file that should be kept
+    recent_log = log_dir / "xmllog.2099_01_01"
+    recent_log.touch()
+
+    # Change to temp directory so glob works
+    orig_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        botutil.purge_logs(bot)
+        assert not old_log.exists()
+        assert recent_log.exists()
+    finally:
+        os.chdir(orig_cwd)
+
+
+def test_channels_room_list():
+    """Test channels_room_list."""
+    bot = mock.Mock()
+    bot.routingtable = {
+        "ABC": ["room1", "room2"],
+        "DEF": ["room1"],
+        "GHI": ["room3"],
+    }
+    botutil.channels_room_list(bot, "room1")
+    bot.send_groupchat.assert_called_once()
+    call_args = bot.send_groupchat.call_args
+    assert "room1" in call_args[0][0]
+    assert "2 channels" in call_args[0][1]
+
+
+def test_safe_twitter_text_long_with_url():
+    """Test safe_twitter_text with long text and URL."""
+    url = "https://example.com/very/long/path"
+    # Create a message that's over the limit
+    msg = "A" * 300 + " " + url
+    result = botutil.safe_twitter_text(msg)
+    assert url in result
+    assert "..." in result
+
+
+def test_safe_twitter_text_sections():
+    """Test safe_twitter_text with for/till pattern."""
+    url = "https://example.com/alert"
+    msg = (
+        "Tornado Warning for Very Long County Name and Another County Name "
+        "till 3:00 PM CDT " + url
+    )
+    result = botutil.safe_twitter_text(msg)
+    assert url in result
+
+
+def test_safe_twitter_text_double_spaces():
+    """Test safe_twitter_text removes double spaces."""
+    msg = "Hello  World   Test"
+    result = botutil.safe_twitter_text(msg)
+    assert result == "Hello World Test"
+
+
+def test_safe_twitter_text_no_url():
+    """Test safe_twitter_text with no URL and under limit."""
+    msg = "Short message without URL"
+    result = botutil.safe_twitter_text(msg)
+    assert result == msg
+
+
+def test_safe_twitter_text_url_only_counts_25():
+    """Test that URL counts as 25 chars for limit calculation."""
+    # 250 chars + 25 for URL = 275, under 280
+    msg = "A" * 250 + " https://example.com"
+    result = botutil.safe_twitter_text(msg)
+    assert result == msg
+
+
+def test_twitter_errback_disable_code():
+    """Test twitter_errback with disable code."""
+    from twitter.error import TwitterError
+
+    bot = mock.Mock()
+    bot.tw_users = {"123": {"screen_name": "test", "iem_owned": False}}
+    bot.dbpool.runOperation.return_value = mock.Mock()
+    err = TwitterError("[{'code': 89, 'message': 'Expired token'}]")
+    botutil.twitter_errback(err, bot, "123", "test tweet")
+    # User should be disabled
+    assert "123" not in bot.tw_users
+
+
+def test_twitter_errback_other_error():
+    """Test twitter_errback with non-disable error."""
+    from twitter.error import TwitterError
+
+    bot = mock.Mock()
+    bot.tw_users = {"456": {"screen_name": "test", "iem_owned": False}}
+    err = TwitterError("Some other error")
+    with mock.patch.object(botutil, "email_error") as mock_email:
+        botutil.twitter_errback(err, bot, "456", "test tweet")
+    # User should still exist
+    assert "456" in bot.tw_users
+    # email_error should have been called
+    mock_email.assert_called_once()
+
+
+def test_mastodon_errback_not_found():
+    """Test mastodon_errback with 404 error."""
+    import mastodon
+
+    bot = mock.Mock()
+    bot.md_users = {"123": {"screen_name": "test", "iem_owned": False}}
+    bot.dbpool.runOperation.return_value = mock.Mock()
+    err = mastodon.errors.MastodonNotFoundError("Not found")
+    botutil.mastodon_errback(err, bot, "123", "test toot")
+    # User should be disabled
+    assert "123" not in bot.md_users
+
+
+def test_mastodon_errback_unauthorized():
+    """Test mastodon_errback with 401 error."""
+    import mastodon
+
+    bot = mock.Mock()
+    bot.md_users = {"123": {"screen_name": "test", "iem_owned": False}}
+    bot.dbpool.runOperation.return_value = mock.Mock()
+    err = mastodon.errors.MastodonUnauthorizedError("Unauthorized")
+    botutil.mastodon_errback(err, bot, "123", "test toot")
+    # User should be disabled
+    assert "123" not in bot.md_users
+
+
+def test_tweet_cb_no_response():
+    """Test tweet_cb with None response."""
+    bot = mock.Mock()
+    result = botutil.tweet_cb(None, bot, "text", "room", "jid", "123")
+    assert result is None
+
+
+def test_tweet_cb_no_user():
+    """Test tweet_cb with unknown user."""
+    bot = mock.Mock()
+    bot.tw_users = {}
+    result = botutil.tweet_cb(
+        {"data": {"id": "123"}}, bot, "text", "room", "jid", "999"
+    )
+    assert result == {"data": {"id": "123"}}
+
+
+def test_tweet_cb_no_data():
+    """Test tweet_cb with response missing data."""
+    bot = mock.Mock()
+    bot.tw_users = {"123": {"screen_name": "test"}}
+    result = botutil.tweet_cb(
+        {"error": "bad"}, bot, "text", "room", "jid", "123"
+    )
+    assert result is None
+
+
+def test_tweet_cb_success():
+    """Test tweet_cb with successful response."""
+    bot = mock.Mock()
+    bot.name = "iembot"
+    bot.tw_users = {"123": {"screen_name": "testuser"}}
+    bot.dbpool.runOperation.return_value = mock.Mock()
+    response = {"data": {"id": "tweet123"}}
+    result = botutil.tweet_cb(response, bot, "text", "room", "jid", "123")
+    assert result == response
+    bot.dbpool.runOperation.assert_called_once()
+
+
+def test_toot_cb_no_response():
+    """Test toot_cb with None response."""
+    bot = mock.Mock()
+    result = botutil.toot_cb(None, bot, "text", "room", "jid", "123")
+    assert result is None
+
+
+def test_toot_cb_no_user():
+    """Test toot_cb with unknown user."""
+    bot = mock.Mock()
+    bot.md_users = {}
+    result = botutil.toot_cb(
+        {"content": "test"}, bot, "text", "room", "jid", "999"
+    )
+    assert result == {"content": "test"}
+
+
+def test_toot_cb_no_content():
+    """Test toot_cb with response missing content."""
+    bot = mock.Mock()
+    bot.md_users = {"123": {"screen_name": "test"}}
+    result = botutil.toot_cb(
+        {"error": "bad"}, bot, "text", "room", "jid", "123"
+    )
+    assert result is None
+
+
+def test_toot_cb_success():
+    """Test toot_cb with successful response."""
+    bot = mock.Mock()
+    bot.name = "iembot"
+    bot.md_users = {"123": {"screen_name": "testuser"}}
+    bot.dbpool.runOperation.return_value = mock.Mock()
+    response = {
+        "content": "test",
+        "url": "https://mastodon.social/@test/123",
+        "account": {},
+    }
+    result = botutil.toot_cb(response, bot, "text", "room", "jid", "123")
+    assert result == {
+        "content": "test",
+        "url": "https://mastodon.social/@test/123",
+    }
+    bot.dbpool.runOperation.assert_called_once()
 
 
 @pytest.mark.parametrize("database", ["mesosite"])
