@@ -187,8 +187,6 @@ def test_safe_twitter_text_url_only_counts_25():
 
 def test_twitter_errback_disable_code():
     """Test twitter_errback with disable code."""
-    from twitter.error import TwitterError
-
     bot = mock.Mock()
     bot.tw_users = {"123": {"screen_name": "test", "iem_owned": False}}
     bot.dbpool.runOperation.return_value = mock.Mock()
@@ -200,8 +198,6 @@ def test_twitter_errback_disable_code():
 
 def test_twitter_errback_other_error():
     """Test twitter_errback with non-disable error."""
-    from twitter.error import TwitterError
-
     bot = mock.Mock()
     bot.tw_users = {"456": {"screen_name": "test", "iem_owned": False}}
     err = TwitterError("Some other error")
