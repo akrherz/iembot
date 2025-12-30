@@ -4,7 +4,7 @@ dependencies:
  - httpx
  - twisted>=18.4.0
  - psycopg
- - pyiem
+ - pyiem>=1.26
  - pytest
  - pytest-cov
  - pytest-runner
