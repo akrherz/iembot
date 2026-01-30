@@ -1,13 +1,14 @@
 """Chat bot implementation of IEMBot"""
 
 from pyiem.util import utc
-from twisted.internet import reactor
+from twisted.internet import reactor, threads
 from twisted.mail.smtp import SMTPSenderFactory
 from twisted.python import log
 from twisted.words.protocols.jabber import jid
 from twisted.words.xish import xpath
 
 from iembot.basicbot import ROOM_LOG_ENTRY, BasicBot
+from iembot.slack import send_to_slack
 from iembot.webhooks import route as webhooks_route
 
 # http://stackoverflow.com/questions/7016602
@@ -161,6 +162,7 @@ class JabberClient(BasicBot):
 
         alertedRooms = []
         alertedPages = []
+        alertedSlacks = []
         for channel in channels:
             for room in self.routingtable.get(channel, []):
                 if room in alertedRooms:
@@ -197,6 +199,16 @@ class JabberClient(BasicBot):
                     latitude=lat,
                     longitude=long,
                 )
+            for slack_key in self.slack_routingtable.get(channel, []):
+                if slack_key in alertedSlacks:
+                    continue
+                alertedSlacks.append(slack_key)
+                log.msg("Attempting slack send...")
+                d = threads.deferToThread(
+                    send_to_slack, self, *slack_key.split("|"), elem
+                )
+                d.addErrback(log.msg)
+
             for user_id in self.md_routingtable.get(channel, []):
                 if user_id not in self.md_users:
                     log.msg(
