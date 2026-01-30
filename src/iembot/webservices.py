@@ -10,7 +10,6 @@ from twisted.internet import reactor
 from twisted.python import log
 from twisted.web import resource
 
-# Local
 import iembot.util as botutil
 
 XML_CACHE = {}
@@ -191,6 +190,7 @@ class ReloadChannel(resource.Resource):
         self.iembot.load_twitter()
         self.iembot.load_mastodon()
         self.iembot.load_webhooks()
+        self.iembot.load_slack()
         return json.dumps("OK").encode("utf-8")
 
 

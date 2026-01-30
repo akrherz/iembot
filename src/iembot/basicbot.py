@@ -22,6 +22,7 @@ from twisted.words.xish import domish, xpath
 
 import iembot.util as botutil
 from iembot.atworker import ATManager
+from iembot.slack import load_slack_from_db
 
 DATADIR = os.sep.join([os.path.dirname(__file__), "data"])
 
@@ -70,6 +71,10 @@ class BasicBot:
         # Storage by user_id => {access_token: ..., api_base_url: ...}
         self.md_users = {}
         self.md_routingtable = {}  # Storage by channel => [user_id, ]
+        # Slack integration
+        self.slack_teams = {}
+        self.slack_routingtable = {}
+        # Webhooks integration
         self.webhooks_routingtable = {}
         self.xmlstream = None
         self.firstlogin = False
@@ -113,6 +118,7 @@ class BasicBot:
         self.load_mastodon()
         self.load_chatrooms(True)
         self.load_webhooks()
+        self.load_slack()
 
         # Start the keepalive loop
         if self.keepalive_lc is None:
@@ -145,6 +151,12 @@ class BasicBot:
         log.msg("load_twitter() called...")
         df = self.dbpool.runInteraction(botutil.load_twitter_from_db, self)
         df.addErrback(botutil.email_error, self, "load_twitter() failure")
+
+    def load_slack(self):
+        """Load the slack subscriptions and access tokens"""
+        log.msg("load_slack() called...")
+        df = self.dbpool.runInteraction(load_slack_from_db, self)
+        df.addErrback(botutil.email_error, self, "load_slack() failure")
 
     def load_mastodon(self):
         """Load the Mastodon subscriptions and access tokens"""
