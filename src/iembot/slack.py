@@ -85,14 +85,16 @@ class SlackSubscribeChannel(resource.Resource):
         """Answer the call."""
         team_id = request.args.get(b"team_id", [b""])[0].decode("ascii")
         channel_id = request.args.get(b"channel_id", [b""])[0].decode("ascii")
-        subkey = request.args.get(b"stext", [b""])[0].decode("ascii")
+        subkey = request.args.get(b"text", [b""])[0].decode("ascii")
         defer = self.iembot.dbpool.runInteraction(
             self.store_slack_subscription,
             team_id,
             channel_id,
             subkey,
         )
-        defer.addCallback(lambda _: request.write(b"OK"))
+        defer.addCallback(
+            lambda _: request.write(f"Subscribed to {subkey}".encode("ascii"))
+        )
         defer.addCallback(lambda _: request.finish())
 
         return NOT_DONE_YET
@@ -126,14 +128,18 @@ class SlackUnsubscribeChannel(resource.Resource):
         """Answer the call."""
         team_id = request.args.get(b"team_id", [b""])[0].decode("ascii")
         channel_id = request.args.get(b"channel_id", [b""])[0].decode("ascii")
-        subkey = request.args.get(b"stext", [b""])[0].decode("ascii")
+        subkey = request.args.get(b"text", [b""])[0].decode("ascii")
         defer = self.iembot.dbpool.runInteraction(
             self.remove_slack_subscription,
             team_id,
             channel_id,
             subkey,
         )
-        defer.addCallback(lambda _: request.write(b"OK"))
+        defer.addCallback(
+            lambda _: request.write(
+                f"Unsubscribed from {subkey}".encode("ascii")
+            )
+        )
         defer.addCallback(lambda _: request.finish())
 
         return NOT_DONE_YET
