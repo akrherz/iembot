@@ -96,6 +96,7 @@ class SlackSubscribeChannel(resource.Resource):
             lambda _: request.write(f"Subscribed to {subkey}".encode("ascii"))
         )
         defer.addCallback(lambda _: request.finish())
+        defer.addCallback(self.iembot.load_slack)
 
         return NOT_DONE_YET
 
@@ -141,6 +142,7 @@ class SlackUnsubscribeChannel(resource.Resource):
             )
         )
         defer.addCallback(lambda _: request.finish())
+        defer.addCallback(self.iembot.load_slack)
 
         return NOT_DONE_YET
 
@@ -216,6 +218,7 @@ class SlackOauthChannel(resource.Resource):
             self.do_request_in_thread, data
         )
         defer.addCallback(self._cb_oauth, request)
+        defer.addCallback(self.iembot.load_slack)
         defer.addErrback(self._eb_oauth, request)
         return NOT_DONE_YET
 

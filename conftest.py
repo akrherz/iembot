@@ -1,6 +1,7 @@
 """Centralized Testing Stuff."""
 
-# third party
+from collections import defaultdict
+
 import pytest
 from pyiem.database import get_dbconnc
 
@@ -10,7 +11,9 @@ from iembot.basicbot import BasicBot
 @pytest.fixture
 def bot():
     """A basicbot."""
-    return BasicBot("iembot", None, xml_log_path="/tmp")
+    iembot = BasicBot("iembot", None, xml_log_path="/tmp")
+    iembot.config = defaultdict(str)
+    return iembot
 
 
 @pytest.fixture
