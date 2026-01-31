@@ -11,6 +11,12 @@ from twisted.python import log
 from twisted.web import resource
 
 import iembot.util as botutil
+from iembot.slack import (
+    SlackInstallChannel,
+    SlackOauthChannel,
+    SlackSubscribeChannel,
+    SlackUnsubscribeChannel,
+)
 
 XML_CACHE = {}
 XML_CACHE_EXPIRES = {}
@@ -222,3 +228,7 @@ class JSONRootResource(resource.Resource):
         self.putChild(b"room", RoomChannel(iembot))
         self.putChild(b"reload", ReloadChannel(iembot))
         self.putChild(b"status", StatusChannel(iembot))
+        self.putChild(b"subscribe", SlackSubscribeChannel(iembot))
+        self.putChild(b"unsubscribe", SlackUnsubscribeChannel(iembot))
+        self.putChild(b"install", SlackInstallChannel(iembot))
+        self.putChild(b"oauth_callback", SlackOauthChannel(iembot))

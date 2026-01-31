@@ -2,6 +2,7 @@ dependencies:
  - atproto
  - codecov
  - httpx
+ - requests
  - twisted>=18.4.0
  - psycopg
  - pyiem>=1.26
