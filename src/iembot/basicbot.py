@@ -101,6 +101,14 @@ class BasicBot:
             # unsure if deepcopy is necessary, but alas
             pickle.dump(copy.deepcopy(self.chatlog), fh)
 
+    def reload_config(self, always_join: bool):
+        """Jobs the bot should do when a database reload is needed."""
+        self.load_twitter()
+        self.load_mastodon()
+        self.load_chatrooms(always_join)
+        self.load_webhooks()
+        self.load_slack()
+
     def authd(self, _xs=None):
         """callback when we are logged into the server!"""
         botutil.email_error(
@@ -114,11 +122,7 @@ class BasicBot:
         self.rooms = {}
         self.outstanding_pings = []
 
-        self.load_twitter()
-        self.load_mastodon()
-        self.load_chatrooms(True)
-        self.load_webhooks()
-        self.load_slack()
+        self.reload_config(always_join=True)
 
         # Start the keepalive loop
         if self.keepalive_lc is None:
@@ -132,7 +136,7 @@ class BasicBot:
         self.seqnum += 1
         return self.seqnum
 
-    def load_chatrooms(self, always_join):
+    def load_chatrooms(self, always_join: bool):
         """
         Load up the chatrooms and subscriptions from the database!, I also
         support getting called at a later date for any changes

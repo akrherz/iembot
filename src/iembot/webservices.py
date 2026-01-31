@@ -191,12 +191,9 @@ class ReloadChannel(resource.Resource):
         self.iembot = iembot
 
     def render(self, _request):
+        """Service the request."""
         log.msg("Reloading iembot room configuration....")
-        self.iembot.load_chatrooms(False)
-        self.iembot.load_twitter()
-        self.iembot.load_mastodon()
-        self.iembot.load_webhooks()
-        self.iembot.load_slack()
+        self.iembot.reload_config(always_join=False)
         return json.dumps("OK").encode("utf-8")
 
 
