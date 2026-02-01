@@ -13,4 +13,4 @@ except PackageNotFoundError:
     # package is not installed
     __version__ = "dev"
 
-DATADIR = Path(__file__) / "data"
+DATADIR = Path(__file__).parent / "data"
