@@ -23,6 +23,8 @@ def send_to_slack(
         "text": elem.x["twitter"],
         "mrkdwn": False,
         "channel": channel_id,
+        "unfurl_links": False,
+        "unfurl_media": False,
     }
     headers = {
         "Content-Type": "application/json",
