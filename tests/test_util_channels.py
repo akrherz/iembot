@@ -2,7 +2,7 @@
 
 import pytest
 
-from iembot.basicbot import BasicBot
+from iembot.bot import JabberClient
 from iembot.util import (
     channels_room_add,
     channels_room_del,
@@ -11,7 +11,7 @@ from iembot.util import (
 
 
 @pytest.mark.parametrize("database", ["mesosite"])
-def test_room_list(bot: BasicBot, dbcursor):
+def test_room_list(bot: JabberClient, dbcursor):
     """Test listing of channel subscriptions for the room."""
 
     def _local(room, _msg):

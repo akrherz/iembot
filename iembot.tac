@@ -13,7 +13,8 @@ from twisted.web import server
 from txyam.client import YamClient
 
 # Local Import
-from iembot import iemchatbot, webservices
+from iembot import webservices
+from iembot.bot import JabberClient
 
 with open("settings.json", encoding="utf-8") as fh:
     dbconfig = json.load(fh)
@@ -42,7 +43,7 @@ memcache_client = YamClient(
 )
 memcache_client.connect()
 
-jabber = iemchatbot.JabberClient("iembot", dbpool, memcache_client)
+jabber = JabberClient("iembot", dbpool, memcache_client)
 
 defer = dbpool.runQuery("select propname, propvalue from properties")
 defer.addCallback(jabber.fire_client_with_config, serviceCollection)

@@ -5,13 +5,13 @@ from collections import defaultdict
 import pytest
 from pyiem.database import get_dbconnc
 
-from iembot.basicbot import BasicBot
+from iembot.bot import JabberClient
 
 
 @pytest.fixture
 def bot():
-    """A basicbot."""
-    iembot = BasicBot("iembot", None, xml_log_path="/tmp")
+    """A bot."""
+    iembot = JabberClient("iembot", None, xml_log_path="/tmp")
     iembot.config = defaultdict(str)
     return iembot
 

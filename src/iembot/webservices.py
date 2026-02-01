@@ -3,6 +3,7 @@
 import json
 import re
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from feedgen.feed import FeedGenerator
 from pyiem.util import utc
@@ -18,11 +19,14 @@ from iembot.slack import (
     SlackUnsubscribeChannel,
 )
 
+if TYPE_CHECKING:
+    from iembot.bot import JabberClient
+
 XML_CACHE = {}
 XML_CACHE_EXPIRES = {}
 
 
-def wfo_rss(iembot, rm):
+def wfo_rss(iembot: "JabberClient", rm):
     """build a RSS for the given room"""
     if len(rm) == 4 and rm[0] == "k":
         rm = f"{rm[-3:]}chat"
@@ -60,7 +64,7 @@ class RSSService(resource.Resource):
         """allow uri"""
         return True
 
-    def __init__(self, iembot):
+    def __init__(self, iembot: "JabberClient"):
         """Constructor"""
         resource.Resource.__init__(self)
         self.iembot = iembot
@@ -113,7 +117,7 @@ class RSSService(resource.Resource):
 class RSSRootResource(resource.Resource):
     """I answer iembot-rss requests"""
 
-    def __init__(self, iembot):
+    def __init__(self, iembot: "JabberClient"):
         """Constructor"""
         resource.Resource.__init__(self)
         service = RSSService(iembot)
@@ -131,7 +135,7 @@ class RoomChannel(resource.Resource):
         """allow uri calling"""
         return True
 
-    def __init__(self, iembot):
+    def __init__(self, iembot: "JabberClient"):
         """Constructor"""
         resource.Resource.__init__(self)
         self.iembot = iembot
@@ -185,7 +189,7 @@ class ReloadChannel(resource.Resource):
         """allow URI calling"""
         return True
 
-    def __init__(self, iembot):
+    def __init__(self, iembot: "JabberClient"):
         """Constructor"""
         resource.Resource.__init__(self)
         self.iembot = iembot
@@ -219,7 +223,7 @@ class StatusChannel(resource.Resource):
 class JSONRootResource(resource.Resource):
     """answer /iembot-json/ requests"""
 
-    def __init__(self, iembot):
+    def __init__(self, iembot: "JabberClient"):
         """Constructor"""
         resource.Resource.__init__(self)
         self.putChild(b"room", RoomChannel(iembot))

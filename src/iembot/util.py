@@ -15,6 +15,7 @@ import traceback
 from email.mime.text import MIMEText
 from html import unescape
 from io import BytesIO
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 import mastodon
@@ -32,6 +33,9 @@ from twitter.error import TwitterError
 
 import iembot
 
+if TYPE_CHECKING:
+    from iembot.bot import JabberClient
+
 TWEET_API = "https://api.x.com/2/tweets"
 # 89: Expired token, so we shall revoke for now
 # 185: User is over quota
@@ -41,7 +45,7 @@ TWEET_API = "https://api.x.com/2/tweets"
 DISABLE_TWITTER_CODES = [89, 185, 226, 326, 64]
 
 
-def at_send_message(bot, user_id, msg: str, **kwargs):
+def at_send_message(bot: "JabberClient", user_id, msg: str, **kwargs):
     """Send a message to the ATmosphere."""
     at_handle = bot.tw_users.get(user_id, {}).get("at_handle")
     if at_handle is None:
@@ -75,7 +79,7 @@ def _upload_media_to_twitter(oauth: OAuth1Session, url: str) -> str | None:
     return str(media_id)
 
 
-def tweet(bot, user_id, twttxt, **kwargs):
+def tweet(bot: "JabberClient", user_id, twttxt, **kwargs):
     """Blocking tweet method."""
     if user_id not in bot.tw_users:
         log.msg(f"tweet() called with unknown user_id: {user_id}")
@@ -158,7 +162,7 @@ def tweet(bot, user_id, twttxt, **kwargs):
     return res
 
 
-def toot(bot, user_id, twttxt, **kwargs):
+def toot(bot: "JabberClient", user_id, twttxt, **kwargs):
     """Blocking Mastodon toot method."""
     if user_id not in bot.md_users:
         log.msg(f"toot() called with unknown Mastodon user_id: {user_id}")
@@ -218,7 +222,7 @@ def toot(bot, user_id, twttxt, **kwargs):
     return res
 
 
-def channels_room_list(bot, room):
+def channels_room_list(bot: "JabberClient", room: str):
     """
     Send a listing of channels that the room is subscribed to...
     @param room to list
@@ -235,12 +239,12 @@ def channels_room_list(bot, room):
     bot.send_groupchat(room, msg)
 
 
-def channels_room_add(txn, bot, room, channel):
+def channels_room_add(txn, bot: "JabberClient", room: str, channel: str):
     """Add a channel subscription to a chatroom
 
     Args:
         txn (cursor): database transaction
-        bot (iembot.Basicbot): bot instance
+        bot (JabberClient): bot instance
         room (str): the chatroom to add the subscription to
         channel (str): the channel to subscribe to for the room
     """
@@ -290,7 +294,7 @@ def channels_room_add(txn, bot, room, channel):
     channels_room_list(bot, room)
 
 
-def channels_room_del(txn, bot, room, channel):
+def channels_room_del(txn, bot: "JabberClient", room: str, channel: str):
     """Removes a channel subscription for a given room
 
     Args:
@@ -324,7 +328,7 @@ def channels_room_del(txn, bot, room, channel):
     channels_room_list(bot, room)
 
 
-def purge_logs(bot):
+def purge_logs(bot: "JabberClient"):
     """Remove chat logs on a 24 HR basis"""
     log.msg("purge_logs() called...")
     basets = utc() - datetime.timedelta(
@@ -338,7 +342,7 @@ def purge_logs(bot):
             os.remove(fn)
 
 
-def email_error(exp, bot, message=""):
+def email_error(exp, bot: "JabberClient", message=""):
     """
     Something to email errors when something fails
     """
@@ -410,7 +414,7 @@ def email_error(exp, bot, message=""):
     return True
 
 
-def disable_twitter_user(bot, user_id, errcode=0):
+def disable_twitter_user(bot: "JabberClient", user_id, errcode=0):
     """Disable the twitter subs for this user_id
 
     Args:
@@ -440,7 +444,7 @@ def disable_twitter_user(bot, user_id, errcode=0):
     return True
 
 
-def tweet_cb(response, bot, twttxt, _room, myjid, user_id):
+def tweet_cb(response, bot: "JabberClient", twttxt, _room, myjid, user_id):
     """
     Called after success going to twitter
     """
@@ -485,7 +489,7 @@ def twittererror_exp_to_code(exp) -> int:
     return errcode
 
 
-def twitter_errback(err, bot, user_id, tweettext):
+def twitter_errback(err, bot: "JabberClient", user_id, tweettext):
     """Error callback when simple twitter workflow fails."""
     # Always log it
     log.err(err)
@@ -498,7 +502,7 @@ def twitter_errback(err, bot, user_id, tweettext):
         email_error(err, bot, msg)
 
 
-def disable_mastodon_user(bot, user_id, errcode=0):
+def disable_mastodon_user(bot: "JabberClient", user_id, errcode=0):
     """Disable the Mastodon subs for this user_id
 
     Args:
@@ -530,7 +534,7 @@ def disable_mastodon_user(bot, user_id, errcode=0):
     return True
 
 
-def toot_cb(response, bot, twttxt, _room, myjid, user_id):
+def toot_cb(response, bot: "JabberClient", twttxt, _room, myjid, user_id):
     """
     Called after success going to Mastodon
     """
@@ -559,7 +563,7 @@ def toot_cb(response, bot, twttxt, _room, myjid, user_id):
     return response
 
 
-def mastodon_errback(err, bot, user_id, tweettext):
+def mastodon_errback(err, bot: "JabberClient", user_id, tweettext):
     """Error callback when simple Mastodon workflow fails."""
     # Always log it
     log.err(err)
@@ -576,12 +580,14 @@ def mastodon_errback(err, bot, user_id, tweettext):
         email_error(err, bot, msg)
 
 
-def load_chatrooms_from_db(txn, bot, always_join):
+def load_chatrooms_from_db(
+    txn, bot: "JabberClient", always_join: bool = False
+):
     """Load database configuration and do work
 
     Args:
       txn (dbtransaction): database cursor
-      bot (BasicBot): the running bot instance
+      bot (JabberClient): the running bot instance
       always_join (boolean): do we force joining each room, regardless
     """
     # Load up the routingtable for bot products
@@ -654,7 +660,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
     )
 
 
-def load_webhooks_from_db(txn, bot):
+def load_webhooks_from_db(txn, bot: "JabberClient"):
     """Load twitter config from database"""
     txn.execute(
         f"SELECT channel, url from {bot.name}_webhooks "
@@ -672,7 +678,7 @@ def load_webhooks_from_db(txn, bot):
     log.msg(f"load_webhooks_from_db(): {txn.rowcount} subs found")
 
 
-def load_twitter_from_db(txn, bot):
+def load_twitter_from_db(txn, bot: "JabberClient"):
     """Load twitter config from database"""
     # Don't waste time by loading up subs from unauthed users, but we could
     # have iem_owned accounts with bluesky only creds
@@ -718,7 +724,7 @@ def load_twitter_from_db(txn, bot):
     log.msg(f"load_twitter_from_db(): {txn.rowcount} oauth tokens found")
 
 
-def load_mastodon_from_db(txn, bot):
+def load_mastodon_from_db(txn, bot: "JabberClient"):
     """Load Mastodon config from database"""
     txn.execute("select channel, user_id from iembot_mastodon_subs")
     mdrt = {}
@@ -747,7 +753,7 @@ def load_mastodon_from_db(txn, bot):
     log.msg(f"load_mastodon_from_db(): {txn.rowcount} access tokens found")
 
 
-def load_chatlog(bot):
+def load_chatlog(bot: "JabberClient"):
     """load up our pickled chatlog"""
     if not os.path.isfile(bot.picklefile):
         log.msg(f"pickfile not found: {bot.picklefile}")
@@ -771,7 +777,7 @@ def load_chatlog(bot):
         log.err(exp)
 
 
-def safe_twitter_text(text):
+def safe_twitter_text(text: str) -> str:
     """Attempt to rip apart a message that is too long!
     To be safe, the URL is counted as 24 chars
     """
@@ -845,7 +851,7 @@ def add_entry_to_rss(entry, rss):
     """Convert a txt Jabber room message to a RSS feed entry
 
     Args:
-      entry(iembot.basicbot.CHAT_LOG_ENTRY): entry
+      entry(CHAT_LOG_ENTRY): entry
 
     Returns:
       PyRSSGen.RSSItem
@@ -869,11 +875,11 @@ def add_entry_to_rss(entry, rss):
     fe.pubDate(ts.strftime("%a, %d %b %Y %H:%M:%S GMT"))
 
 
-def daily_timestamp(bot):
+def daily_timestamp(bot: "JabberClient"):
     """Send a timestamp to each room we are in.
 
     Args:
-      bot (iembot.basicbot) instance
+      bot (JabberClient) instance
     """
     # Make sure we are a bit into the future!
     utc0z = utc() + datetime.timedelta(hours=1)

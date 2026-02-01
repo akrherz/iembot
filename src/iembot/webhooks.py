@@ -2,14 +2,18 @@
 
 import json
 from io import BytesIO
+from typing import TYPE_CHECKING
 
 from twisted.internet import reactor
 from twisted.python import log
 from twisted.web.client import Agent, FileBodyProducer, readBody
 from twisted.web.http_headers import Headers
 
+if TYPE_CHECKING:
+    from iembot.bot import JabberClient
 
-def route(bot, channels, elem):
+
+def route(bot: "JabberClient", channels, elem):
     """Route messages found in provided elem.
 
     Args:
