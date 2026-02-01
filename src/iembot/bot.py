@@ -1,14 +1,13 @@
 """Basic iembot/nwsbot implementation."""
 
 import copy
-import os
 import pickle
 import random
 import re
 import traceback
-from datetime import timedelta
+from datetime import datetime, timedelta
 from io import StringIO
-from typing import NamedTuple
+from typing import Any, NamedTuple
 from xml.etree import ElementTree as ET
 
 from pyiem.util import utc
@@ -21,14 +20,34 @@ from twisted.python.logfile import DailyLogFile
 from twisted.words.protocols.jabber import client, jid, xmlstream
 from twisted.words.xish import domish, xpath
 
-import iembot.util as botutil
+from iembot import DATADIR
 from iembot.atworker import ATManager
 from iembot.slack import load_slack_from_db, send_to_slack
+from iembot.util import (
+    at_send_message,
+    channels_room_add,
+    channels_room_del,
+    channels_room_list,
+    daily_timestamp,
+    email_error,
+    load_chatlog,
+    load_chatrooms_from_db,
+    load_mastodon_from_db,
+    load_twitter_from_db,
+    load_webhooks_from_db,
+    mastodon_errback,
+    purge_logs,
+    safe_twitter_text,
+    toot,
+    toot_cb,
+    tweet,
+    tweet_cb,
+    twitter_errback,
+)
 from iembot.webhooks import route as webhooks_route
 
 # http://stackoverflow.com/questions/7016602
 SMTPSenderFactory.noisy = False
-DATADIR = os.sep.join([os.path.dirname(__file__), "data"])
 
 
 class ROOM_LOG_ENTRY(NamedTuple):
@@ -50,7 +69,67 @@ PRESENCE_MUC_STATUS = (
 
 
 class JabberClient:
-    """Here lies the Jabber Bot"""
+    """Here lies the Jabber Bot.
+
+    Attributes:
+        startup_time (datetime): UTC timestamp when the bot instance started.
+        picklefile (str): Path to the persisted chat log pickle file.
+        name (str): Bot name / prefix used for database table names.
+        dbpool: Database connection pool.
+        memcache_client: Optional memcache client instance.
+        config (dict): Runtime configuration key/value mapping.
+        outstanding_pings (list): Ping tracking list for keepalive logic.
+        rooms (dict): Mapping of room name to room metadata.
+        chatlog (dict): In-memory chat log storage keyed by room.
+        seqnum (int): Latest chat log sequence number.
+        routingtable (dict): Channel routing table for room subscriptions.
+        at_manager (ATManager): ATmosphere message manager.
+        tw_users (dict): Twitter user map keyed by user_id.
+        tw_routingtable (dict): Twitter routing map keyed by channel.
+        md_users (dict): Mastodon user map keyed by user_id.
+        md_routingtable (dict): Mastodon routing map keyed by channel.
+        slack_teams (dict): Slack team tokens keyed by team_id.
+        slack_routingtable (dict): Slack routing map keyed by channel.
+        webhooks_routingtable (dict): Webhooks routing map keyed by channel.
+        xmlstream: Active XMPP XML stream (if connected).
+        firstlogin (bool): Whether the bot has completed first login.
+        xmllog (DailyLogFile): XML log file handler.
+        myjid: JID representing the bot user.
+        ingestjid: JID used for ingest workflows.
+        conference (str): Conference (MUC) service hostname.
+        email_timestamps (list[datetime]): Timestamps of error emails sent.
+        keepalive_lc (LoopingCall | None): Keepalive loop handle.
+        fortunes (list[str]): Loaded fortunes used by the bot.
+    """
+
+    startup_time: datetime
+    picklefile: str
+    name: str
+    dbpool: Any
+    memcache_client: Any | None
+    config: dict[str, Any]
+    outstanding_pings: list
+    rooms: dict[str, dict[str, Any]]
+    chatlog: dict[str, Any]
+    seqnum: int
+    routingtable: dict[str, list[str]]
+    at_manager: ATManager
+    tw_users: dict[str, dict[str, Any]]
+    tw_routingtable: dict[str, list[str]]
+    md_users: dict[str, dict[str, Any]]
+    md_routingtable: dict[str, list[str]]
+    slack_teams: dict[str, str]
+    slack_routingtable: dict[str, list[str]]
+    webhooks_routingtable: dict[str, list[str]]
+    xmlstream: xmlstream.XmlStream | None
+    firstlogin: bool
+    xmllog: DailyLogFile
+    myjid: jid.JID | None
+    ingestjid: jid.JID | None
+    conference: str | None
+    email_timestamps: list[datetime]
+    keepalive_lc: LoopingCall | None
+    fortunes: list[str]
 
     def __init__(
         self, name, dbpool, memcache_client=None, xml_log_path="logs"
@@ -88,12 +167,11 @@ class JabberClient:
         self.conference = None
         self.email_timestamps = []
         self.keepalive_lc = None  # Keepalive LoopingCall
-        fn = os.path.join(DATADIR, "startrek")
-        with open(fn, encoding="utf-8") as fp:
+        with open(DATADIR / "startrek", encoding="utf-8") as fp:
             self.fortunes = fp.read().split("\n%\n")
-        botutil.load_chatlog(self)
+        load_chatlog(self)
 
-        lc2 = LoopingCall(botutil.purge_logs, self)
+        lc2 = LoopingCall(purge_logs, self)
         lc2.start(60 * 60 * 24)
         lc3 = LoopingCall(reactor.callInThread, self.save_chatlog)
         lc3.start(600)  # Every 10 minutes
@@ -115,9 +193,7 @@ class JabberClient:
 
     def authd(self, _xs=None):
         """callback when we are logged into the server!"""
-        botutil.email_error(
-            None, self, f"Logged into jabber server as {self.myjid}"
-        )
+        email_error(None, self, f"Logged into jabber server as {self.myjid}")
         if not self.firstlogin:
             self.compute_daily_caller()
             self.firstlogin = True
@@ -147,36 +223,36 @@ class JabberClient:
         """
         log.msg("load_chatrooms() called...")
         df = self.dbpool.runInteraction(
-            botutil.load_chatrooms_from_db, self, always_join
+            load_chatrooms_from_db, self, always_join
         )
         # Send a presence update, which in the case of the first login will
         # provoke any offline messages to be sent.
         df.addCallback(self.send_presence)
-        df.addErrback(botutil.email_error, self, "load_chatrooms() failure")
+        df.addErrback(email_error, self, "load_chatrooms() failure")
 
     def load_twitter(self):
         """Load the twitter subscriptions and access tokens"""
         log.msg("load_twitter() called...")
-        df = self.dbpool.runInteraction(botutil.load_twitter_from_db, self)
-        df.addErrback(botutil.email_error, self, "load_twitter() failure")
+        df = self.dbpool.runInteraction(load_twitter_from_db, self)
+        df.addErrback(email_error, self, "load_twitter() failure")
 
     def load_slack(self):
         """Load the slack subscriptions and access tokens"""
         log.msg("load_slack() called...")
         df = self.dbpool.runInteraction(load_slack_from_db, self)
-        df.addErrback(botutil.email_error, self, "load_slack() failure")
+        df.addErrback(email_error, self, "load_slack() failure")
 
     def load_mastodon(self):
         """Load the Mastodon subscriptions and access tokens"""
         log.msg("load_mastodon() called...")
-        df = self.dbpool.runInteraction(botutil.load_mastodon_from_db, self)
-        df.addErrback(botutil.email_error, self, "load_mastodon() failure")
+        df = self.dbpool.runInteraction(load_mastodon_from_db, self)
+        df.addErrback(email_error, self, "load_mastodon() failure")
 
     def load_webhooks(self):
         """Load the twitter subscriptions and access tokens"""
         log.msg("load_webhooks() called...")
-        df = self.dbpool.runInteraction(botutil.load_webhooks_from_db, self)
-        df.addErrback(botutil.email_error, self, "load_webhooks() failure")
+        df = self.dbpool.runInteraction(load_webhooks_from_db, self)
+        df.addErrback(email_error, self, "load_webhooks() failure")
 
     def fire_client_with_config(self, res, serviceCollection):
         """Calledback once bot has loaded its database configuration"""
@@ -254,7 +330,7 @@ class JabberClient:
             log.msg(f"Currently unresponded pings: {self.outstanding_pings}")
         if len(self.outstanding_pings) > 5:
             self.outstanding_pings = []
-            botutil.email_error(
+            email_error(
                 "Logging out of Chat!", self, "IQ error limit reached..."
             )
             if self.xmlstream is not None:
@@ -332,7 +408,7 @@ class JabberClient:
         try:
             ET.fromstring(message.toXml())
         except Exception as exp:
-            botutil.email_error(exp, self, message.toXml())
+            email_error(exp, self, message.toXml())
             return None
         else:
             self.send_groupchat_elem(message)
@@ -344,7 +420,7 @@ class JabberClient:
             elem["to"] = to
         room = jid.JID(elem["to"]).user
         if room not in self.rooms:
-            botutil.email_error(
+            email_error(
                 f"Attempted to send message to room [{room}] "
                 "we have not joined...",
                 self,
@@ -382,25 +458,25 @@ class JabberClient:
         """
         Tweet a message
         """
-        twttxt = botutil.safe_twitter_text(twttxt)
-        botutil.at_send_message(self, user_id, twttxt, **kwargs)
+        twttxt = safe_twitter_text(twttxt)
+        at_send_message(self, user_id, twttxt, **kwargs)
 
         df = threads.deferToThread(
-            botutil.tweet,
+            tweet,
             self,
             user_id,
             twttxt,
             **kwargs,
         )
-        df.addCallback(botutil.tweet_cb, self, twttxt, "", "", user_id)
+        df.addCallback(tweet_cb, self, twttxt, "", "", user_id)
         df.addErrback(
-            botutil.twitter_errback,
+            twitter_errback,
             self,
             user_id,
             twttxt,
         )
         df.addErrback(
-            botutil.email_error,
+            email_error,
             self,
             f"User: {user_id}, Text: {twttxt} Hit double exception",
         )
@@ -410,23 +486,23 @@ class JabberClient:
         """
         Send a message to Mastodon
         """
-        twttxt = botutil.safe_twitter_text(twttxt)
+        twttxt = safe_twitter_text(twttxt)
         df = threads.deferToThread(
-            botutil.toot,
+            toot,
             self,
             user_id,
             twttxt,
             **kwargs,
         )
-        df.addCallback(botutil.toot_cb, self, twttxt, "", "", user_id)
+        df.addCallback(toot_cb, self, twttxt, "", "", user_id)
         df.addErrback(
-            botutil.mastodon_errback,
+            mastodon_errback,
             self,
             user_id,
             twttxt,
         )
         df.addErrback(
-            botutil.email_error,
+            email_error,
             self,
             f"User: {user_id}, Text: {twttxt} Hit double exception",
         )
@@ -442,9 +518,7 @@ class JabberClient:
             "Initial Calling daily_timestamp in "
             f"{(tnext - utc()).seconds} seconds"
         )
-        reactor.callLater(
-            (tnext - utc()).seconds, botutil.daily_timestamp, self
-        )
+        reactor.callLater((tnext - utc()).seconds, daily_timestamp, self)
 
     def presence_processor(self, elem):
         """Process the presence stanza
@@ -477,7 +551,7 @@ class JabberClient:
 
         _room = jid.JID(elem["from"]).user
         if _room not in self.rooms:
-            botutil.email_error(
+            email_error(
                 f"Got MUC presence from unknown room '{_room}'",
                 self,
                 elem,
@@ -695,7 +769,7 @@ class JabberClient:
             return
 
         _from = jid.JID(elem["from"])
-        room = _from.user
+        room: str = _from.user
         res = _from.resource
 
         body = xpath.queryForString("/message/body", elem)
@@ -788,7 +862,7 @@ class JabberClient:
         if elem.hasAttribute("type") and elem["type"] == "groupchat":
             self.processMessageGC(elem)
         elif elem.hasAttribute("type") and elem["type"] == "error":
-            botutil.email_error("Got Error Stanza?", self, elem.toXml())
+            email_error("Got Error Stanza?", self, elem.toXml())
         else:
             self.processMessagePC(elem)
 
@@ -817,7 +891,7 @@ class JabberClient:
             log.err(exp)
             io = StringIO()
             traceback.print_exc(file=io)
-            botutil.email_error(io.getvalue(), self, elem.toXml())
+            email_error(io.getvalue(), self, elem.toXml())
 
     def talkWithUser(self, elem):
         """
@@ -867,7 +941,7 @@ class JabberClient:
 
         # Listing of channels is not admin privs
         elif re.match(r"^channels list", cmd, re.IGNORECASE):
-            botutil.channels_room_list(self, room)
+            channels_room_list(self, room)
 
         # Add a channel to the room's subscriptions
         elif re.match(r"^channels add", cmd, re.IGNORECASE):
@@ -875,11 +949,9 @@ class JabberClient:
             if aff in ["owner", "admin"]:
                 if len(add_channel) < 24:
                     df = self.dbpool.runInteraction(
-                        botutil.channels_room_add, self, room, cmd[12:]
+                        channels_room_add, self, room, cmd[12:]
                     )
-                    df.addErrback(
-                        botutil.email_error, self, room + " -> " + cmd
-                    )
+                    df.addErrback(email_error, self, room + " -> " + cmd)
                 else:
                     err = (
                         f"{res}: Error, channels are less than 24 characters!"
@@ -895,9 +967,9 @@ class JabberClient:
         elif re.match(r"^channels del", cmd, re.IGNORECASE):
             if aff in ["owner", "admin"]:
                 df = self.dbpool.runInteraction(
-                    botutil.channels_room_del, self, room, cmd[12:]
+                    channels_room_del, self, room, cmd[12:]
                 )
-                df.addErrback(botutil.email_error, self, f"{room} -> {cmd}")
+                df.addErrback(email_error, self, f"{room} -> {cmd}")
             else:
                 err = (
                     f"{res}: Sorry, you must be a room admin to add a channel"
