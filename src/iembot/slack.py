@@ -5,6 +5,7 @@ import urllib
 from typing import TYPE_CHECKING
 
 import requests
+from twisted.internet import threads
 from twisted.python import log
 from twisted.web import resource
 from twisted.web.server import NOT_DONE_YET
@@ -62,6 +63,21 @@ def load_slack_from_db(txn, bot: "JabberClient"):
     bot.slack_routingtable = rt
     log.msg(f"Loaded {len(teams)} Slack teams")
     log.msg(f"Loaded {len(rt)} Slack subscriptions")
+
+
+def route(bot: "JabberClient", channels: list, elem: Element):
+    """Do Slack message routing."""
+    alertedSlacks = []
+    for channel in channels:
+        for slack_key in bot.slack_routingtable.get(channel, []):
+            if slack_key in alertedSlacks:
+                continue
+            alertedSlacks.append(slack_key)
+            log.msg("Attempting slack send...")
+            d = threads.deferToThread(
+                send_to_slack, bot, *slack_key.split("|"), elem
+            )
+            d.addErrback(log.msg)
 
 
 class SlackSubscribeChannel(resource.Resource):
