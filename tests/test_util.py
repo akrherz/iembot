@@ -4,16 +4,13 @@ import os
 import tempfile
 from unittest import mock
 
-# Third party modules
 import pytest
 from twisted.python.failure import Failure
 from twisted.words.xish.domish import Element
 from twitter.error import TwitterError
 
-# local
 import iembot.util as botutil
-from iembot.basicbot import BasicBot
-from iembot.iemchatbot import JabberClient
+from iembot.bot import JabberClient
 
 
 def test_remove_control_characters():
@@ -418,7 +415,7 @@ def test_load_chatrooms_fromdb(dbcursor):
 
 def test_daily_timestamp():
     """Does the daily timestamp algo return a deferred."""
-    bot = BasicBot(None, None, xml_log_path="/tmp")
+    bot = JabberClient(None, None, xml_log_path="/tmp")
     assert botutil.daily_timestamp(bot) is not None
 
 

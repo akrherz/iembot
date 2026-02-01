@@ -240,7 +240,7 @@ def channels_room_add(txn, bot, room, channel):
 
     Args:
         txn (cursor): database transaction
-        bot (iembot.Basicbot): bot instance
+        bot (iembot.bot.JabberClient): bot instance
         room (str): the chatroom to add the subscription to
         channel (str): the channel to subscribe to for the room
     """
@@ -581,7 +581,7 @@ def load_chatrooms_from_db(txn, bot, always_join):
 
     Args:
       txn (dbtransaction): database cursor
-      bot (BasicBot): the running bot instance
+      bot (iembot.bot.JabberClient): the running bot instance
       always_join (boolean): do we force joining each room, regardless
     """
     # Load up the routingtable for bot products
@@ -845,7 +845,7 @@ def add_entry_to_rss(entry, rss):
     """Convert a txt Jabber room message to a RSS feed entry
 
     Args:
-      entry(iembot.basicbot.CHAT_LOG_ENTRY): entry
+      entry(iembot.bot.CHAT_LOG_ENTRY): entry
 
     Returns:
       PyRSSGen.RSSItem
@@ -873,7 +873,7 @@ def daily_timestamp(bot):
     """Send a timestamp to each room we are in.
 
     Args:
-      bot (iembot.basicbot) instance
+      bot (iembot.bot.JabberClient) instance
     """
     # Make sure we are a bit into the future!
     utc0z = utc() + datetime.timedelta(hours=1)
