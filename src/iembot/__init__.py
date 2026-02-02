@@ -3,6 +3,7 @@
 import os
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+from typing import NamedTuple
 
 try:
     __version__ = version("iembot")
@@ -14,3 +15,13 @@ except PackageNotFoundError:
     __version__ = "dev"
 
 DATADIR = Path(__file__).parent / "data"
+
+
+class ROOM_LOG_ENTRY(NamedTuple):
+    seqnum: int
+    timestamp: str
+    log: str
+    author: str
+    product_id: str
+    product_text: str
+    txtlog: str

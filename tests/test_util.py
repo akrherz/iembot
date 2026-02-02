@@ -11,6 +11,7 @@ from twitter.error import TwitterError
 
 import iembot.util as botutil
 from iembot.bot import JabberClient
+from iembot.msghandlers import process_groupchat
 
 
 def test_remove_control_characters():
@@ -386,7 +387,7 @@ def test_load_chatlog():
     message.addElement("body", None, "Hello World")
     xelem = message.addElement("x", "nwschat:nwsbot")
     xelem["channels"] = "ABC"
-    bot.processMessageGC(message)
+    process_groupchat(bot, message)
     bot.save_chatlog()
     botutil.load_chatlog(bot)
     assert bot.seqnum == 1

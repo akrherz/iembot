@@ -1,5 +1,4 @@
 #!/bin/sh
-# Starts the IEMBot Process, run from ldm's crontab
 
 if [ -e iembot.pid ]; then
     kill -INT `cat iembot.pid `
@@ -16,4 +15,4 @@ if [ "$(whoami)" = "akrherz" ]; then
     export SSL_CERT_FILE=/etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt
 fi
 
-twistd --logfile=logs/iembot.log --pidfile=iembot.pid -y iembot.tac
+python -m iembot.main run --logfile -

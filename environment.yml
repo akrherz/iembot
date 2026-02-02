@@ -1,5 +1,6 @@
 dependencies:
  - atproto
+ - click
  - codecov
  - httpx
  - requests

@@ -1,4 +1,5 @@
 /build
+/coverage.xml
 /dist
 /.project
 /.pydevproject

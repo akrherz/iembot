@@ -25,6 +25,8 @@ dynamic = [
 
 urls."Homepage" = "https://github.com/akrherz/iembot"
 
+scripts.iembot = "iembot.main:main"
+
 [tool.setuptools_scm]
 version_scheme = "post-release"
 
