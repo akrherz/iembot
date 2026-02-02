@@ -27,9 +27,12 @@ from iembot.msghandlers import (
     process_privatechat,
 )
 from iembot.slack import load_slack_from_db
+from iembot.twitter import (
+    load_twitter_from_db,
+    safe_twitter_text,
+)
 from iembot.types import JabberClient as JabberClientType
 from iembot.util import (
-    at_send_message,
     channels_room_add,
     channels_room_del,
     channels_room_list,
@@ -38,16 +41,11 @@ from iembot.util import (
     load_chatlog,
     load_chatrooms_from_db,
     load_mastodon_from_db,
-    load_twitter_from_db,
     load_webhooks_from_db,
     mastodon_errback,
     purge_logs,
-    safe_twitter_text,
     toot,
     toot_cb,
-    tweet,
-    tweet_cb,
-    twitter_errback,
 )
 
 # http://stackoverflow.com/questions/7016602
@@ -418,34 +416,6 @@ class JabberClient(JabberClientType):
         if self.xmlstream is not None:
             self.xmlstream.send(presence)
 
-    def tweet(self, user_id, twttxt, **kwargs):
-        """
-        Tweet a message
-        """
-        twttxt = safe_twitter_text(twttxt)
-        at_send_message(self, user_id, twttxt, **kwargs)
-
-        df = threads.deferToThread(
-            tweet,
-            self,
-            user_id,
-            twttxt,
-            **kwargs,
-        )
-        df.addCallback(tweet_cb, self, twttxt, "", "", user_id)
-        df.addErrback(
-            twitter_errback,
-            self,
-            user_id,
-            twttxt,
-        )
-        df.addErrback(
-            email_error,
-            self,
-            f"User: {user_id}, Text: {twttxt} Hit double exception",
-        )
-        return df
-
     def toot(self, user_id, twttxt, **kwargs):
         """
         Send a message to Mastodon
@@ -617,24 +587,24 @@ class JabberClient(JabberClientType):
         else:
             process_privatechat(self, elem)
 
-    def on_message(self, elem):
+    def on_message(self, elem: Element):
         """We got a message!"""
-        self.stanza_callback(self.message_processor, elem)
+        self.stanza_processor(self.message_processor, elem)
 
-    def on_presence(self, elem):
+    def on_presence(self, elem: Element):
         """We got a presence"""
-        self.stanza_callback(self.presence_processor, elem)
+        self.stanza_processor(self.presence_processor, elem)
 
-    def on_iq(self, elem):
+    def on_iq(self, elem: Element):
         """We got an IQ"""
-        self.stanza_callback(self.iq_processor, elem)
+        self.stanza_processor(self.iq_processor, elem)
 
-    def stanza_callback(self, func, elem):
-        """main callback on receipt of stanza
+    def stanza_processor(self, func: callable, elem: Element):
+        """Process the given stanza on the main thread to ensure order.
 
-        We are currently wrapping this to prevent the callback from getting
-        removed from the factory in case of a processing error.  There are
-        likely more proper ways to do this.
+        Args:
+            func (callable): Function to call with the stanza
+            elem (domish.Element): Stanza to process
         """
         try:
             func(elem)
@@ -644,7 +614,7 @@ class JabberClient(JabberClientType):
             traceback.print_exc(file=io)
             email_error(io.getvalue(), self, elem.toXml())
 
-    def talkWithUser(self, elem):
+    def talkWithUser(self, elem: Element):
         """
         Look for commands that a user may be asking me for
         @param elem domish.Element to process

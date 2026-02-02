@@ -5,9 +5,7 @@ import tempfile
 from unittest import mock
 
 import pytest
-from twisted.python.failure import Failure
 from twisted.words.xish.domish import Element
-from twitter.error import TwitterError
 
 import iembot.util as botutil
 from iembot.bot import JabberClient
@@ -48,31 +46,6 @@ def test_at_send_message_with_handle():
     bot.at_manager.submit.assert_called_once_with(
         "test.bsky.social", {"msg": "test message", "extra_key": "value"}
     )
-
-
-def test_disable_twitter_user_unknown():
-    """Test disable_twitter_user with unknown user."""
-    bot = mock.Mock()
-    bot.tw_users = {}
-    assert botutil.disable_twitter_user(bot, "unknown") is False
-
-
-def test_disable_twitter_user_iem_owned():
-    """Test disable_twitter_user with IEM owned account."""
-    bot = mock.Mock()
-    bot.tw_users = {"123": {"screen_name": "iembot", "iem_owned": True}}
-    assert botutil.disable_twitter_user(bot, "123") is False
-
-
-def test_disable_twitter_user_success():
-    """Test disable_twitter_user with valid user."""
-    bot = mock.Mock()
-    bot.name = "iembot"
-    bot.tw_users = {"123": {"screen_name": "testuser", "iem_owned": False}}
-    bot.dbpool.runOperation.return_value = mock.Mock()
-    result = botutil.disable_twitter_user(bot, "123", errcode=185)
-    assert result is True
-    assert "123" not in bot.tw_users
 
 
 def test_disable_mastodon_user_unknown():
@@ -140,73 +113,6 @@ def test_channels_room_list():
     assert "2 channels" in call_args[0][1]
 
 
-def test_safe_twitter_text_long_with_url():
-    """Test safe_twitter_text with long text and URL."""
-    url = "https://example.com/very/long/path"
-    # Create a message that's over the limit
-    msg = "A" * 300 + " " + url
-    result = botutil.safe_twitter_text(msg)
-    assert url in result
-    assert "..." in result
-
-
-def test_safe_twitter_text_sections():
-    """Test safe_twitter_text with for/till pattern."""
-    url = "https://example.com/alert"
-    msg = (
-        "Tornado Warning for Very Long County Name and Another County Name "
-        "till 3:00 PM CDT " + url
-    )
-    result = botutil.safe_twitter_text(msg)
-    assert url in result
-
-
-def test_safe_twitter_text_double_spaces():
-    """Test safe_twitter_text removes double spaces."""
-    msg = "Hello  World   Test"
-    result = botutil.safe_twitter_text(msg)
-    assert result == "Hello World Test"
-
-
-def test_safe_twitter_text_no_url():
-    """Test safe_twitter_text with no URL and under limit."""
-    msg = "Short message without URL"
-    result = botutil.safe_twitter_text(msg)
-    assert result == msg
-
-
-def test_safe_twitter_text_url_only_counts_25():
-    """Test that URL counts as 25 chars for limit calculation."""
-    # 250 chars + 25 for URL = 275, under 280
-    msg = "A" * 250 + " https://example.com"
-    result = botutil.safe_twitter_text(msg)
-    assert result == msg
-
-
-def test_twitter_errback_disable_code():
-    """Test twitter_errback with disable code."""
-    bot = mock.Mock()
-    bot.tw_users = {"123": {"screen_name": "test", "iem_owned": False}}
-    bot.dbpool.runOperation.return_value = mock.Mock()
-    err = TwitterError("[{'code': 89, 'message': 'Expired token'}]")
-    botutil.twitter_errback(err, bot, "123", "test tweet")
-    # User should be disabled
-    assert "123" not in bot.tw_users
-
-
-def test_twitter_errback_other_error():
-    """Test twitter_errback with non-disable error."""
-    bot = mock.Mock()
-    bot.tw_users = {"456": {"screen_name": "test", "iem_owned": False}}
-    err = TwitterError("Some other error")
-    with mock.patch.object(botutil, "email_error") as mock_email:
-        botutil.twitter_errback(err, bot, "456", "test tweet")
-    # User should still exist
-    assert "456" in bot.tw_users
-    # email_error should have been called
-    mock_email.assert_called_once()
-
-
 def test_mastodon_errback_not_found():
     """Test mastodon_errback with 404 error."""
     import mastodon
@@ -231,45 +137,6 @@ def test_mastodon_errback_unauthorized():
     botutil.mastodon_errback(err, bot, "123", "test toot")
     # User should be disabled
     assert "123" not in bot.md_users
-
-
-def test_tweet_cb_no_response():
-    """Test tweet_cb with None response."""
-    bot = mock.Mock()
-    result = botutil.tweet_cb(None, bot, "text", "room", "jid", "123")
-    assert result is None
-
-
-def test_tweet_cb_no_user():
-    """Test tweet_cb with unknown user."""
-    bot = mock.Mock()
-    bot.tw_users = {}
-    result = botutil.tweet_cb(
-        {"data": {"id": "123"}}, bot, "text", "room", "jid", "999"
-    )
-    assert result == {"data": {"id": "123"}}
-
-
-def test_tweet_cb_no_data():
-    """Test tweet_cb with response missing data."""
-    bot = mock.Mock()
-    bot.tw_users = {"123": {"screen_name": "test"}}
-    result = botutil.tweet_cb(
-        {"error": "bad"}, bot, "text", "room", "jid", "123"
-    )
-    assert result is None
-
-
-def test_tweet_cb_success():
-    """Test tweet_cb with successful response."""
-    bot = mock.Mock()
-    bot.name = "iembot"
-    bot.tw_users = {"123": {"screen_name": "testuser"}}
-    bot.dbpool.runOperation.return_value = mock.Mock()
-    response = {"data": {"id": "tweet123"}}
-    result = botutil.tweet_cb(response, bot, "text", "room", "jid", "123")
-    assert result == response
-    bot.dbpool.runOperation.assert_called_once()
 
 
 def test_toot_cb_no_response():
@@ -393,17 +260,6 @@ def test_load_chatlog():
     assert bot.seqnum == 1
 
 
-def test_error_conversion():
-    """Test that we can convert errors."""
-    err = TwitterError("BLAH")
-    assert botutil.twittererror_exp_to_code(err) is None
-    err = TwitterError(
-        "[{'code': 185, 'message': 'User is over daily status update limit.'}]"
-    )
-    assert botutil.twittererror_exp_to_code(err) == 185
-    assert botutil.twittererror_exp_to_code(Failure(err)) == 185
-
-
 @pytest.mark.parametrize("database", ["mesosite"])
 def test_load_chatrooms_fromdb(dbcursor):
     """Can we load up chatroom details?"""
@@ -424,24 +280,3 @@ def test_htmlentites():
     """Do replacements work?"""
     assert botutil.htmlentities("<") == "&lt;"
     assert botutil.htmlentities("<>") == "&lt;&gt;"
-
-
-def test_tweet_unescape():
-    """Test that we remove html entities from string."""
-    msg = "Hail &gt; 2.0 INCHES"
-    ans = "Hail > 2.0 INCHES"
-    assert botutil.safe_twitter_text(msg) == ans
-
-
-def test_tweettext():
-    """Are we doing the right thing here"""
-    msgin = (
-        "At 1:30 PM, 1 WNW Lake Mills [Winnebago Co, IA] TRAINED "
-        "SPOTTER reports TSTM WND GST of E61 MPH. SPOTTER MEASURED "
-        "61 MPH WIND GUST. HIS CAR DOOR WAS ALSO CAUGHT BY THE WIND "
-        "WHEN HE WAS OPENING THE DOOR, PUSHING THE DOOR INTO HIS FACE. "
-        "THIS CONTACT BR.... "
-        "https://iem.local/lsr/#DMX/201807041830/201807041830"
-    )
-    msgout = botutil.safe_twitter_text(msgin)
-    assert msgout == msgin
