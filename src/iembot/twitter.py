@@ -14,6 +14,7 @@ from twisted.words.xish.domish import Element
 from twitter.api import Api as TwitterApi
 from twitter.error import TwitterError
 
+from iembot.atmosphere import at_send_message
 from iembot.types import JabberClient
 from iembot.util import email_error
 
@@ -315,6 +316,8 @@ def tweet(bot: JabberClient, user_id, twttxt, **kwargs):
     Tweet a message
     """
     twttxt = safe_twitter_text(twttxt)
+    # FIXME
+    at_send_message(bot, user_id, twttxt, **kwargs)
 
     df = threads.deferToThread(
         really_tweet,
