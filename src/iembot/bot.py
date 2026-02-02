@@ -27,6 +27,7 @@ from iembot.msghandlers import (
     process_privatechat,
 )
 from iembot.slack import load_slack_from_db
+from iembot.types import JabberClient as JabberClientType
 from iembot.util import (
     at_send_message,
     channels_room_add,
@@ -60,7 +61,7 @@ PRESENCE_MUC_STATUS = (
 )
 
 
-class JabberClient:
+class JabberClient(JabberClientType):
     """Here lies the Jabber Bot.
 
     Attributes:
