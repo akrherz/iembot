@@ -1,23 +1,18 @@
 """Utility functions for IEMBot"""
 
-# pylint: disable=protected-access
 import copy
-import datetime
 import glob
 import os
 import pickle
 import pwd
 import re
 import socket
-import time
 import traceback
+from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from io import BytesIO
 from zoneinfo import ZoneInfo
 
-import mastodon
-import requests
-from mastodon.errors import MastodonUnauthorizedError
 from pyiem.util import utc
 from twisted.internet import reactor
 from twisted.mail import smtp
@@ -26,76 +21,6 @@ from twisted.words.xish import domish
 
 import iembot
 from iembot.types import JabberClient
-
-
-def at_send_message(bot: JabberClient, user_id, msg: str, **kwargs):
-    """Send a message to the ATmosphere."""
-    at_handle = bot.tw_users.get(user_id, {}).get("at_handle")
-    if at_handle is None:
-        return
-    message = {"msg": msg}
-    message.update(kwargs)
-    bot.at_manager.submit(at_handle, message)
-
-
-def toot(bot: JabberClient, user_id, twttxt, **kwargs):
-    """Blocking Mastodon toot method."""
-    if user_id not in bot.md_users:
-        log.msg(f"toot() called with unknown Mastodon user_id: {user_id}")
-        return None
-    api = mastodon.Mastodon(
-        access_token=bot.md_users[user_id]["access_token"],
-        api_base_url=bot.md_users[user_id]["api_base_url"],
-    )
-    log.msg(
-        "Sending to Mastodon "
-        f"{bot.md_users[user_id]['screen_name']}({user_id}) "
-        f"'{twttxt}' media:{kwargs.get('twitter_media')}"
-    )
-    media = kwargs.get("twitter_media")
-    media_id = None
-
-    res = None
-    try:
-        params = {
-            "status": twttxt,
-        }
-        # If we have media, we have some work to do!
-        if media is not None:
-            resp = requests.get(media, timeout=30, stream=True)
-            resp.raise_for_status()
-            # TODO: Is this always image/png?
-            media_id = api.media_post(resp.raw, mime_type="image/png")
-            params["media_ids"] = [media_id]
-        res = api.status_post(**params)
-    except MastodonUnauthorizedError:
-        # Access token is no longer valid
-        disable_mastodon_user(bot, user_id)
-        return None
-    except mastodon.errors.MastodonRatelimitError as exp:
-        # Submitted too quickly
-        log.err(exp)
-        # Since this called from a thread, sleeping should not jam us up
-        time.sleep(kwargs.get("sleep", 10))
-        res = api.status_post(**params)
-    except mastodon.errors.MastodonError as exp:
-        # Something else bad happened when submitting this to the Mastodon
-        log.err(exp)
-        params.pop("media_ids", None)  # Try again without media
-        # Since this called from a thread, sleeping should not jam us up
-        time.sleep(kwargs.get("sleep", 10))
-        try:
-            res = api.status_post(**params)
-        except mastodon.errors.MastodonError as exp2:
-            log.err(exp2)
-    except Exception as exp:
-        # Something beyond Mastodon went wrong
-        log.err(exp)
-        params.pop("media_ids", None)  # Try again without media
-        # Since this called from a thread, sleeping should not jam us up
-        time.sleep(kwargs.get("sleep", 10))
-        res = api.status_post(**params)
-    return res
 
 
 def channels_room_list(bot: JabberClient, room: str):
@@ -207,11 +132,11 @@ def channels_room_del(txn, bot: JabberClient, room: str, channel: str):
 def purge_logs(bot: JabberClient):
     """Remove chat logs on a 24 HR basis"""
     log.msg("purge_logs() called...")
-    basets = utc() - datetime.timedelta(
+    basets = utc() - timedelta(
         days=int(bot.config.get("bot.purge_xmllog_days", 7))
     )
     for fn in glob.glob("logs/xmllog.*"):
-        ts = datetime.datetime.strptime(fn, "logs/xmllog.%Y_%m_%d")
+        ts = datetime.strptime(fn, "logs/xmllog.%Y_%m_%d")
         ts = ts.replace(tzinfo=ZoneInfo("UTC"))
         if ts < basets:
             log.msg(f"Purging logfile {fn}")
@@ -243,7 +168,7 @@ def email_error(exp, bot: JabberClient, message=""):
             return True
         delta = utcnow - bot.email_timestamps[-1]
         # Effectively limits to 10 per hour
-        if delta < datetime.timedelta(hours=1):
+        if delta < timedelta(hours=1):
             return False
         # We are going to email!
         bot.email_timestamps.insert(0, utcnow)
@@ -288,84 +213,6 @@ def email_error(exp, bot: JabberClient, message=""):
     )
     df.addErrback(log.err)
     return True
-
-
-def disable_mastodon_user(bot: JabberClient, user_id, errcode=0):
-    """Disable the Mastodon subs for this user_id
-
-    Args:
-        user_id (big_id): The Mastodon user to disable
-        errcode (int): The HTTP-like errorcode
-    """
-    mduser = bot.md_users.get(user_id)
-    if mduser is None:
-        log.msg(f"Failed to disable unknown Mastodon user_id {user_id}")
-        return False
-    screen_name = mduser["screen_name"]
-    if mduser["iem_owned"]:
-        log.msg(
-            f"Skipping disabling of Mastodon for {user_id} ({screen_name})"
-        )
-        return False
-    bot.md_users.pop(user_id, None)
-    log.msg(
-        f"Removing Mastodon access token for user: {user_id} ({screen_name}) "
-        f"errcode: {errcode}"
-    )
-    df = bot.dbpool.runOperation(
-        f"UPDATE {bot.name}_mastodon_oauth SET updated = now(), "
-        "access_token = null, api_base_url = null "
-        "WHERE user_id = %s",
-        (user_id,),
-    )
-    df.addErrback(log.err)
-    return True
-
-
-def toot_cb(response, bot: JabberClient, twttxt, _room, myjid, user_id):
-    """
-    Called after success going to Mastodon
-    """
-    if response is None:
-        return
-    mduser = bot.md_users.get(user_id)
-    if mduser is None:
-        return response
-    if "content" not in response:
-        log.msg(f"Got response without content {response}")
-        return
-    mduser["screen_name"]
-    url = response["url"]
-
-    response.pop(
-        "account", None
-    )  # Remove extra junk, there's still a lot more though...
-
-    # Log
-    df = bot.dbpool.runOperation(
-        f"INSERT into {bot.name}_social_log(medium, source, resource_uri, "
-        "message, response, response_code) values (%s,%s,%s,%s,%s,%s)",
-        ("mastodon", myjid, url, twttxt, repr(response), 200),
-    )
-    df.addErrback(log.err)
-    return response
-
-
-def mastodon_errback(err, bot: JabberClient, user_id, tweettext):
-    """Error callback when simple Mastodon workflow fails."""
-    # Always log it
-    log.err(err)
-    errcode = None
-    if isinstance(err, mastodon.errors.MastodonNotFoundError):
-        errcode = 404
-        disable_mastodon_user(bot, user_id, errcode)
-    elif isinstance(err, mastodon.errors.MastodonUnauthorizedError):
-        errcode = 401
-        disable_mastodon_user(bot, user_id, errcode)
-    else:
-        sn = bot.md_users.get(user_id, {}).get("screen_name", "")
-        msg = f"User: {user_id} ({sn})\nFailed to toot: {tweettext}"
-        email_error(err, bot, msg)
 
 
 def load_chatrooms_from_db(txn, bot: JabberClient, always_join: bool = False):
@@ -464,35 +311,6 @@ def load_webhooks_from_db(txn, bot: JabberClient):
     log.msg(f"load_webhooks_from_db(): {txn.rowcount} subs found")
 
 
-def load_mastodon_from_db(txn, bot: JabberClient):
-    """Load Mastodon config from database"""
-    txn.execute("select channel, user_id from iembot_mastodon_subs")
-    mdrt = {}
-    for row in txn.fetchall():
-        mdrt.setdefault(row["channel"], []).append(row["user_id"])
-    bot.md_routingtable = mdrt
-    log.msg(f"load_mastodon_from_db(): {txn.rowcount} subs found")
-
-    mdusers = {}
-    txn.execute(
-        """
-        select server, o.id, o.access_token, o.screen_name, o.iem_owned
-        from iembot_mastodon_apps a JOIN iembot_mastodon_oauth o
-            on (a.id = o.appid) WHERE o.access_token is not null and
-        not o.disabled
-        """
-    )
-    for row in txn.fetchall():
-        mdusers[row["id"]] = {
-            "screen_name": row["screen_name"],
-            "access_token": row["access_token"],
-            "api_base_url": row["server"],
-            "iem_owned": row["iem_owned"],
-        }
-    bot.md_users = mdusers
-    log.msg(f"load_mastodon_from_db(): {txn.rowcount} access tokens found")
-
-
 def load_chatlog(bot: JabberClient):
     """load up our pickled chatlog"""
     if not os.path.isfile(bot.picklefile):
@@ -553,7 +371,7 @@ def add_entry_to_rss(entry, rss):
     Returns:
       PyRSSGen.RSSItem
     """
-    ts = datetime.datetime.strptime(entry.timestamp, "%Y%m%d%H%M%S")
+    ts = datetime.strptime(entry.timestamp, "%Y%m%d%H%M%S")
     txt = entry.txtlog
     m = re.search(r"https?://", txt)
     urlpos = -1
@@ -579,13 +397,13 @@ def daily_timestamp(bot: JabberClient):
       bot (JabberClient) instance
     """
     # Make sure we are a bit into the future!
-    utc0z = utc() + datetime.timedelta(hours=1)
+    utc0z = utc() + timedelta(hours=1)
     utc0z = utc0z.replace(hour=0, minute=0, second=0, microsecond=0)
     mess = f"------ {utc0z:%b %-d, %Y} [UTC] ------"
     for rm in bot.rooms:
         bot.send_groupchat(rm, mess)
 
-    tnext = utc0z + datetime.timedelta(hours=24)
+    tnext = utc0z + timedelta(hours=24)
     delta = (tnext - utc()).total_seconds()
     log.msg(f"Calling daily_timestamp in {delta:.2f} seconds")
     return reactor.callLater(delta, daily_timestamp, bot)
