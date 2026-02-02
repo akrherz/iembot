@@ -1,15 +1,12 @@
 """Twitter/X stuff."""
 
-from typing import TYPE_CHECKING
-
 from twisted.python import log
 from twisted.words.xish.domish import Element
 
-if TYPE_CHECKING:
-    from iembot.bot import JabberClient
+from iembot.types import JabberClient
 
 
-def route(bot: "JabberClient", channels: list, elem: Element):
+def route(bot: JabberClient, channels: list, elem: Element):
     """Do the twitter work."""
     alertedPages = []
     for channel in channels:

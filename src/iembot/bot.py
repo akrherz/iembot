@@ -5,9 +5,8 @@ import pickle
 import random
 import re
 import traceback
-from datetime import datetime, timedelta
+from datetime import timedelta
 from io import StringIO
-from typing import Any
 from xml.etree import ElementTree as ET
 
 from pyiem.util import utc
@@ -94,35 +93,6 @@ class JabberClient:
         keepalive_lc (LoopingCall | None): Keepalive loop handle.
         fortunes (list[str]): Loaded fortunes used by the bot.
     """
-
-    startup_time: datetime
-    picklefile: str
-    name: str
-    dbpool: Any
-    memcache_client: Any | None
-    config: dict[str, Any]
-    outstanding_pings: list
-    rooms: dict[str, dict[str, Any]]
-    chatlog: dict[str, Any]
-    seqnum: int
-    routingtable: dict[str, list[str]]
-    at_manager: ATManager
-    tw_users: dict[str, dict[str, Any]]
-    tw_routingtable: dict[str, list[str]]
-    md_users: dict[str, dict[str, Any]]
-    md_routingtable: dict[str, list[str]]
-    slack_teams: dict[str, str]
-    slack_routingtable: dict[str, list[str]]
-    webhooks_routingtable: dict[str, list[str]]
-    xmlstream: xmlstream.XmlStream | None
-    firstlogin: bool
-    xmllog: DailyLogFile
-    myjid: jid.JID | None
-    ingestjid: jid.JID | None
-    conference: str | None
-    email_timestamps: list[datetime]
-    keepalive_lc: LoopingCall | None
-    fortunes: list[str]
 
     def __init__(
         self, name, dbpool, memcache_client=None, xml_log_path="logs"

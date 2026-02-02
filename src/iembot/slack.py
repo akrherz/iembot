@@ -2,7 +2,6 @@
 
 import json
 import urllib
-from typing import TYPE_CHECKING
 
 import requests
 from twisted.internet import threads
@@ -11,12 +10,11 @@ from twisted.web import resource
 from twisted.web.server import NOT_DONE_YET
 from twisted.words.xish.domish import Element
 
-if TYPE_CHECKING:
-    from iembot.bot import JabberClient
+from iembot.types import JabberClient
 
 
 def send_to_slack(
-    bot: "JabberClient", team_id: str, channel_id: str, elem: Element
+    bot: JabberClient, team_id: str, channel_id: str, elem: Element
 ):
     """Send a message to Slack, called from thread."""
     access_token = bot.slack_teams[team_id]
@@ -41,7 +39,7 @@ def send_to_slack(
     resp.raise_for_status()
 
 
-def load_slack_from_db(txn, bot: "JabberClient"):
+def load_slack_from_db(txn, bot: JabberClient):
     """Load the Slack integration."""
     txn.execute(
         """
@@ -65,7 +63,7 @@ def load_slack_from_db(txn, bot: "JabberClient"):
     log.msg(f"Loaded {len(rt)} Slack subscriptions")
 
 
-def route(bot: "JabberClient", channels: list, elem: Element):
+def route(bot: JabberClient, channels: list, elem: Element):
     """Do Slack message routing."""
     alertedSlacks = []
     for channel in channels:
@@ -83,7 +81,7 @@ def route(bot: "JabberClient", channels: list, elem: Element):
 class SlackSubscribeChannel(resource.Resource):
     """respond to /subscribe requests"""
 
-    def __init__(self, iembot: "JabberClient"):
+    def __init__(self, iembot: JabberClient):
         """Constructor"""
         resource.Resource.__init__(self)
         self.iembot = iembot
@@ -128,7 +126,7 @@ class SlackSubscribeChannel(resource.Resource):
 class SlackUnsubscribeChannel(resource.Resource):
     """respond to /unsubscribe requests"""
 
-    def __init__(self, iembot: "JabberClient"):
+    def __init__(self, iembot: JabberClient):
         """Constructor"""
         resource.Resource.__init__(self)
         self.iembot = iembot
@@ -174,7 +172,7 @@ class SlackUnsubscribeChannel(resource.Resource):
 class SlackOauthChannel(resource.Resource):
     """respond to /oauth requests"""
 
-    def __init__(self, iembot: "JabberClient"):
+    def __init__(self, iembot: JabberClient):
         """Constructor"""
         resource.Resource.__init__(self)
         self.iembot = iembot
@@ -250,7 +248,7 @@ class SlackOauthChannel(resource.Resource):
 class SlackInstallChannel(resource.Resource):
     """respond to /oauth requests"""
 
-    def __init__(self, iembot: "JabberClient"):
+    def __init__(self, iembot: JabberClient):
         """Constructor"""
         resource.Resource.__init__(self)
         self.iembot = iembot
