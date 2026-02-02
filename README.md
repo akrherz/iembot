@@ -1,5 +1,4 @@
-IEMBOT
-======
+# IEMBOT
 
 [![Docs](https://readthedocs.org/projects/iembot/badge/?version=latest)](https://readthedocs.org/projects/iembot/)
 [![Build Status](https://github.com/akrherz/iembot/workflows/Install%20and%20Test/badge.svg)](https://github.com/akrherz/iembot)
@@ -8,11 +7,16 @@ IEMBOT
 I am a XMPP client with limited bot capabilities.  In general, I am a message
 router more than anything.
 
-An ancient version of this codebase runs the `nwsbot` instance within
-[NWSChat](https://nwschat.weather.gov).  This codebase is currently used by the
-`iembot` instance within [Weather.IM](https://weather.im).  This code got a major
-refactoring during July 2018 and may be a bit more usable for others.
+## Run iembot in development
 
-For examples of start scripts, see `iembot` within [Weather.IM codebase](https://github.com/akrherz/weather.im/tree/master/iembot).
+Place the `src` folder within your `PYTHONPATH` and then `python -m iembot.main run ...`
 
-Requires and tested on Python 3.10 through 3.14.
+## Run iembot in production
+
+Well, don't.  If you do, then the CLI is available `iembot run ...`
+
+## Command line options
+
+Option | Shortname | Default | Doc
+--- | --- | --- | --
+`--logfile` | `-l` | `logs/iembot.log` | Where to log to, `-` does stdout only
