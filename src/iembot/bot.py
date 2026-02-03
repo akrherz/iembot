@@ -308,8 +308,8 @@ class JabberClient(JabberClientType):
                 # send a disconnect
                 self.xmlstream.sendFooter()
             return
-        if self.xmlstream is None:
-            log.msg("xmlstream is None, not sending ping")
+        if self.xmlstream is None or self.myjid is None:
+            log.msg("xmlstream or myjid is None, not sending ping")
             return
         utcnow = utc()
         ping = Element((None, "iq"))
