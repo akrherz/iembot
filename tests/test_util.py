@@ -1,7 +1,6 @@
 """Tests, gasp"""
 
 import os
-import tempfile
 from unittest import mock
 
 import pytest
@@ -62,10 +61,10 @@ def test_channels_room_list():
     assert "2 channels" in call_args[0][1]
 
 
-def test_load_chatlog():
+def test_load_chatlog(tmp_path, bot: JabberClient):
     """Test our pickling fun."""
-    bot = JabberClient("test", None, xml_log_path="/tmp")
-    bot.picklefile = tempfile.mkstemp()[1]
+    print(bot.seqnum)
+    bot.picklefile = tmp_path / "chatlog.pkl"
     bot.save_chatlog()
     botutil.load_chatlog(bot)
     assert bot.seqnum == 0
@@ -83,19 +82,17 @@ def test_load_chatlog():
     assert bot.seqnum == 1
 
 
-@pytest.mark.parametrize("database", ["mesosite"])
+@pytest.mark.parametrize("database", ["iembot"])
 def test_load_chatrooms_fromdb(dbcursor):
     """Can we load up chatroom details?"""
     bot = mock.Mock()
-    bot.name = "iembot"
     bot.rooms = {}
     botutil.load_chatrooms_from_db(dbcursor, bot, True)
     assert bot
 
 
-def test_daily_timestamp():
+def test_daily_timestamp(bot: JabberClient):
     """Does the daily timestamp algo return a deferred."""
-    bot = JabberClient(None, None, xml_log_path="/tmp")
     assert botutil.daily_timestamp(bot) is not None
 
 

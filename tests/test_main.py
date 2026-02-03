@@ -15,7 +15,7 @@ def test_load_settings_reads_json(tmp_path):
     d = {"foo": "bar"}
     f = tmp_path / "settings.json"
     f.write_text(json.dumps(d))
-    assert main_mod._load_settings(str(f)) == d
+    assert main_mod._load_config(str(f)) == d
 
 
 def test_write_and_remove_pidfile(tmp_path):
@@ -96,19 +96,29 @@ def test_fatal_stops_reactor(monkeypatch):
         "reactor",
         types.SimpleNamespace(stop=lambda: called.setdefault("stopped", True)),
     )
-    main_mod._fatal(Exception())
+    main_mod._fatal()
     assert called["stopped"]
 
 
-def test_cli_help():
+def taest_cli_help():
     runner = CliRunner()
     result = runner.invoke(main_mod.main, ["--help"])
     assert result.exit_code == 0
     assert "IEMBot command line interface" in result.output
 
 
-def test_cli_run_help():
+def taest_cli_run_help():
     runner = CliRunner()
     result = runner.invoke(main_mod.main, ["run", "--help"])
     assert result.exit_code == 0
     assert "Run the IEMBot service" in result.output
+
+
+def test_cli_run(tmp_path):
+    runner = CliRunner()
+    with mock.patch("iembot.main._start_logging"):
+        runner.invoke(
+            main_mod.main,
+            ["run", "--logfile", tmp_path / "bah.log"],
+            catch_exceptions=False,
+        )

@@ -5,33 +5,35 @@ import time
 import mastodon as Mastodon
 import requests
 from mastodon.errors import MastodonUnauthorizedError
+from twisted.internet import threads
 from twisted.python import log
 from twisted.words.xish.domish import Element
 
+from iembot.twitter import safe_twitter_text
 from iembot.types import JabberClient
-from iembot.util import email_error
+from iembot.util import build_channel_subs, email_error
 
 
 def load_mastodon_from_db(txn, bot: JabberClient):
     """Load Mastodon config from database"""
-    txn.execute("select channel, user_id from iembot_mastodon_subs")
-    mdrt = {}
-    for row in txn.fetchall():
-        mdrt.setdefault(row["channel"], []).append(row["user_id"])
-    bot.md_routingtable = mdrt
-    log.msg(f"load_mastodon_from_db(): {txn.rowcount} subs found")
+
+    bot.md_routingtable = build_channel_subs(
+        txn,
+        "iembot_mastodon_oauth",
+    )
 
     mdusers = {}
     txn.execute(
         """
-        select server, o.id, o.access_token, o.screen_name, o.iem_owned
+        select server, o.iembot_account_id,
+        o.access_token, o.screen_name, o.iem_owned
         from iembot_mastodon_apps a JOIN iembot_mastodon_oauth o
             on (a.id = o.appid) WHERE o.access_token is not null and
         not o.disabled
         """
     )
     for row in txn.fetchall():
-        mdusers[row["id"]] = {
+        mdusers[row["iembot_account_id"]] = {
             "screen_name": row["screen_name"],
             "access_token": row["access_token"],
             "api_base_url": row["server"],
@@ -64,7 +66,7 @@ def disable_mastodon_user(bot: JabberClient, user_id, errcode=0):
         f"errcode: {errcode}"
     )
     df = bot.dbpool.runOperation(
-        f"UPDATE {bot.name}_mastodon_oauth SET updated = now(), "
+        "UPDATE iembot_mastodon_oauth SET updated = now(), "
         "access_token = null, api_base_url = null "
         "WHERE user_id = %s",
         (user_id,),
@@ -73,7 +75,7 @@ def disable_mastodon_user(bot: JabberClient, user_id, errcode=0):
     return True
 
 
-def toot_cb(response, bot: JabberClient, twttxt, _room, myjid, user_id):
+def toot_cb(response, bot: JabberClient, twttxt, user_id):
     """
     Called after success going to Mastodon
     """
@@ -93,9 +95,10 @@ def toot_cb(response, bot: JabberClient, twttxt, _room, myjid, user_id):
 
     # Log
     df = bot.dbpool.runOperation(
-        f"INSERT into {bot.name}_social_log(medium, source, resource_uri, "
-        "message, response, response_code) values (%s,%s,%s,%s,%s,%s)",
-        ("mastodon", myjid, url, twttxt, repr(response), 200),
+        "INSERT into iembot_social_log(medium, source, resource_uri, "
+        "message, response, response_code, iembot_account_id) "
+        "values (%s,%s,%s,%s,%s,%s,%s)",
+        ("mastodon", "", url, twttxt, repr(response), 200, user_id),
     )
     df.addErrback(log.err)
     return response
@@ -118,7 +121,34 @@ def mastodon_errback(err, bot: JabberClient, user_id, tweettext):
         email_error(err, bot, msg)
 
 
-def toot(bot: JabberClient, user_id, twttxt, **kwargs):
+def toot(self, user_id, twttxt, **kwargs):
+    """
+    Send a message to Mastodon
+    """
+    twttxt = safe_twitter_text(twttxt)
+    df = threads.deferToThread(
+        really_toot,
+        self,
+        user_id,
+        twttxt,
+        **kwargs,
+    )
+    df.addCallback(toot_cb, self, twttxt, user_id)
+    df.addErrback(
+        mastodon_errback,
+        self,
+        user_id,
+        twttxt,
+    )
+    df.addErrback(
+        email_error,
+        self,
+        f"User: {user_id}, Text: {twttxt} Hit double exception",
+    )
+    return df
+
+
+def really_toot(bot: JabberClient, user_id, twttxt, **kwargs):
     """Blocking Mastodon toot method."""
     if user_id not in bot.md_users:
         log.msg(f"toot() called with unknown Mastodon user_id: {user_id}")
@@ -204,8 +234,8 @@ def route(bot: JabberClient, channels: list, elem: Element):
             ):
                 lat = elem.x["lat"]
                 long = elem.x["long"]
-            # Finally, actually post to Mastodon, this is in basicbot
-            bot.toot(
+            really_toot(
+                bot,
                 user_id,
                 elem.x["twitter"],
                 twitter_media=elem.x.getAttribute("twitter_media"),

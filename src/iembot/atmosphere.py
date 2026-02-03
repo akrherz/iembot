@@ -13,8 +13,10 @@ import httpx
 from atproto import Client
 from atproto_client.utils import TextBuilder
 from twisted.python import log
+from twisted.words.xish.domish import Element
 
 from iembot.types import JabberClient
+from iembot.util import build_channel_subs
 
 
 class ATWorkerThread(threading.Thread):
@@ -106,11 +108,48 @@ class ATManager:
         self.at_clients[at_handle].queue.put(message)
 
 
-def at_send_message(bot: JabberClient, user_id, msg: str, **kwargs):
+def load_atmosphere_from_db(txn, bot: JabberClient):
+    """Query database for our config."""
+
+    bot.at_routingtable = build_channel_subs(
+        txn,
+        "iembot_atmosphere_accounts",
+    )
+
+    users = {}
+    txn.execute(
+        """
+    SELECT iembot_account_id, handle, app_pass from
+    iembot_atmosphere_accounts
+    """
+    )
+    for row in txn.fetchall():
+        user_id = row["iembot_account_id"]
+        users[user_id] = {
+            "at_handle": row["handle"],
+        }
+        bot.at_manager.add_client(row["handle"], row["app_pass"])
+    bot.at_users = users
+    log.msg(f"load_atmosphere_from_db(): {txn.rowcount} accounts found")
+
+
+def at_send_message(bot: JabberClient, iembot_account_id, msg: str, **kwargs):
     """Send a message to the ATmosphere."""
-    at_handle = bot.tw_users.get(user_id, {}).get("at_handle")
+    at_handle = bot.at_users.get(iembot_account_id, {}).get("at_handle")
     if at_handle is None:
         return
     message = {"msg": msg}
     message.update(kwargs)
     bot.at_manager.submit(at_handle, message)
+
+
+def route(bot: JabberClient, channels: list, elem: Element):
+    """Do the message routing."""
+    alerted = []
+    for channel in channels:
+        for iembot_account_id in bot.at_routingtable.get(channel, []):
+            if iembot_account_id in alerted:
+                log.msg(f"{iembot_account_id} already alerted...")
+                continue
+            alerted.append(iembot_account_id)
+            at_send_message(bot, iembot_account_id, elem.x["twitter"])

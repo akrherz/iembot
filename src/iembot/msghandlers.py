@@ -8,12 +8,15 @@ from twisted.words.xish import xpath
 from twisted.words.xish.domish import Element
 
 from iembot import ROOM_LOG_ENTRY
-from iembot.mastodon import route as mastodon_route
-from iembot.slack import route as slack_route
-from iembot.twitter import route as twitter_route
 from iembot.types import JabberClient
-from iembot.webhooks import route as webhooks_route
-from iembot.xmpp import route as xmpp_route
+
+REGISTERED_HANDLERS = []
+
+
+def register_handler(handler: callable):
+    """Add a message handler to the registry."""
+    if handler not in REGISTERED_HANDLERS:
+        REGISTERED_HANDLERS.append(handler)
 
 
 def process_privatechat(bot: JabberClient, elem: Element) -> None:
@@ -62,11 +65,8 @@ def process_message_from_ingest(bot: JabberClient, elem: Element) -> None:
     elem["type"] = "groupchat"
     bot.send_groupchat_elem(elem)
 
-    twitter_route(bot, channels, elem)
-    xmpp_route(bot, channels, elem)
-    slack_route(bot, channels, elem)
-    webhooks_route(bot, channels, elem)
-    mastodon_route(bot, channels, elem)
+    for handler in REGISTERED_HANDLERS:
+        handler(bot, channels, elem)
 
 
 def process_groupchat(bot: JabberClient, elem: Element) -> None:

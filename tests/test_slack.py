@@ -30,12 +30,11 @@ def test_send_to_slack(monkeypatch):
 
     bot = mock.Mock()
     bot.slack_teams = {"T12345": "xoxb-fake-token"}
-    team_id = "T12345"
     channel_id = "C67890"
     elem = mock.Mock()
     elem.x = {"twitter": "Hello, Slack!"}
 
-    slack.send_to_slack(bot, team_id, channel_id, elem)
+    slack.send_to_slack("xoxb-fake-token", channel_id, elem)
 
     assert posted["url"] == "https://slack.com/api/chat.postMessage"
     assert posted["headers"]["Authorization"] == "Bearer xoxb-fake-token"

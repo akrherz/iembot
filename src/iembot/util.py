@@ -23,6 +23,42 @@ import iembot
 from iembot.types import JabberClient
 
 
+def build_channel_subs(txn, auth_table: str) -> dict[int : list[str]]:
+    """Build the subscriptions based on the given auth table."""
+    # First find explicit subscriptions
+    txn.execute(
+        f"""
+        select o.iembot_account_id, channel_name
+        from {auth_table} o, iembot_subscriptions s, iembot_channels c
+        WHERE o.iembot_account_id = s.iembot_account_id and s.channel_id = c.id
+        """
+    )
+    subs = {}
+    count_subs = 0
+    for row in txn.fetchall():
+        subs.setdefault(row["channel_name"], []).append(
+            row["iembot_account_id"]
+        )
+        count_subs += 1
+    # Find subscriptions based on groups
+    txn.execute(
+        """
+        select o.iembot_account_id, channel_name from
+        iembot_mastodon_oauth o, iembot_subscriptions s,
+        iembot_channel_group_membership m, iembot_channels c
+        WHERE o.iembot_account_id = s.iembot_account_id and
+        s.group_id = m.group_id and m.channel_id = c.id
+        """
+    )
+    for row in txn.fetchall():
+        subs.setdefault(row["channel_name"], []).append(
+            row["iembot_account_id"]
+        )
+        count_subs += 1
+    log.msg(f"Built {count_subs} subscriptions from {auth_table}")
+    return subs
+
+
 def channels_room_list(bot: JabberClient, room: str):
     """
     Send a listing of channels that the room is subscribed to...
@@ -73,22 +109,29 @@ def channels_room_add(txn, bot: JabberClient, room: str, channel: str):
         # Add a channels entry for this channel, if one currently does
         # not exist
         txn.execute(
-            f"SELECT * from {bot.name}_channels WHERE id = %s",
+            "SELECT id from iembot_channels WHERE channel_name = %s",
             (ch,),
         )
         if txn.rowcount == 0:
             txn.execute(
-                f"INSERT into {bot.name}_channels(id, name) VALUES (%s, %s)",
+                "INSERT into iembot_channels(channel_name, description) "
+                "VALUES (%s, %s) returning id",
                 (ch, ch),
             )
+        channel_id = txn.fetchone()["id"]
 
         # Add to routing table
         bot.routingtable[ch].append(room)
         # Add to database
         txn.execute(
-            f"INSERT into {bot.name}_room_subscriptions "
-            "(roomname, channel) VALUES (%s, %s)",
-            (room, ch),
+            """
+    INSERT into iembot_subscriptions (iembot_account_id, channel_id)
+    values (
+        (select iembot_account_id from iembot_rooms where roomname = %s),
+        %s
+    )
+    """,
+            (room, channel_id),
         )
         bot.send_groupchat(room, f"Subscribed {room} to channel '{ch}'")
     # Send room a listing of channels!
@@ -121,11 +164,16 @@ def channels_room_del(txn, bot: JabberClient, room: str, channel: str):
         bot.routingtable[ch].remove(room)
         # Remove from database
         txn.execute(
-            f"DELETE from {bot.name}_room_subscriptions WHERE "
-            "roomname = %s and channel = %s",
+            """
+    DELETE from iembot_subscriptions WHERE
+    iembot_account_id = (
+    select iembot_account_id from iembot_rooms where roomname = %s) and
+    channel_id = (
+    select id from iembot_channels where channel_name = %s)
+    """,
             (room, ch),
         )
-        bot.send_groupchat(room, f"Unscribed {room} to channel '{ch}'")
+        bot.send_groupchat(room, f"Unsubscribed {room} to channel '{ch}'")
     channels_room_list(bot, room)
 
 
@@ -223,44 +271,23 @@ def load_chatrooms_from_db(txn, bot: JabberClient, always_join: bool = False):
       bot (JabberClient): the running bot instance
       always_join (boolean): do we force joining each room, regardless
     """
-    # Load up the routingtable for bot products
-    rt = {}
-    txn.execute(
-        f"SELECT roomname, channel from {bot.name}_room_subscriptions "
-        "WHERE roomname is not null and channel is not null"
-    )
-    rooms = []
-    for row in txn.fetchall():
-        rm = row["roomname"]
-        channel = row["channel"]
-        if channel not in rt:
-            rt[channel] = []
-        rt[channel].append(rm)
-        if rm not in rooms:
-            rooms.append(rm)
-    bot.routingtable = rt
-    log.msg(
-        f"... loaded {txn.rowcount} channel subscriptions for "
-        f"{len(rooms)} rooms"
-    )
-
     # Load up a list of chatrooms
     txn.execute(
-        f"SELECT roomname, twitter from {bot.name}_rooms "
+        "SELECT iembot_account_id, roomname from iembot_rooms "
         "WHERE roomname is not null ORDER by roomname ASC"
     )
     oldrooms = list(bot.rooms.keys())
     joined = 0
+    xref = {}
     for i, row in enumerate(txn.fetchall()):
         rm = row["roomname"]
+        xref[row["iembot_account_id"]] = rm
         # Setup Room Config Dictionary
         if rm not in bot.rooms:
             bot.rooms[rm] = {
-                "twitter": None,
                 "occupants": {},
                 "joined": False,
             }
-        bot.rooms[rm]["twitter"] = row["twitter"]
 
         if always_join or rm not in oldrooms:
             presence = domish.Element(("jabber:client", "presence"))
@@ -292,11 +319,21 @@ def load_chatrooms_from_db(txn, bot: JabberClient, always_join: bool = False):
         f"left {len(oldrooms)} of them"
     )
 
+    # Doing an ugly pivot with this
+    rt_using_account_ids = build_channel_subs(
+        txn,
+        "iembot_rooms",
+    )
+    rt = {}
+    for channel, accounts in rt_using_account_ids.items():
+        rt[channel] = [xref[account] for account in accounts]
+    bot.routingtable = rt
+
 
 def load_webhooks_from_db(txn, bot: JabberClient):
     """Load twitter config from database"""
     txn.execute(
-        f"SELECT channel, url from {bot.name}_webhooks "
+        "SELECT channel, url from iembot_webhooks "
         "WHERE channel is not null and url is not null"
     )
     table = {}

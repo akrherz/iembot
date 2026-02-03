@@ -7,11 +7,12 @@ import re
 import traceback
 from datetime import timedelta
 from io import StringIO
+from pathlib import Path
 from xml.etree import ElementTree as ET
 
 from pyiem.util import utc
 from twisted.application import internet
-from twisted.internet import reactor, threads
+from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from twisted.mail.smtp import SMTPSenderFactory
 from twisted.python import log
@@ -21,22 +22,17 @@ from twisted.words.xish import xpath
 from twisted.words.xish.domish import Element
 
 from iembot import DATADIR
-from iembot.atmosphere import ATManager
-from iembot.mastodon import (
-    load_mastodon_from_db,
-    mastodon_errback,
-    toot,
-    toot_cb,
+from iembot.atmosphere import (
+    ATManager,
+    load_atmosphere_from_db,
 )
+from iembot.mastodon import load_mastodon_from_db
 from iembot.msghandlers import (
     process_groupchat,
     process_privatechat,
 )
 from iembot.slack import load_slack_from_db
-from iembot.twitter import (
-    load_twitter_from_db,
-    safe_twitter_text,
-)
+from iembot.twitter import load_twitter_from_db
 from iembot.types import JabberClient as JabberClientType
 from iembot.util import (
     channels_room_add,
@@ -79,9 +75,11 @@ class JabberClient(JabberClientType):
         at_manager (ATManager): ATmosphere message manager.
         tw_users (dict): Twitter user map keyed by user_id.
         tw_routingtable (dict): Twitter routing map keyed by channel.
+        at_users (dict): Atmosphere user map keyed by user_id.
+        at_routingtable (dict): Atmosphere routing map keyed by channel.
         md_users (dict): Mastodon user map keyed by user_id.
         md_routingtable (dict): Mastodon routing map keyed by channel.
-        slack_teams (dict): Slack team tokens keyed by team_id.
+        slack_teams (dict): Slack teams.
         slack_routingtable (dict): Slack routing map keyed by channel.
         webhooks_routingtable (dict): Webhooks routing map keyed by channel.
         xmlstream: Active XMPP XML stream (if connected).
@@ -96,7 +94,11 @@ class JabberClient(JabberClientType):
     """
 
     def __init__(
-        self, name, dbpool, memcache_client=None, xml_log_path="logs"
+        self,
+        name: str,
+        dbpool,
+        config=None,
+        memcache_client=None,
     ):
         """Constructor"""
         self.startup_time = utc()
@@ -104,7 +106,7 @@ class JabberClient(JabberClientType):
         self.name = name
         self.dbpool = dbpool
         self.memcache_client = memcache_client
-        self.config = {}
+        self.config = config or {}
         # Adds entries of ping requests made to the server and if we get
         # a response. If this gets to 5 items, we reconnect.
         self.outstanding_pings = []
@@ -113,8 +115,10 @@ class JabberClient(JabberClientType):
         self.seqnum = 0
         self.routingtable = {}
         self.at_manager = ATManager()
-        self.tw_users = {}  # Storage by user_id => {screen_name: ..., oauth:}
-        self.tw_routingtable = {}  # Storage by channel => [user_id, ]
+        self.at_users = {}
+        self.at_routingtable = {}
+        self.tw_users = {}
+        self.tw_routingtable = {}
         # Storage by user_id => {access_token: ..., api_base_url: ...}
         self.md_users = {}
         self.md_routingtable = {}  # Storage by channel => [user_id, ]
@@ -125,7 +129,9 @@ class JabberClient(JabberClientType):
         self.webhooks_routingtable = {}
         self.xmlstream = None
         self.firstlogin = False
-        self.xmllog = DailyLogFile("xmllog", xml_log_path)
+        self.xmllog = DailyLogFile(
+            "xmllog", "logs" if Path("logs").is_dir() else "."
+        )
         self.myjid = None
         self.ingestjid = None
         self.conference = None
@@ -154,6 +160,7 @@ class JabberClient(JabberClientType):
         self.load_chatrooms(always_join)
         self.load_webhooks()
         self.load_slack()
+        self.load_atmosphere()
 
     def authd(self, _xs=None):
         """callback when we are logged into the server!"""
@@ -200,6 +207,12 @@ class JabberClient(JabberClientType):
         df = self.dbpool.runInteraction(load_twitter_from_db, self)
         df.addErrback(email_error, self, "load_twitter() failure")
 
+    def load_atmosphere(self):
+        """Load the atmosphere subscriptions and access tokens"""
+        log.msg("load_atmosphere() called...")
+        df = self.dbpool.runInteraction(load_atmosphere_from_db, self)
+        df.addErrback(email_error, self, "load_atmosphere() failure")
+
     def load_slack(self):
         """Load the slack subscriptions and access tokens"""
         log.msg("load_slack() called...")
@@ -218,26 +231,25 @@ class JabberClient(JabberClientType):
         df = self.dbpool.runInteraction(load_webhooks_from_db, self)
         df.addErrback(email_error, self, "load_webhooks() failure")
 
-    def fire_client_with_config(self, res, serviceCollection):
-        """Calledback once bot has loaded its database configuration"""
-        log.msg("fire_client_with_config() called ...")
-
-        for row in res:
-            self.config[row["propname"]] = row["propvalue"]
-        log.msg(f"{len(self.config)} properties were loaded from the database")
+    def fire_client(self, _res, serviceCollection):
+        """Callback from main saying that our database (select 1) is ready."""
+        log.msg("fire_client() called ...")
 
         self.myjid = jid.JID(
-            f"{self.config['bot.username']}@{self.config['bot.xmppdomain']}/"
+            f"{self.config.get('bot.username', 'iembot')}@"
+            f"{self.config.get('bot.xmppdomain', 'localhost')}/"
             "twisted_words"
         )
         self.ingestjid = jid.JID(
-            f"{self.config['bot.ingest_username']}@"
-            f"{self.config['bot.xmppdomain']}"
+            f"{self.config.get('bot.ingest_username', 'iembot-ingest')}@"
+            f"{self.config.get('bot.xmppdomain', 'localhost')}"
         )
-        self.conference = self.config["bot.mucservice"]
+        self.conference = self.config.get(
+            "bot.mucservice", "conference.localhost"
+        )
 
         factory = client.XMPPClientFactory(
-            self.myjid, self.config["bot.password"]
+            self.myjid, self.config.get("bot.password", "")
         )
         # Limit reconnection delay to 60 seconds
         factory.maxDelay = 60
@@ -247,7 +259,9 @@ class JabberClient(JabberClientType):
         factory.addBootstrap(xmlstream.STREAM_END_EVENT, self.disconnected)
 
         # pylint: disable=no-member
-        i = internet.TCPClient(self.config["bot.connecthost"], 5222, factory)
+        i = internet.TCPClient(
+            self.config.get("bot.connecthost", "127.0.0.1"), 5222, factory
+        )
         i.setServiceParent(serviceCollection)
 
     def connected(self, xs):
@@ -301,8 +315,8 @@ class JabberClient(JabberClientType):
                 # send a disconnect
                 self.xmlstream.sendFooter()
             return
-        if self.xmlstream is None:
-            log.msg("xmlstream is None, not sending ping")
+        if self.xmlstream is None or self.myjid is None:
+            log.msg("xmlstream or myjid is None, not sending ping")
             return
         utcnow = utc()
         ping = Element((None, "iq"))
@@ -417,32 +431,6 @@ class JabberClient(JabberClientType):
         presence.addElement("status").addContent(msg)
         if self.xmlstream is not None:
             self.xmlstream.send(presence)
-
-    def toot(self, user_id, twttxt, **kwargs):
-        """
-        Send a message to Mastodon
-        """
-        twttxt = safe_twitter_text(twttxt)
-        df = threads.deferToThread(
-            toot,
-            self,
-            user_id,
-            twttxt,
-            **kwargs,
-        )
-        df.addCallback(toot_cb, self, twttxt, "", "", user_id)
-        df.addErrback(
-            mastodon_errback,
-            self,
-            user_id,
-            twttxt,
-        )
-        df.addErrback(
-            email_error,
-            self,
-            f"User: {user_id}, Text: {twttxt} Hit double exception",
-        )
-        return df
 
     def compute_daily_caller(self):
         """Figure out when to be called"""

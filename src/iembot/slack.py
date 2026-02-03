@@ -11,13 +11,11 @@ from twisted.web.server import NOT_DONE_YET
 from twisted.words.xish.domish import Element
 
 from iembot.types import JabberClient
+from iembot.util import build_channel_subs
 
 
-def send_to_slack(
-    bot: JabberClient, team_id: str, channel_id: str, elem: Element
-):
+def send_to_slack(access_token: str, channel_id: str, elem: Element):
     """Send a message to Slack, called from thread."""
-    access_token = bot.slack_teams[team_id]
     payload = {
         "text": elem.x["twitter"],
         "mrkdwn": False,
@@ -41,39 +39,43 @@ def send_to_slack(
 
 def load_slack_from_db(txn, bot: JabberClient):
     """Load the Slack integration."""
+    bot.slack_routingtable = build_channel_subs(
+        txn,
+        "iembot_slack_team_channels",
+    )
+
     txn.execute(
         """
-    select t.team_id, s.channel_id, s.subkey, t.access_token from
-    iembot_slack_teams t JOIN iembot_slack_subscriptions s
-    on (t.team_id = s.team_id)
+    select iembot_account_id, c.channel_id, t.access_token from
+    iembot_slack_teams t JOIN iembot_slack_team_channels c on
+    (t.team_id = c.team_id)
         """
     )
     teams = {}
-    rt = {}
+    xref = {}
     for row in txn.fetchall():
-        # meh, redundant
-        teams[row["team_id"]] = row["access_token"]
-        d = rt.setdefault(row["subkey"], [])
-        # sigh
-        d.append(f"{row['team_id']}|{row['channel_id']}")
+        teams[row["iembot_account_id"]] = {
+            "access_token": row["access_token"],
+            "channel_id": row["channel_id"],
+        }
+        xref[row["iembot_account_id"]] = row["channel_id"]
 
     bot.slack_teams = teams
-    bot.slack_routingtable = rt
     log.msg(f"Loaded {len(teams)} Slack teams")
-    log.msg(f"Loaded {len(rt)} Slack subscriptions")
 
 
 def route(bot: JabberClient, channels: list, elem: Element):
     """Do Slack message routing."""
-    alertedSlacks = []
+    alerted = []
     for channel in channels:
-        for slack_key in bot.slack_routingtable.get(channel, []):
-            if slack_key in alertedSlacks:
+        for iembot_account_id in bot.slack_routingtable.get(channel, []):
+            if iembot_account_id in alerted:
                 continue
-            alertedSlacks.append(slack_key)
+            alerted.append(iembot_account_id)
             log.msg("Attempting slack send...")
+            meta = bot.slack_teams[iembot_account_id]
             d = threads.deferToThread(
-                send_to_slack, bot, *slack_key.split("|"), elem
+                send_to_slack, meta["access_token"], meta["channel_id"], elem
             )
             d.addErrback(log.msg)
 

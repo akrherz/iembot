@@ -23,6 +23,8 @@ class JabberClient(Protocol):
     seqnum: int
     routingtable: dict[str, list[str]]
     at_manager: Any
+    at_users: dict[str, dict[str, Any]]
+    at_routingtable: dict[str, list[str]]
     tw_users: dict[str, dict[str, Any]]
     tw_routingtable: dict[str, list[str]]
     md_users: dict[str, dict[str, Any]]
@@ -39,3 +41,6 @@ class JabberClient(Protocol):
     email_timestamps: list[datetime]
     keepalive_lc: Any | None
     fortunes: list[str]
+
+    def fire_client(self, xs: Any, service_collection: Any) -> None:
+        """Fire up the client."""

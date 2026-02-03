@@ -1,0 +1,20 @@
+{
+    "bot.dbname": "iembot",
+    "bot.dbhost": "localhost",
+    "bot.dbuser": "iembot",
+    "bot.username": "iembot",
+    "bot.password": "...",
+    "bot.xmppdomain": "localhost",
+    "bot.connecthost": "localhost",
+    "bot.mucservice": "conference.localhost",
+    "bot.ingest_username": "iembot_ingest",
+    "bot.slack.client_id": "...",
+    "bot.slack.client_secret": "...",
+    "bot.slack.redirect_uri": "...",
+    "bot.twitter.consumerkey": "...",
+    "bot.twitter.consumersecret": "...",
+    "bot.purge_xmllog_days": 7,
+    "bot.email_errors_from": "iembot@localhost",
+    "bot.email_errors_to": "root@localhost",
+    "bot.smtp_server": "localhost"
+}

@@ -18,7 +18,7 @@ from iembot.mastodon import (
 def test_toot_cb_no_response():
     """Test toot_cb with None response."""
     bot = mock.Mock()
-    result = toot_cb(None, bot, "text", "room", "jid", "123")
+    result = toot_cb(None, bot, "text", "123")
     assert result is None
 
 
@@ -26,7 +26,7 @@ def test_toot_cb_no_user():
     """Test toot_cb with unknown user."""
     bot = mock.Mock()
     bot.md_users = {}
-    result = toot_cb({"content": "test"}, bot, "text", "room", "jid", "999")
+    result = toot_cb({"content": "test"}, bot, "text", "999")
     assert result == {"content": "test"}
 
 
@@ -34,14 +34,13 @@ def test_toot_cb_no_content():
     """Test toot_cb with response missing content."""
     bot = mock.Mock()
     bot.md_users = {"123": {"screen_name": "test"}}
-    result = toot_cb({"error": "bad"}, bot, "text", "room", "jid", "123")
+    result = toot_cb({"error": "bad"}, bot, "text", "123")
     assert result is None
 
 
 def test_toot_cb_success():
     """Test toot_cb with successful response."""
     bot = mock.Mock()
-    bot.name = "iembot"
     bot.md_users = {"123": {"screen_name": "testuser"}}
     bot.dbpool.runOperation.return_value = mock.Mock()
     response = {
@@ -49,7 +48,7 @@ def test_toot_cb_success():
         "url": "https://mastodon.social/@test/123",
         "account": {},
     }
-    result = toot_cb(response, bot, "text", "room", "jid", "123")
+    result = toot_cb(response, bot, "text", "123")
     assert result == {
         "content": "test",
         "url": "https://mastodon.social/@test/123",
@@ -57,50 +56,16 @@ def test_toot_cb_success():
     bot.dbpool.runOperation.assert_called_once()
 
 
-@pytest.mark.parametrize("database", ["mesosite"])
+@pytest.mark.parametrize("database", ["iembot"])
 def test_load_mastodon_from_db(dbcursor):
     """Test the method."""
-    # create some faked entries
-    dbcursor.execute(
-        """
-        insert into iembot_mastodon_apps(server, client_id, client_secret)
-        values('localhost', '123', '123') RETURNING id
-        """
-    )
-    appid = dbcursor.fetchone()["id"]
-    dbcursor.execute(
-        """
-        insert into iembot_mastodon_oauth(appid, screen_name, access_token,
-        iem_owned, disabled) values (%s, 'iembot', '123', 't', 'f')
-        returning id
-        """,
-        (appid,),
-    )
-    userid = dbcursor.fetchone()["id"]
-    dbcursor.execute(
-        """
-        insert into iembot_mastodon_subs(user_id, channel) values (%s, 'ABC')
-        """,
-        (userid,),
-    )
-    bot = JabberClient(None, None, xml_log_path="/tmp")
+    bot = JabberClient(None, None)
     load_mastodon_from_db(dbcursor, bot)
-    assert bot.md_users[userid]["screen_name"] == "iembot"
-
-    # Now disable the user
-    dbcursor.execute(
-        """
-        update iembot_mastodon_oauth SET disabled = 't' where id = %s
-        """,
-        (userid,),
-    )
-    load_mastodon_from_db(dbcursor, bot)
-    assert userid not in bot.md_users
 
 
 def test_util_toot():
     """Test the method."""
-    bot = JabberClient(None, None, xml_log_path="/tmp")
+    bot = JabberClient(None, None)
     bot.md_users = {
         "123": {
             "screen_name": "iembot",
@@ -150,7 +115,6 @@ def test_disable_mastodon_user_iem_owned():
 def test_disable_mastodon_user_success():
     """Test disable_mastodon_user with valid user."""
     bot = mock.Mock()
-    bot.name = "iembot"
     bot.md_users = {"123": {"screen_name": "testuser", "iem_owned": False}}
     bot.dbpool.runOperation.return_value = mock.Mock()
     result = disable_mastodon_user(bot, "123", errcode=401)

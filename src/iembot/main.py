@@ -22,22 +22,22 @@ from txyam.client import YamClient
 
 from iembot import webservices
 from iembot.bot import JabberClient
+from iembot.msghandlers import register_handler
 
 
-def _load_settings(path: str) -> dict:
+def _load_config(path: str) -> dict:
     with open(path, encoding="utf-8") as fh:
         return json.load(fh)
 
 
-def _build_dbpool(settings: dict) -> adbapi.ConnectionPool:
-    dbrw = settings.get("databaserw") or {}
+def _build_dbpool(config: dict) -> adbapi.ConnectionPool:
+    # Password should be set via .pgpass or environment.
     return adbapi.ConnectionPool(
         "psycopg",
         cp_reconnect=True,
-        dbname=dbrw.get("openfire"),
-        host=dbrw.get("host"),
-        password=dbrw.get("password"),
-        user=dbrw.get("user"),
+        dbname=config.get("bot.dbname", "iembot"),
+        host=config.get("bot.dbhost", "localhost"),
+        user=config.get("bot.dbuser", "iembot"),
         gssencmode="disable",
         row_factory=dict_row,
     )
@@ -73,8 +73,9 @@ def _remove_pidfile(pidfile: str) -> None:
         return
 
 
-def _fatal(_failure):
+def _fatal():
     # If initial bootstrap fails, stop cleanly.
+    log.msg("FATAL: Stopping reactor...")
     try:
         reactor.stop()
     except Exception:
@@ -139,6 +140,30 @@ def main() -> None:
     show_default=True,
     help="PID file path (empty to disable)",
 )
+@click.option(
+    "--disable-slack",
+    is_flag=True,
+    default=False,
+    help="Disable Slack message handler",
+)
+@click.option(
+    "--disable-twitter",
+    is_flag=True,
+    default=False,
+    help="Disable Twitter/X message handler",
+)
+@click.option(
+    "--disable-atmosphere",
+    is_flag=True,
+    default=False,
+    help="Disable ATmosphere(Bluesky) message handler",
+)
+@click.option(
+    "--disable-mastodon",
+    is_flag=True,
+    default=False,
+    help="Disable Mastodon message handler",
+)
 def run(
     config: str,
     json_port: int,
@@ -147,27 +172,43 @@ def run(
     maxthreads: int,
     logfile: str,
     pidfile: str,
+    disable_slack: bool,
+    disable_twitter: bool,
+    disable_atmosphere: bool,
+    disable_mastodon: bool,
 ) -> None:
     """Run the IEMBot service (Twisted reactor)."""
 
     _start_logging(logfile)
     _write_pidfile(pidfile)
 
+    handlers = [
+        (not disable_slack, "iembot.slack", "route"),
+        (not disable_twitter, "iembot.twitter", "route"),
+        (not disable_atmosphere, "iembot.atmosphere", "route"),
+        (not disable_mastodon, "iembot.mastodon", "route"),
+        (True, "iembot.xmpp", "route"),  # Required at the moment
+    ]
+    for enabled, module, attr in handlers:
+        if enabled:
+            log.msg(f"Enabling handler: {module}.{attr}")
+            mod = __import__(module, fromlist=[attr])
+            register_handler(getattr(mod, attr))
+
     # Keep the classic Twisted Application pattern from iembot.tac.
     application = service.Application("Public IEMBOT")
     service_collection = service.IServiceCollection(application)
 
-    settings = _load_settings(config)
+    settings = _load_config(config)
     dbpool = _build_dbpool(settings)
     memcache_client = _build_memcache_client(memcache)
 
-    jabber = JabberClient("iembot", dbpool, memcache_client)
+    jabber = JabberClient("iembot", dbpool, settings, memcache_client)
 
-    # Load DB-backed properties, then register the XMPP TCPClient service.
-    d = dbpool.runQuery("select propname, propvalue from properties")
-    d.addCallback(jabber.fire_client_with_config, service_collection)
-    d.addErrback(log.err)
-    d.addErrback(_fatal)
+    # Lame means to ensure the database is reachable before starting.
+    d = dbpool.runQuery("select 1")
+    d.addCallback(jabber.fire_client, service_collection)
+    d.addErrback(lambda failure: (log.err(failure), _fatal()))
 
     # Web services (same as tac: TCPServer + setServiceParent)
     json_site = server.Site(
@@ -210,7 +251,8 @@ def run(
 
     # Start services and run the reactor.
     service_collection.startService()
-    reactor.run()
+    if not reactor.running:
+        reactor.run()
 
 
 if __name__ == "__main__":
