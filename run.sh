@@ -1,11 +1,11 @@
 #!/bin/sh
 
 if [ -e iembot.pid ]; then
-    kill -INT `cat iembot.pid `
+    kill -INT $(cat iembot.pid)
     sleep 5
     if [ -e iembot.pid ]; then
         echo 'IEMBot still alive? kill -9 this time'
-        kill -9 `cat iembot.pid `
+        kill -9 $(cat iembot.pid)
         sleep 1
         rm -f iembot.pid
     fi
@@ -15,4 +15,4 @@ if [ "$(whoami)" = "akrherz" ]; then
     export SSL_CERT_FILE=/etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt
 fi
 
-python -m iembot.main run --logfile - $@
+python -m iembot.main run --logfile=- "$@"
