@@ -118,7 +118,7 @@ def disable_twitter_user(bot: JabberClient, user_id, errcode=0):
         f"errcode: {errcode}"
     )
     df = bot.dbpool.runOperation(
-        f"UPDATE {bot.name}_twitter_oauth SET updated = now(), "
+        "UPDATE iembot_twitter_oauth SET updated = now(), "
         "access_token = null, access_token_secret = null "
         "WHERE user_id = %s",
         (user_id,),
@@ -266,7 +266,7 @@ def tweet_cb(response, bot: JabberClient, twttxt, _room, myjid, user_id):
 
     # Log
     df = bot.dbpool.runOperation(
-        f"INSERT into {bot.name}_social_log(medium, source, resource_uri, "
+        "INSERT into iembot_social_log(medium, source, resource_uri, "
         "message, response, response_code, iembot_account_id) "
         "values (%s,%s,%s,%s,%s,%s,%s)",
         ("twitter", myjid, url, twttxt, repr(response), 200, user_id),

@@ -41,3 +41,6 @@ class JabberClient(Protocol):
     email_timestamps: list[datetime]
     keepalive_lc: Any | None
     fortunes: list[str]
+
+    def fire_client(self, xs: Any, service_collection: Any) -> None:
+        """Fire up the client."""

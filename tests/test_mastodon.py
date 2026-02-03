@@ -41,7 +41,6 @@ def test_toot_cb_no_content():
 def test_toot_cb_success():
     """Test toot_cb with successful response."""
     bot = mock.Mock()
-    bot.name = "iembot"
     bot.md_users = {"123": {"screen_name": "testuser"}}
     bot.dbpool.runOperation.return_value = mock.Mock()
     response = {
@@ -60,13 +59,13 @@ def test_toot_cb_success():
 @pytest.mark.parametrize("database", ["iembot"])
 def test_load_mastodon_from_db(dbcursor):
     """Test the method."""
-    bot = JabberClient(None, None, xml_log_path="/tmp")
+    bot = JabberClient(None, None)
     load_mastodon_from_db(dbcursor, bot)
 
 
 def test_util_toot():
     """Test the method."""
-    bot = JabberClient(None, None, xml_log_path="/tmp")
+    bot = JabberClient(None, None)
     bot.md_users = {
         "123": {
             "screen_name": "iembot",
@@ -116,7 +115,6 @@ def test_disable_mastodon_user_iem_owned():
 def test_disable_mastodon_user_success():
     """Test disable_mastodon_user with valid user."""
     bot = mock.Mock()
-    bot.name = "iembot"
     bot.md_users = {"123": {"screen_name": "testuser", "iem_owned": False}}
     bot.dbpool.runOperation.return_value = mock.Mock()
     result = disable_mastodon_user(bot, "123", errcode=401)

@@ -98,7 +98,6 @@ class JabberClient(JabberClientType):
         dbpool,
         config=None,
         memcache_client=None,
-        xml_log_path="logs",
     ):
         """Constructor"""
         self.startup_time = utc()
@@ -129,7 +128,7 @@ class JabberClient(JabberClientType):
         self.webhooks_routingtable = {}
         self.xmlstream = None
         self.firstlogin = False
-        self.xmllog = DailyLogFile("xmllog", xml_log_path)
+        self.xmllog = DailyLogFile("xmllog", "logs")
         self.myjid = None
         self.ingestjid = None
         self.conference = None
@@ -234,17 +233,20 @@ class JabberClient(JabberClientType):
         log.msg("fire_client() called ...")
 
         self.myjid = jid.JID(
-            f"{self.config['bot.username']}@{self.config['bot.xmppdomain']}/"
+            f"{self.config.get('bot.username', 'iembot')}@"
+            f"{self.config.get('bot.xmppdomain', 'localhost')}/"
             "twisted_words"
         )
         self.ingestjid = jid.JID(
-            f"{self.config['bot.ingest_username']}@"
-            f"{self.config['bot.xmppdomain']}"
+            f"{self.config.get('bot.ingest_username', 'iembot-ingest')}@"
+            f"{self.config.get('bot.xmppdomain', 'localhost')}"
         )
-        self.conference = self.config["bot.mucservice"]
+        self.conference = self.config.get(
+            "bot.mucservice", "conference.localhost"
+        )
 
         factory = client.XMPPClientFactory(
-            self.myjid, self.config["bot.password"]
+            self.myjid, self.config.get("bot.password", "")
         )
         # Limit reconnection delay to 60 seconds
         factory.maxDelay = 60
@@ -254,7 +256,9 @@ class JabberClient(JabberClientType):
         factory.addBootstrap(xmlstream.STREAM_END_EVENT, self.disconnected)
 
         # pylint: disable=no-member
-        i = internet.TCPClient(self.config["bot.connecthost"], 5222, factory)
+        i = internet.TCPClient(
+            self.config.get("bot.connecthost", "127.0.0.1"), 5222, factory
+        )
         i.setServiceParent(serviceCollection)
 
     def connected(self, xs):

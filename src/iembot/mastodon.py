@@ -66,7 +66,7 @@ def disable_mastodon_user(bot: JabberClient, user_id, errcode=0):
         f"errcode: {errcode}"
     )
     df = bot.dbpool.runOperation(
-        f"UPDATE {bot.name}_mastodon_oauth SET updated = now(), "
+        "UPDATE iembot_mastodon_oauth SET updated = now(), "
         "access_token = null, api_base_url = null "
         "WHERE user_id = %s",
         (user_id,),

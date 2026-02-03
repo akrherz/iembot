@@ -42,7 +42,6 @@ def test_disable_twitter_user_iem_owned():
 def test_disable_twitter_user_success():
     """Test disable_twitter_user with valid user."""
     bot = mock.Mock()
-    bot.name = "iembot"
     bot.tw_users = {"123": {"screen_name": "testuser", "iem_owned": False}}
     bot.dbpool.runOperation.return_value = mock.Mock()
     result = disable_twitter_user(bot, "123", errcode=185)
@@ -82,7 +81,6 @@ def test_tweet_cb_no_data():
 def test_tweet_cb_success():
     """Test tweet_cb with successful response."""
     bot = mock.Mock()
-    bot.name = "iembot"
     bot.tw_users = {"123": {"screen_name": "testuser"}}
     bot.dbpool.runOperation.return_value = mock.Mock()
     response = {"data": {"id": "tweet123"}}

@@ -333,7 +333,7 @@ def load_chatrooms_from_db(txn, bot: JabberClient, always_join: bool = False):
 def load_webhooks_from_db(txn, bot: JabberClient):
     """Load twitter config from database"""
     txn.execute(
-        f"SELECT channel, url from {bot.name}_webhooks "
+        "SELECT channel, url from iembot_webhooks "
         "WHERE channel is not null and url is not null"
     )
     table = {}
