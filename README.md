@@ -19,4 +19,8 @@ Well, don't.  If you do, then the CLI is available `iembot run ...`
 
 Option | Shortname | Default | Doc
 --- | --- | --- | --
+`--disable-atmosphere` | - | `False` | Disable Atmosphere message posting
+`--disable-mastodon` | - | `False` | Disable Mastodon message posting
+`--disable-slack` | - | `False` | Disable Slack message posting
+`--disable-twitter` | - | `False` | Disable Twitter message posting
 `--logfile` | `-l` | `logs/iembot.log` | Where to log to, `-` does stdout only

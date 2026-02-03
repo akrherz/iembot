@@ -22,6 +22,7 @@ from txyam.client import YamClient
 
 from iembot import webservices
 from iembot.bot import JabberClient
+from iembot.msghandlers import register_handler
 
 
 def _load_config(path: str) -> dict:
@@ -139,6 +140,30 @@ def main() -> None:
     show_default=True,
     help="PID file path (empty to disable)",
 )
+@click.option(
+    "--disable-slack",
+    is_flag=True,
+    default=False,
+    help="Disable Slack message handler",
+)
+@click.option(
+    "--disable-twitter",
+    is_flag=True,
+    default=False,
+    help="Disable Twitter/X message handler",
+)
+@click.option(
+    "--disable-atmosphere",
+    is_flag=True,
+    default=False,
+    help="Disable ATmosphere(Bluesky) message handler",
+)
+@click.option(
+    "--disable-mastodon",
+    is_flag=True,
+    default=False,
+    help="Disable Mastodon message handler",
+)
 def run(
     config: str,
     json_port: int,
@@ -147,11 +172,28 @@ def run(
     maxthreads: int,
     logfile: str,
     pidfile: str,
+    disable_slack: bool,
+    disable_twitter: bool,
+    disable_atmosphere: bool,
+    disable_mastodon: bool,
 ) -> None:
     """Run the IEMBot service (Twisted reactor)."""
 
     _start_logging(logfile)
     _write_pidfile(pidfile)
+
+    handlers = [
+        (not disable_slack, "iembot.slack", "route"),
+        (not disable_twitter, "iembot.twitter", "route"),
+        (not disable_atmosphere, "iembot.atmosphere", "route"),
+        (not disable_mastodon, "iembot.mastodon", "route"),
+        (True, "iembot.xmpp", "route"),  # Required at the moment
+    ]
+    for enabled, module, attr in handlers:
+        if enabled:
+            log.msg(f"Enabling handler: {module}.{attr}")
+            mod = __import__(module, fromlist=[attr])
+            register_handler(getattr(mod, attr))
 
     # Keep the classic Twisted Application pattern from iembot.tac.
     application = service.Application("Public IEMBOT")
