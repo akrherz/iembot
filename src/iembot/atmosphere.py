@@ -14,8 +14,10 @@ from atproto import Client
 from atproto_client.utils import TextBuilder
 from twisted.python import log
 
+from iembot.types import JabberClient
 
-class ATWorkerThead(threading.Thread):
+
+class ATWorkerThread(threading.Thread):
     """The Worker."""
 
     def __init__(self, queue: Queue, at_handle: str, at_password: str):
@@ -94,7 +96,7 @@ class ATManager:
         if at_handle in self.at_clients:
             return
         with self.lock:
-            self.at_clients[at_handle] = ATWorkerThead(
+            self.at_clients[at_handle] = ATWorkerThread(
                 Queue(), at_handle, at_password
             )
             self.at_clients[at_handle].start()
@@ -102,3 +104,13 @@ class ATManager:
     def submit(self, at_handle: str, message: dict):
         """Submit a message to the client."""
         self.at_clients[at_handle].queue.put(message)
+
+
+def at_send_message(bot: JabberClient, user_id, msg: str, **kwargs):
+    """Send a message to the ATmosphere."""
+    at_handle = bot.tw_users.get(user_id, {}).get("at_handle")
+    if at_handle is None:
+        return
+    message = {"msg": msg}
+    message.update(kwargs)
+    bot.at_manager.submit(at_handle, message)

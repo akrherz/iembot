@@ -1,7 +1,5 @@
 """Logic handling messages the bot receives."""
 
-from typing import TYPE_CHECKING
-
 from pyiem.util import utc
 from twisted.internet import reactor
 from twisted.python import log
@@ -13,14 +11,12 @@ from iembot import ROOM_LOG_ENTRY
 from iembot.mastodon import route as mastodon_route
 from iembot.slack import route as slack_route
 from iembot.twitter import route as twitter_route
+from iembot.types import JabberClient
 from iembot.webhooks import route as webhooks_route
 from iembot.xmpp import route as xmpp_route
 
-if TYPE_CHECKING:
-    from iembot.bot import JabberClient
 
-
-def process_privatechat(bot: "JabberClient", elem: Element) -> None:
+def process_privatechat(bot: JabberClient, elem: Element) -> None:
     """Starting point for processing a private (1 on 1) chat.
 
     Args:
@@ -44,7 +40,7 @@ def process_privatechat(bot: "JabberClient", elem: Element) -> None:
     process_message_from_ingest(bot, elem)
 
 
-def process_message_from_ingest(bot: "JabberClient", elem: Element) -> None:
+def process_message_from_ingest(bot: JabberClient, elem: Element) -> None:
     """Process a message received from the ingest system."""
 
     # Go look for body to see routing info!
@@ -73,7 +69,7 @@ def process_message_from_ingest(bot: "JabberClient", elem: Element) -> None:
     mastodon_route(bot, channels, elem)
 
 
-def process_groupchat(bot: "JabberClient", elem: Element) -> None:
+def process_groupchat(bot: JabberClient, elem: Element) -> None:
     """Starting point for groupchat processing.
 
     Args:

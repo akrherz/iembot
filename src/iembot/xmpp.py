@@ -1,14 +1,11 @@
 """XMPP Stuff."""
 
-from typing import TYPE_CHECKING
-
 from twisted.words.xish.domish import Element
 
-if TYPE_CHECKING:
-    from iembot.bot import JabberClient
+from iembot.types import JabberClient
 
 
-def route(bot: "JabberClient", channels: list, elem: Element):
+def route(bot: JabberClient, channels: list, elem: Element):
     """Do XMPP stuff."""
     alertedRooms = []
     for channel in channels:
