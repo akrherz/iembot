@@ -7,6 +7,7 @@ import re
 import traceback
 from datetime import timedelta
 from io import StringIO
+from pathlib import Path
 from xml.etree import ElementTree as ET
 
 from pyiem.util import utc
@@ -128,7 +129,9 @@ class JabberClient(JabberClientType):
         self.webhooks_routingtable = {}
         self.xmlstream = None
         self.firstlogin = False
-        self.xmllog = DailyLogFile("xmllog", "logs")
+        self.xmllog = DailyLogFile(
+            "xmllog", "logs" if Path("logs").is_dir() else "."
+        )
         self.myjid = None
         self.ingestjid = None
         self.conference = None
