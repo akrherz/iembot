@@ -83,7 +83,7 @@ def test_load_chatlog():
     assert bot.seqnum == 1
 
 
-@pytest.mark.parametrize("database", ["mesosite"])
+@pytest.mark.parametrize("database", ["iembot"])
 def test_load_chatrooms_fromdb(dbcursor):
     """Can we load up chatroom details?"""
     bot = mock.Mock()

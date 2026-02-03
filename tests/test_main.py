@@ -15,7 +15,7 @@ def test_load_settings_reads_json(tmp_path):
     d = {"foo": "bar"}
     f = tmp_path / "settings.json"
     f.write_text(json.dumps(d))
-    assert main_mod._load_settings(str(f)) == d
+    assert main_mod._load_config(str(f)) == d
 
 
 def test_write_and_remove_pidfile(tmp_path):
@@ -96,7 +96,7 @@ def test_fatal_stops_reactor(monkeypatch):
         "reactor",
         types.SimpleNamespace(stop=lambda: called.setdefault("stopped", True)),
     )
-    main_mod._fatal(Exception())
+    main_mod._fatal()
     assert called["stopped"]
 
 

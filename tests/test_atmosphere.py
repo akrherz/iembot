@@ -24,7 +24,7 @@ def test_at_send_message_no_handle():
 def test_at_send_message_with_handle():
     """Test at_send_message with valid at_handle."""
     bot = mock.Mock()
-    bot.tw_users = {"123": {"at_handle": "test.bsky.social"}}
+    bot.at_users = {"123": {"at_handle": "test.bsky.social"}}
     at_send_message(bot, "123", "test message", extra_key="value")
     bot.at_manager.submit.assert_called_once_with(
         "test.bsky.social", {"msg": "test message", "extra_key": "value"}

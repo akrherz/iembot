@@ -35,9 +35,9 @@ def _build_dbpool(config: dict) -> adbapi.ConnectionPool:
     return adbapi.ConnectionPool(
         "psycopg",
         cp_reconnect=True,
-        dbname=config["bot.dbname"],
-        host=config["bot.dbhost"],
-        user=config["bot.dbuser"],
+        dbname=config.get("bot.dbname", "iembot"),
+        host=config.get("bot.dbhost", "localhost"),
+        user=config.get("bot.dbuser", "iembot"),
         gssencmode="disable",
         row_factory=dict_row,
     )

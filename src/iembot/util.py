@@ -109,22 +109,29 @@ def channels_room_add(txn, bot: JabberClient, room: str, channel: str):
         # Add a channels entry for this channel, if one currently does
         # not exist
         txn.execute(
-            f"SELECT * from {bot.name}_channels WHERE id = %s",
+            "SELECT id from iembot_channels WHERE channel_name = %s",
             (ch,),
         )
         if txn.rowcount == 0:
             txn.execute(
-                f"INSERT into {bot.name}_channels(id, name) VALUES (%s, %s)",
+                "INSERT into iembot_channels(channel_name, description) "
+                "VALUES (%s, %s) returning id",
                 (ch, ch),
             )
+        channel_id = txn.fetchone()["id"]
 
         # Add to routing table
         bot.routingtable[ch].append(room)
         # Add to database
         txn.execute(
-            f"INSERT into {bot.name}_room_subscriptions "
-            "(roomname, channel) VALUES (%s, %s)",
-            (room, ch),
+            """
+    INSERT into iembot_subscriptions (iembot_account_id, channel_id)
+    values (
+        (select iembot_account_id from iembot_rooms where roomname = %s),
+        %s
+    )
+    """,
+            (room, channel_id),
         )
         bot.send_groupchat(room, f"Subscribed {room} to channel '{ch}'")
     # Send room a listing of channels!
@@ -157,11 +164,16 @@ def channels_room_del(txn, bot: JabberClient, room: str, channel: str):
         bot.routingtable[ch].remove(room)
         # Remove from database
         txn.execute(
-            f"DELETE from {bot.name}_room_subscriptions WHERE "
-            "roomname = %s and channel = %s",
+            """
+    DELETE from iembot_subscriptions WHERE
+    iembot_account_id = (
+    select iembot_account_id from iembot_rooms where roomname = %s) and
+    channel_id = (
+    select id from iembot_channels where channel_name = %s)
+    """,
             (room, ch),
         )
-        bot.send_groupchat(room, f"Unscribed {room} to channel '{ch}'")
+        bot.send_groupchat(room, f"Unsubscribed {room} to channel '{ch}'")
     channels_room_list(bot, room)
 
 
