@@ -186,9 +186,9 @@ def really_tweet(bot: JabberClient, user_id, twttxt, **kwargs):
             f"x-rate-limit-limit {resp.headers.get('x-rate-limit-limit')} + "
             f"{hh} {resp.headers.get(hh)}"
         )
-        return api._ParseAndCheckTwitter(
+        return api._ParseAndCheckTwitter(  # skipcq
             resp.content.decode("utf-8")
-        )  # skipcq
+        )
 
     res = None
     try:
