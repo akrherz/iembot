@@ -15,4 +15,4 @@ if [ "$(whoami)" = "akrherz" ]; then
     export SSL_CERT_FILE=/etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt
 fi
 
-python -m iembot.main run --logfile=- "$@"
+python -m iembot.main run -c settings_laptop.json --logfile=- "$@"

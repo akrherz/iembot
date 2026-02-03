@@ -13,5 +13,6 @@
 /.eggs
 /logs
 /settings.json
+/settings_laptop.json
 /*.pickle
 /*.pid

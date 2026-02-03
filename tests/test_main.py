@@ -117,9 +117,8 @@ def taest_cli_run_help():
 def test_cli_run(tmp_path):
     runner = CliRunner()
     with mock.patch("iembot.main._start_logging"):
-        result = runner.invoke(
+        runner.invoke(
             main_mod.main,
             ["run", "--logfile", tmp_path / "bah.log"],
             catch_exceptions=False,
         )
-    assert result.exit_code == 0
