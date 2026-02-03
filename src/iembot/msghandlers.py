@@ -8,6 +8,7 @@ from twisted.words.xish import xpath
 from twisted.words.xish.domish import Element
 
 from iembot import ROOM_LOG_ENTRY
+from iembot.atmosphere import route as atmosphere_route
 from iembot.mastodon import route as mastodon_route
 from iembot.slack import route as slack_route
 from iembot.twitter import route as twitter_route
@@ -67,6 +68,7 @@ def process_message_from_ingest(bot: JabberClient, elem: Element) -> None:
     slack_route(bot, channels, elem)
     webhooks_route(bot, channels, elem)
     mastodon_route(bot, channels, elem)
+    atmosphere_route(bot, channels, elem)
 
 
 def process_groupchat(bot: JabberClient, elem: Element) -> None:

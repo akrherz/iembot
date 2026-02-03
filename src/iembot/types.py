@@ -23,6 +23,8 @@ class JabberClient(Protocol):
     seqnum: int
     routingtable: dict[str, list[str]]
     at_manager: Any
+    at_users: dict[str, dict[str, Any]]
+    at_routingtable: dict[str, list[str]]
     tw_users: dict[str, dict[str, Any]]
     tw_routingtable: dict[str, list[str]]
     md_users: dict[str, dict[str, Any]]

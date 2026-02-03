@@ -24,20 +24,19 @@ from iembot import webservices
 from iembot.bot import JabberClient
 
 
-def _load_settings(path: str) -> dict:
+def _load_config(path: str) -> dict:
     with open(path, encoding="utf-8") as fh:
         return json.load(fh)
 
 
-def _build_dbpool(settings: dict) -> adbapi.ConnectionPool:
-    dbrw = settings.get("databaserw") or {}
+def _build_dbpool(config: dict) -> adbapi.ConnectionPool:
+    # Password should be set via .pgpass or environment.
     return adbapi.ConnectionPool(
         "psycopg",
         cp_reconnect=True,
-        dbname=dbrw.get("openfire"),
-        host=dbrw.get("host"),
-        password=dbrw.get("password"),
-        user=dbrw.get("user"),
+        dbname=config["bot.dbname"],
+        host=config["bot.dbhost"],
+        user=config["bot.dbuser"],
         gssencmode="disable",
         row_factory=dict_row,
     )
@@ -73,8 +72,9 @@ def _remove_pidfile(pidfile: str) -> None:
         return
 
 
-def _fatal(_failure):
+def _fatal():
     # If initial bootstrap fails, stop cleanly.
+    log.msg("FATAL: Stopping reactor...")
     try:
         reactor.stop()
     except Exception:
@@ -157,17 +157,16 @@ def run(
     application = service.Application("Public IEMBOT")
     service_collection = service.IServiceCollection(application)
 
-    settings = _load_settings(config)
+    settings = _load_config(config)
     dbpool = _build_dbpool(settings)
     memcache_client = _build_memcache_client(memcache)
 
-    jabber = JabberClient("iembot", dbpool, memcache_client)
+    jabber = JabberClient("iembot", dbpool, settings, memcache_client)
 
-    # Load DB-backed properties, then register the XMPP TCPClient service.
-    d = dbpool.runQuery("select propname, propvalue from properties")
-    d.addCallback(jabber.fire_client_with_config, service_collection)
-    d.addErrback(log.err)
-    d.addErrback(_fatal)
+    # Lame means to ensure the database is reachable before starting.
+    d = dbpool.runQuery("select 1")
+    d.addCallback(jabber.fire_client, service_collection)
+    d.addErrback(lambda failure: (log.err(failure), _fatal()))
 
     # Web services (same as tac: TCPServer + setServiceParent)
     json_site = server.Site(

@@ -14,9 +14,8 @@ from twisted.words.xish.domish import Element
 from twitter.api import Api as TwitterApi
 from twitter.error import TwitterError
 
-from iembot.atmosphere import at_send_message
 from iembot.types import JabberClient
-from iembot.util import email_error
+from iembot.util import build_channel_subs, email_error
 
 TWEET_API = "https://api.x.com/2/tweets"
 # 89: Expired token, so we shall revoke for now
@@ -71,46 +70,29 @@ def safe_twitter_text(text: str) -> str:
 
 def load_twitter_from_db(txn, bot: JabberClient):
     """Load twitter config from database"""
-    # Don't waste time by loading up subs from unauthed users, but we could
-    # have iem_owned accounts with bluesky only creds
-    txn.execute(
-        f"""
-    select s.user_id, channel from {bot.name}_twitter_subs s
-    JOIN iembot_twitter_oauth o on (s.user_id = o.user_id)
-    WHERE s.user_id is not null and s.channel is not null
-    and (o.iem_owned or (o.access_token is not null and not o.disabled))
-    """
+    bot.tw_routingtable = build_channel_subs(
+        txn,
+        "iembot_twitter_oauth",
     )
-    twrt = {}
-    for row in txn.fetchall():
-        user_id = row["user_id"]
-        channel = row["channel"]
-        d = twrt.setdefault(channel, [])
-        d.append(user_id)
-    bot.tw_routingtable = twrt
-    log.msg(f"load_twitter_from_db(): {txn.rowcount} subs found")
 
     twusers = {}
     txn.execute(
         """
-    SELECT user_id, access_token, access_token_secret, screen_name,
-    iem_owned, at_handle, at_app_pass from
+    SELECT iembot_account_id, access_token, access_token_secret, screen_name,
+    iem_owned from
     iembot_twitter_oauth WHERE (iem_owned or (access_token is not null and
     access_token_secret is not null)) and user_id is not null and
     screen_name is not null and not disabled
     """
     )
     for row in txn.fetchall():
-        user_id = row["user_id"]
+        user_id = row["iembot_account_id"]
         twusers[user_id] = {
             "screen_name": row["screen_name"],
             "access_token": row["access_token"],
             "access_token_secret": row["access_token_secret"],
             "iem_owned": row["iem_owned"],
-            "at_handle": row["at_handle"],
         }
-        if row["at_handle"]:
-            bot.at_manager.add_client(row["at_handle"], row["at_app_pass"])
     bot.tw_users = twusers
     log.msg(f"load_twitter_from_db(): {txn.rowcount} oauth tokens found")
 
@@ -285,8 +267,9 @@ def tweet_cb(response, bot: JabberClient, twttxt, _room, myjid, user_id):
     # Log
     df = bot.dbpool.runOperation(
         f"INSERT into {bot.name}_social_log(medium, source, resource_uri, "
-        "message, response, response_code) values (%s,%s,%s,%s,%s,%s)",
-        ("twitter", myjid, url, twttxt, repr(response), 200),
+        "message, response, response_code, iembot_account_id) "
+        "values (%s,%s,%s,%s,%s,%s,%s)",
+        ("twitter", myjid, url, twttxt, repr(response), 200, user_id),
     )
     df.addErrback(log.err)
     return response
@@ -317,8 +300,6 @@ def tweet(bot: JabberClient, user_id, twttxt, **kwargs):
     Tweet a message
     """
     twttxt = safe_twitter_text(twttxt)
-    # FIXME
-    at_send_message(bot, user_id, twttxt, **kwargs)
 
     df = threads.deferToThread(
         really_tweet,
@@ -366,7 +347,8 @@ def route(bot: JabberClient, channels: list, elem: Element):
                 lat = elem.x["lat"]
                 long = elem.x["long"]
             # Finally, actually tweet, this is in basicbot
-            bot.tweet(
+            really_tweet(
+                bot,
                 user_id,
                 elem.x["twitter"],
                 twitter_media=elem.x.getAttribute("twitter_media"),
