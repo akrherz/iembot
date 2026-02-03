@@ -78,14 +78,13 @@ def toot_cb(response, bot: JabberClient, twttxt, _room, myjid, user_id):
     Called after success going to Mastodon
     """
     if response is None:
-        return
+        return None
     mduser = bot.md_users.get(user_id)
     if mduser is None:
         return response
     if "content" not in response:
         log.msg(f"Got response without content {response}")
-        return
-    mduser["screen_name"]
+        return None
     url = response["url"]
 
     response.pop(

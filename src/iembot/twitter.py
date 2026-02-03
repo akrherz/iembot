@@ -61,12 +61,11 @@ def safe_twitter_text(text: str) -> str:
         if len(text) > TWEET_CHARS:
             # 25 for URL, three dots and space for 29
             return f"{text2[: (TWEET_CHARS - 29)]}... {urls[0]}"
-    if chars > TWEET_CHARS:
-        if words[-1].startswith("http"):
-            i = -2
-            while len(" ".join(words[:i])) > (TWEET_CHARS - 3 - 25):
-                i -= 1
-            return f"{' '.join(words[:i])}... {words[-1]}"
+    if chars > TWEET_CHARS and words[-1].startswith("http"):
+        i = -2
+        while len(" ".join(words[:i])) > (TWEET_CHARS - 3 - 25):
+            i -= 1
+        return f"{' '.join(words[:i])}... {words[-1]}"
     return text[:TWEET_CHARS]
 
 
@@ -181,13 +180,15 @@ def really_tweet(bot: JabberClient, user_id, twttxt, **kwargs):
 
     def _helper(params):
         """Wrap common stuff"""
-        resp = api._session.post(TWEET_API, auth=auth, json=params)
+        resp = api._session.post(TWEET_API, auth=auth, json=params)  # skipcq
         hh = "x-app-limit-24hour-remaining"
         log.msg(
             f"x-rate-limit-limit {resp.headers.get('x-rate-limit-limit')} + "
             f"{hh} {resp.headers.get(hh)}"
         )
-        return api._ParseAndCheckTwitter(resp.content.decode("utf-8"))
+        return api._ParseAndCheckTwitter(
+            resp.content.decode("utf-8")
+        )  # skipcq
 
     res = None
     try:
@@ -271,13 +272,13 @@ def tweet_cb(response, bot: JabberClient, twttxt, _room, myjid, user_id):
     Called after success going to twitter
     """
     if response is None:
-        return
+        return None
     twuser = bot.tw_users.get(user_id)
     if twuser is None:
         return response
     if "data" not in response:
         log.msg(f"Got response without data {response}")
-        return
+        return None
     screen_name = twuser["screen_name"]
     url = f"https://x.com/{screen_name}/status/{response['data']['id']}"
 
@@ -299,7 +300,7 @@ def twittererror_exp_to_code(exp) -> int:
     """
     errcode = None
     errmsg = str(exp)
-    # brittle :(
+    # brittle
     errmsg = errmsg[errmsg.find("[{") : errmsg.find("}]") + 2].replace(
         "'", '"'
     )
