@@ -251,7 +251,8 @@ def run(
 
     # Start services and run the reactor.
     service_collection.startService()
-    reactor.run()
+    if not reactor.running:
+        reactor.run()
 
 
 if __name__ == "__main__":

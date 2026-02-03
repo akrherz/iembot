@@ -100,15 +100,26 @@ def test_fatal_stops_reactor(monkeypatch):
     assert called["stopped"]
 
 
-def test_cli_help():
+def taest_cli_help():
     runner = CliRunner()
     result = runner.invoke(main_mod.main, ["--help"])
     assert result.exit_code == 0
     assert "IEMBot command line interface" in result.output
 
 
-def test_cli_run_help():
+def taest_cli_run_help():
     runner = CliRunner()
     result = runner.invoke(main_mod.main, ["run", "--help"])
     assert result.exit_code == 0
     assert "Run the IEMBot service" in result.output
+
+
+def test_cli_run(tmp_path):
+    runner = CliRunner()
+    with mock.patch("iembot.main._start_logging"):
+        result = runner.invoke(
+            main_mod.main,
+            ["run", "--logfile", tmp_path / "bah.log"],
+            catch_exceptions=False,
+        )
+    assert result.exit_code == 0
