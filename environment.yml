@@ -7,6 +7,7 @@ dependencies:
  - twisted>=18.4.0
  - psycopg
  - pyiem>=1.26
+ - pymemcache
  - pytest
  - pytest-cov
  - pytest-runner

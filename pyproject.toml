@@ -28,11 +28,11 @@ dependencies = [
   "mastodon-py",
   "psycopg",
   "pyiem>=1.26",
+  "pymemcache",
   "python-twitter",
   "requests",
   "service-identity",
   "twisted>=18.4",
-  "txyam2",
 ]
 
 optional-dependencies.dev = [

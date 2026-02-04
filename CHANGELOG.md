@@ -7,6 +7,8 @@ All notable changes to this library are documented in this file.
 
 ### API Changes
 
+- Replace `txyam2` dependency with `pymemcache` called from a thread (#140).
+
 ### New Features
 
 ### Bug Fixes

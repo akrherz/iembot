@@ -1,4 +1,4 @@
 # generates RSS
 feedgen
-# twisted memcached
-txyam2
+# memcached client
+pymemcache
