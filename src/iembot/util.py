@@ -279,6 +279,12 @@ def load_chatrooms_from_db(txn, bot: JabberClient, always_join: bool = False):
     oldrooms = list(bot.rooms.keys())
     joined = 0
     xref = {}
+    if always_join or "botstalk" not in oldrooms:
+        # botstalk is special and should be joined immediately
+        presence = domish.Element(("jabber:client", "presence"))
+        presence["to"] = f"botstalk@{bot.conference}/{bot.myjid.user}"
+        bot.xmlstream.send(presence)
+
     for i, row in enumerate(txn.fetchall()):
         rm = row["roomname"]
         xref[row["iembot_account_id"]] = rm
@@ -293,8 +299,7 @@ def load_chatrooms_from_db(txn, bot: JabberClient, always_join: bool = False):
             presence = domish.Element(("jabber:client", "presence"))
             presence["to"] = f"{rm}@{bot.conference}/{bot.myjid.user}"
             # Some jitter to prevent overloading
-            jitter = 0 if rm == "botstalk" else i % 30
-            reactor.callLater(jitter, bot.xmlstream.send, presence)
+            reactor.callLater(i % 30, bot.xmlstream.send, presence)
             joined += 1
         if rm in oldrooms:
             oldrooms.remove(rm)
