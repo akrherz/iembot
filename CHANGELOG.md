@@ -3,6 +3,16 @@
 
 All notable changes to this library are documented in this file.
 
+## Unreleased Version
+
+### API Changes
+
+### New Features
+
+### Bug Fixes
+
+- Removed unnecessary `pwd` (UNIX only) module usage (#142).
+
 ## **0.3.1** (4 Feb 2026)
 
 ### API Changes

@@ -4,7 +4,6 @@ import copy
 import glob
 import os
 import pickle
-import pwd
 import re
 import socket
 import traceback
@@ -238,8 +237,7 @@ def email_error(exp, bot: JabberClient, message=""):
     if exp is not None:
         expmsg = f"Exception       : {exp}\n"
     msg = MIMEText(
-        f"System          : {pwd.getpwuid(os.getuid())[0]}@"
-        f"{socket.gethostname()} [CWD: {os.getcwd()}]\n"
+        f"System          : @{socket.gethostname()} [CWD: {os.getcwd()}]\n"
         f"System UTC date : {utc()}\n"
         f"process id      : {os.getpid()}\n"
         f"iembot.version  : {iembot.__version__}\n"
