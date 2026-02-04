@@ -18,10 +18,10 @@ from twisted.internet import reactor
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
 from twisted.web import server
-from txyam.client import YamClient
 
 from iembot import webservices
 from iembot.bot import JabberClient
+from iembot.memcache import build_memcache_client
 from iembot.msghandlers import register_handler
 
 
@@ -43,10 +43,8 @@ def _build_dbpool(config: dict) -> adbapi.ConnectionPool:
     )
 
 
-def _build_memcache_client(memcache: str) -> YamClient:
-    client = YamClient(reactor, [memcache])
-    client.connect()
-    return client
+def _build_memcache_client(memcache: str):
+    return build_memcache_client(memcache)
 
 
 def _start_logging(logfile: str | None) -> None:
