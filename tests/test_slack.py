@@ -3,6 +3,9 @@
 from unittest import mock
 
 import pytest
+from twisted.internet import defer
+from twisted.web.server import NOT_DONE_YET
+from twisted.web.test.requesthelper import DummyRequest
 
 from iembot.slack import (
     SlackInstallChannel,
@@ -12,6 +15,32 @@ from iembot.slack import (
     send_to_slack,
 )
 from iembot.types import JabberClient
+
+
+@defer.inlineCallbacks
+def test_subscribe_channel_render(bot: JabberClient):
+    """Test that we can run the render workflow."""
+    ss = SlackSubscribeChannel(bot)
+    request = DummyRequest([])
+    request.args = {
+        b"team_id": [b"T12345"],
+        b"channel_id": [b"C67890"],
+        b"text": [b"AFDDMX"],
+    }
+    bot.dbpool.runInteraction = mock.Mock(return_value=defer.succeed(None))
+    result = ss.render(request)
+    assert result == NOT_DONE_YET
+    yield defer.succeed(None)
+    assert b"Subscribed" in b"".join(request.written)
+
+
+def test_install_channel_render(bot: JabberClient):
+    """See if we can render the install channel."""
+    ss = SlackInstallChannel(bot)
+    request = DummyRequest([b""])
+    result = ss.render(request)
+    assert result is not None
+    assert request.responseCode == 302
 
 
 @pytest.mark.parametrize("database", ["iembot"])
