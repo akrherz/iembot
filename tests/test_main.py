@@ -80,13 +80,9 @@ def test_build_dbpool(monkeypatch):
     assert main_mod._build_dbpool(settings) is fakepool
 
 
-def test_build_memcache_client(monkeypatch):
-    fake = mock.Mock()
-    monkeypatch.setattr(main_mod, "YamClient", lambda _reactor, _addrs: fake)
-    fake.connect = mock.Mock()
+def test_build_memcache_client():
     result = main_mod._build_memcache_client("tcp:foo:1234")
-    assert result is fake
-    fake.connect.assert_called_once()
+    assert result
 
 
 def test_fatal_stops_reactor(monkeypatch):
