@@ -91,22 +91,51 @@ class SlackSubscribeChannel(resource.Resource):
     def store_slack_subscription(
         self,
         txn,
-        team_id,
-        channel_id,
-        subkey,
+        team_id: str,
+        channel_id: str,
+        subkey: str,
     ):
         """write to database."""
+        log.msg(
+            f"Handing slack subscription for T:`{team_id}` TC:`{channel_id}` "
+            f"C:`{subkey}`"
+        )
+        # Step 1, ensure that the slack channel exists
+        txn.execute(
+            """
+    select iembot_account_id from iembot_slack_team_channels
+    where team_id = %s and channel_id = %s
+            """,
+            (team_id, channel_id),
+        )
+        res = txn.fetchall()
+        if not res:
+            log.msg(
+                f"Slack Team: {team_id} Channel: {channel_id} does not exist "
+                "creating..."
+            )
+            txn.execute(
+                """
+                insert into iembot_slack_team_channels
+                (iembot_account_id, team_id, channel_id)
+                values (
+                    (select create_iembot_account('slack')), %s, %s)
+                returning iembot_account_id
+                """,
+                (team_id, channel_id),
+            )
+            res = txn.fetchall()
+        iembot_account_id = res[0]["iembot_account_id"]
         txn.execute(
             """
             insert into iembot_subscriptions(iembot_account_id, channel_id)
             values (
-                (select iembot_account_id from iembot_slack_team_channels
-                 where team_id = %s and channel_id = %s),
+                %s,
                 (select get_or_create_iembot_channel_id(%s))
             )
             on conflict do nothing
             """,
-            (team_id, channel_id, subkey),
+            (iembot_account_id, subkey),
         )
 
     def render(self, request):
@@ -120,10 +149,13 @@ class SlackSubscribeChannel(resource.Resource):
             channel_id,
             subkey,
         )
+        defer.addErrback(
+            lambda _: request.write("Error processing subscription")
+        )
         defer.addCallback(
             lambda _: request.write(f"Subscribed to {subkey}".encode("ascii"))
         )
-        defer.addCallback(lambda _: request.finish())
+        defer.addBoth(lambda _: request.finish())
         defer.addCallback(self.iembot.load_slack)
 
         return NOT_DONE_YET
