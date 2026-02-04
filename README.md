@@ -5,7 +5,7 @@
 [![Code Health](https://landscape.io/github/akrherz/iembot/master/landscape.svg?style=flat)](https://landscape.io/github/akrherz/iembot/master)
 
 I am a XMPP client with limited bot capabilities.  In general, I am a message
-router more than anything.
+router more than anything.  Currently requires python 3.11+.
 
 ## Run iembot in development
 
