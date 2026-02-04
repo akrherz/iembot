@@ -19,13 +19,39 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
-dynamic = [
-  "version",
+dynamic = [ "version" ]
+dependencies = [
+  "atproto",
+  "click",
+  "feedgen",
+  "httpx",
+  "mastodon-py",
+  "psycopg",
+  "pyiem>=1.26",
+  "python-twitter",
+  "requests",
+  "service-identity",
+  "twisted>=18.4",
+  "txyam2",
 ]
 
+optional-dependencies.dev = [
+  "cartopy",
+  "codecov",
+  "cython",
+  "pytest",
+  "pytest-cov",
+  "pytest-runner",
+]
 urls."Homepage" = "https://github.com/akrherz/iembot"
-
 scripts.iembot = "iembot.main:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.package-data]
+"iembot" = [ "data/startrek" ]
 
 [tool.setuptools_scm]
 version_scheme = "post-release"
