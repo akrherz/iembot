@@ -293,14 +293,7 @@ def load_chatrooms_from_db(txn, bot: JabberClient, always_join: bool = False):
             presence = domish.Element(("jabber:client", "presence"))
             presence["to"] = f"{rm}@{bot.conference}/{bot.myjid.user}"
             # Some jitter to prevent overloading
-            jitter = (
-                0
-                if rm
-                in [
-                    "botstalk",
-                ]
-                else i % 30
-            )
+            jitter = 0 if rm == "botstalk" else i % 30
             reactor.callLater(jitter, bot.xmlstream.send, presence)
             joined += 1
         if rm in oldrooms:
