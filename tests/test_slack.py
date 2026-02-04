@@ -27,6 +27,18 @@ def test_subscribe_channel(dbcursor, bot):
 
 
 @pytest.mark.parametrize("database", ["iembot"])
+def test_gh136_slack_first_channel_subscription(dbcursor, bot):
+    """See if subscribe works when we need to create a slack channel."""
+    ss = SlackSubscribeChannel(bot)
+    ss.store_slack_subscription(
+        dbcursor,
+        "TSS",  # needs to exist in iembot_slack_teams
+        "CSD2",  # new channel on slack unknown to the bot so far
+        "AFDDMX",
+    )
+
+
+@pytest.mark.parametrize("database", ["iembot"])
 def test_load_from_db(dbcursor, bot: JabberClient):
     """Exercise."""
     load_slack_from_db(dbcursor, bot)
