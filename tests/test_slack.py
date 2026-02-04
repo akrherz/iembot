@@ -2,7 +2,34 @@
 
 from unittest import mock
 
-from iembot import slack
+import pytest
+
+from iembot.slack import (
+    SlackInstallChannel,
+    SlackSubscribeChannel,
+    load_slack_from_db,
+    requests,
+    send_to_slack,
+)
+from iembot.types import JabberClient
+
+
+@pytest.mark.parametrize("database", ["iembot"])
+def test_subscribe_channel(dbcursor, bot):
+    """See if we can subscribe?"""
+    ss = SlackSubscribeChannel(bot)
+    ss.store_slack_subscription(
+        dbcursor,
+        "TSS",
+        "CSD",
+        "AFDDMX",
+    )
+
+
+@pytest.mark.parametrize("database", ["iembot"])
+def test_load_from_db(dbcursor, bot: JabberClient):
+    """Exercise."""
+    load_slack_from_db(dbcursor, bot)
 
 
 def test_send_to_slack(monkeypatch):
@@ -26,7 +53,7 @@ def test_send_to_slack(monkeypatch):
 
         return MockResponse()
 
-    monkeypatch.setattr(slack.requests, "post", mock_post)
+    monkeypatch.setattr(requests, "post", mock_post)
 
     bot = mock.Mock()
     bot.slack_teams = {"T12345": "xoxb-fake-token"}
@@ -34,7 +61,7 @@ def test_send_to_slack(monkeypatch):
     elem = mock.Mock()
     elem.x = {"twitter": "Hello, Slack!"}
 
-    slack.send_to_slack("xoxb-fake-token", channel_id, elem)
+    send_to_slack("xoxb-fake-token", channel_id, elem)
 
     assert posted["url"] == "https://slack.com/api/chat.postMessage"
     assert posted["headers"]["Authorization"] == "Bearer xoxb-fake-token"
@@ -49,7 +76,7 @@ def test_send_to_slack(monkeypatch):
 
 def test_install(bot):
     """Test the status renderer."""
-    ss = slack.SlackInstallChannel(bot)
+    ss = SlackInstallChannel(bot)
     request = mock.Mock()
     request.setResponseCode = mock.Mock()
     request.write = mock.Mock()

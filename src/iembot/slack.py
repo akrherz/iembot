@@ -98,8 +98,12 @@ class SlackSubscribeChannel(resource.Resource):
         """write to database."""
         txn.execute(
             """
-            insert into iembot_slack_subscriptions(team_id, channel_id, subkey)
-            values (%s, %s, %s)
+            insert into iembot_subscriptions(iembot_account_id, channel_id)
+            values (
+                (select iembot_account_id from iembot_slack_team_channels
+                 where team_id = %s and channel_id = %s),
+                (select get_or_create_iembot_channel_id(%s))
+            )
             on conflict do nothing
             """,
             (team_id, channel_id, subkey),
@@ -143,8 +147,11 @@ class SlackUnsubscribeChannel(resource.Resource):
         """write to database."""
         txn.execute(
             """
-            delete from iembot_slack_subscriptions
-            where team_id = %s and channel_id = %s and subkey = %s
+            delete from iembot_subscriptions
+            where iembot_account_id = (
+            select iembot_account_id from iembot_slack_team_channels where
+            team_id = %s and channel_id = %s) and
+            channel_id = get_or_create_iembot_channel_id(%s)
             """,
             (team_id, channel_id, subkey),
         )
