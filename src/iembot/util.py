@@ -24,12 +24,19 @@ from iembot.types import JabberClient
 
 def build_channel_subs(txn, auth_table: str) -> dict[int : list[str]]:
     """Build the subscriptions based on the given auth table."""
+    # Sometimes we need to do a bit more for checking.
+    xtra_sql = {
+        "iembot_oauth_twitter": (
+            "and o.access_token is not null and not disabled"
+        )
+    }
     # First find explicit subscriptions
     txn.execute(
         f"""
         select o.iembot_account_id, channel_name
         from {auth_table} o, iembot_subscriptions s, iembot_channels c
         WHERE o.iembot_account_id = s.iembot_account_id and s.channel_id = c.id
+        {xtra_sql.get(auth_table, "")}
         """
     )
     subs = {}
