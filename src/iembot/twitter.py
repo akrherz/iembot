@@ -7,12 +7,11 @@ from html import unescape
 
 import requests
 from pyiem.reference import TWEET_CHARS
-from requests_oauthlib import OAuth1, OAuth1Session
+from requests_oauthlib import OAuth1Session
 from twisted.internet import threads
+from twisted.internet.defer import Deferred
 from twisted.python import log
 from twisted.words.xish.domish import Element
-from twitter.api import Api as TwitterApi
-from twitter.error import TwitterError
 
 from iembot.types import JabberClient
 from iembot.util import build_channel_subs, email_error
@@ -24,6 +23,16 @@ TWEET_API = "https://api.x.com/2/tweets"
 # 326: User is temporarily locked out
 # 64: User is suspended
 DISABLE_TWITTER_CODES = [89, 185, 226, 326, 64]
+
+
+class TwitterRequestError(Exception):
+    """Represents a non-2xx response from the X API."""
+
+    def __init__(self, code, payload, status_code):
+        super().__init__(f"X API error {code} status {status_code}: {payload}")
+        self.code = code
+        self.payload = payload
+        self.status_code = status_code
 
 
 def safe_twitter_text(text: str) -> str:
@@ -127,89 +136,19 @@ def disable_twitter_user(bot: JabberClient, user_id, errcode=0):
     return True
 
 
-def really_tweet(bot: JabberClient, user_id, twttxt, **kwargs):
-    """Blocking tweet method."""
-    if user_id not in bot.tw_users:
-        log.msg(f"tweet() called with unknown user_id: {user_id}")
-        return None
-    if bot.tw_users[user_id]["access_token"] is None:
-        log.msg(f"tweet() called with no access token for {user_id}")
-        return None
-    api = TwitterApi(
-        consumer_key=bot.config["bot.twitter.consumerkey"],
-        consumer_secret=bot.config["bot.twitter.consumersecret"],
-        access_token_key=bot.tw_users[user_id]["access_token"],
-        access_token_secret=bot.tw_users[user_id]["access_token_secret"],
-    )
-    # Le Sigh, api.__auth is private
-    auth = OAuth1(
-        bot.config["bot.twitter.consumerkey"],
-        bot.config["bot.twitter.consumersecret"],
-        bot.tw_users[user_id]["access_token"],
-        bot.tw_users[user_id]["access_token_secret"],
-    )
-    oauth = OAuth1Session(
-        bot.config["bot.twitter.consumerkey"],
-        bot.config["bot.twitter.consumersecret"],
-        bot.tw_users[user_id]["access_token"],
-        bot.tw_users[user_id]["access_token_secret"],
-    )
+def _helper(oauth: OAuth1Session, params):
+    """Wrap common stuff"""
+    resp = oauth.post(TWEET_API, json=params, timeout=60)
+    hh = "x-app-limit-24hour-remaining"
     log.msg(
-        f"Tweeting {bot.tw_users[user_id]['screen_name']}({user_id}) "
-        f"'{twttxt}' media:{kwargs.get('twitter_media')}"
+        f"x-rate-limit-limit {resp.headers.get('x-rate-limit-limit')} + "
+        f"{hh} {resp.headers.get(hh)} #{resp.status_code} {resp.text}"
     )
-    media = kwargs.get("twitter_media")
-
-    def _helper(params):
-        """Wrap common stuff"""
-        resp = api._session.post(TWEET_API, auth=auth, json=params)  # skipcq
-        hh = "x-app-limit-24hour-remaining"
-        log.msg(
-            f"x-rate-limit-limit {resp.headers.get('x-rate-limit-limit')} + "
-            f"{hh} {resp.headers.get(hh)}"
-        )
-        return api._ParseAndCheckTwitter(  # skipcq
-            resp.content.decode("utf-8")
-        )
-
-    res = None
-    try:
-        params = {
-            "text": twttxt,
-        }
-        # If we have media, we have some work to do!
-        if media is not None:
-            media_id = _upload_media_to_twitter(oauth, media)
-            if media_id is not None:
-                params["media"] = {"media_ids": [media_id]}
-        res = _helper(params)
-    except TwitterError as exp:
-        errcode = twittererror_exp_to_code(exp)
-        if errcode in [185, 187]:
-            # 185: Over quota
-            # 187: duplicate tweet
-            return None
-        if errcode in DISABLE_TWITTER_CODES:
-            disable_twitter_user(bot, user_id, errcode)
-            return None
-
-        # Something bad happened with submitting this to twitter
-        if str(exp).startswith("media type unrecognized"):
-            # The media content hit some error, just send it without it
-            log.msg(f"Sending '{kwargs.get('twitter_media')}' fail, stripping")
-            params.pop("media", None)
-        else:
-            log.err(exp)
-            # Since this called from a thread, sleeping should not jam us up
-            time.sleep(10)
-        res = _helper(params)
-    except Exception as exp:
-        log.err(exp)
-        # Since this called from a thread, sleeping should not jam us up
-        time.sleep(10)
-        params.pop("media", None)
-        res = _helper(params)
-    return res
+    if resp.status_code >= 300:
+        payload = _safe_json(resp)
+        errcode = _twitter_error_code_from_payload(payload)
+        raise TwitterRequestError(errcode, payload, resp.status_code)
+    return _safe_json(resp)
 
 
 def _upload_media_to_twitter(oauth: OAuth1Session, url: str) -> str | None:
@@ -253,10 +192,12 @@ def tweet_cb(response, bot: JabberClient, twttxt, _room, myjid, user_id):
     """
     Called after success going to twitter
     """
+    log.msg(f"Got {response}")
     if response is None:
         return None
     twuser = bot.tw_users.get(user_id)
     if twuser is None:
+        log.msg(f"twuser is None for {user_id}")
         return response
     if "data" not in response:
         log.msg(f"Got response without data {response}")
@@ -276,14 +217,19 @@ def tweet_cb(response, bot: JabberClient, twttxt, _room, myjid, user_id):
 
 
 def twittererror_exp_to_code(exp) -> int:
-    """Convert a TwitterError Exception into a code.
+    """Convert a Twitter error exception into a code.
 
     Args:
-      exp (TwitterError): The exception to convert
+      exp (Exception): The exception to convert
     """
+    if isinstance(exp, TwitterRequestError):
+        return exp.code or 0
     errcode = None
+    maybe_failure = getattr(exp, "value", None)
+    if isinstance(maybe_failure, TwitterRequestError):
+        return maybe_failure.code or 0
     errmsg = str(exp)
-    # brittle
+    # brittle fallback for older error payloads
     errmsg = errmsg[errmsg.find("[{") : errmsg.find("}]") + 2].replace(
         "'", '"'
     )
@@ -295,12 +241,96 @@ def twittererror_exp_to_code(exp) -> int:
     return errcode
 
 
-def tweet(bot: JabberClient, user_id, twttxt, **kwargs):
+def _safe_json(resp: requests.Response) -> dict:
+    """Return parsed JSON or a raw text wrapper."""
+    try:
+        return resp.json()
+    except Exception as err:
+        log.err(err)
+        return {"_raw": resp.text}
+
+
+def _twitter_error_code_from_payload(payload: dict) -> int:
+    """Extract an error code from an X API error payload."""
+    if not isinstance(payload, dict):
+        log.msg(f"Got non-dict twitter payload? {type(payload)} {payload}")
+        return 0
+    if "status" in payload:
+        return payload["status"]
+    errors = payload.get("errors")
+    if isinstance(errors, list):
+        for err in errors:
+            if not isinstance(err, dict):
+                continue
+            code = err.get("code") or err.get("error_code")
+            if isinstance(code, int):
+                return code
+            if isinstance(code, str) and code.isdigit():
+                return int(code)
+    return 0
+
+
+def really_tweet(bot: JabberClient, user_id: int, twttxt: str, **kwargs):
+    """Blocking tweet method."""
+    oauth = OAuth1Session(
+        bot.config["bot.twitter.consumerkey"],
+        bot.config["bot.twitter.consumersecret"],
+        bot.tw_users[user_id]["access_token"],
+        bot.tw_users[user_id]["access_token_secret"],
+    )
+    log.msg(
+        f"Tweeting {bot.tw_users[user_id]['screen_name']}({user_id}) "
+        f"'{twttxt}' media:{kwargs.get('twitter_media')}"
+    )
+    media = kwargs.get("twitter_media")
+
+    params = {
+        "text": twttxt,
+    }
+    # Step 1: Attempt media upload, we may fail, big deal
+    try:
+        if media is not None:
+            media_id = _upload_media_to_twitter(oauth, media)
+            if media_id is not None:
+                params["media"] = {"media_ids": [media_id]}
+    except Exception as err:
+        log.msg(f"Uploading media for {media} failed with:")
+        log.err(err)
+
+    res = None
+    # We now make two attempts to post to Twitter.
+    for _ in range(2):
+        try:
+            res = _helper(oauth, params)
+            break
+        except TwitterRequestError as exp:
+            log.err(exp)
+            errcode = exp.code
+            if errcode in [185, 187, 403]:
+                # 185: Over quota
+                # 187: duplicate tweet
+                # 403: Forbidden (duplicate)
+                return None
+            if errcode in DISABLE_TWITTER_CODES:
+                disable_twitter_user(bot, user_id, errcode)
+                return None
+
+            # Something bad happened with submitting this to twitter
+            if str(exp).startswith("media type unrecognized"):
+                # The media content hit some error, just send it without it
+                log.msg(f"Sending '{kwargs.get('twitter_media')}' fail, strip")
+                params.pop("media", None)
+            else:
+                log.err(exp)
+                # Since this called from a thread, sleeping should not jam us
+                time.sleep(10)
+    return res
+
+
+def tweet(bot: JabberClient, user_id, twttxt, **kwargs) -> Deferred | None:
     """
     Tweet a message
     """
-    twttxt = safe_twitter_text(twttxt)
-
     df = threads.deferToThread(
         really_tweet,
         bot,
@@ -323,34 +353,37 @@ def tweet(bot: JabberClient, user_id, twttxt, **kwargs):
     return df
 
 
-def route(bot: JabberClient, channels: list, elem: Element):
+def route(bot: JabberClient, channels: list, elem: Element) -> None:
     """Do the twitter work."""
-    alertedPages = []
+    # Require the x.twitter attribute to be set to prevent
+    # confusion with some ingestors still sending tweets themself
+    if not elem.x.hasAttribute("twitter"):
+        log.msg(f"Failing to tweet message without x {elem.toXml()}")
+        return
+    msgtxt = safe_twitter_text(elem.x["twitter"])
+
+    lat = long = None
+    if elem.x.hasAttribute("lat") and elem.x.hasAttribute("long"):
+        lat = elem.x["lat"]
+        long = elem.x["long"]
+
+    alerted = []
     for channel in channels:
         for user_id in bot.tw_routingtable.get(channel, []):
+            if user_id in alerted:
+                continue
+            alerted.append(user_id)
+            # Ensure we have creds needed for this...
             if user_id not in bot.tw_users:
                 log.msg(f"Failed to tweet due to no access_tokens {user_id}")
                 continue
-            # Require the x.twitter attribute to be set to prevent
-            # confusion with some ingestors still sending tweets themself
-            if not elem.x.hasAttribute("twitter"):
+            if bot.tw_users[user_id]["access_token"] is None:
+                log.msg(f"No twitter access token for {user_id}")
                 continue
-            if user_id in alertedPages:
-                continue
-            alertedPages.append(user_id)
-            lat = long = None
-            if (
-                elem.x
-                and elem.x.hasAttribute("lat")
-                and elem.x.hasAttribute("long")
-            ):
-                lat = elem.x["lat"]
-                long = elem.x["long"]
-            # Finally, actually tweet, this is in basicbot
-            really_tweet(
+            tweet(
                 bot,
                 user_id,
-                elem.x["twitter"],
+                msgtxt,
                 twitter_media=elem.x.getAttribute("twitter_media"),
                 latitude=lat,
                 longitude=long,

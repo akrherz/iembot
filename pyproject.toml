@@ -29,7 +29,6 @@ dependencies = [
   "psycopg",
   "pyiem>=1.26",
   "pymemcache",
-  "python-twitter",
   "requests",
   "service-identity",
   "twisted>=18.4",
@@ -42,6 +41,7 @@ optional-dependencies.dev = [
   "pytest",
   "pytest-cov",
   "pytest-runner",
+  "responses",
 ]
 urls."Homepage" = "https://github.com/akrherz/iembot"
 scripts.iembot = "iembot.main:main"

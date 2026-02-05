@@ -2,6 +2,7 @@ dependencies:
  - atproto
  - click
  - codecov
+ - feedgen
  - httpx
  - requests
  - twisted>=18.4.0
@@ -12,8 +13,8 @@ dependencies:
  - pytest-cov
  - pytest-runner
  - pytest-twisted
- # bot non-async twitter
- - python-twitter
+ # Mocking requests
+ - responses
  - service_identity
  - setuptools_scm
  # cython is a lame requirement from rabbit hole of cartopy

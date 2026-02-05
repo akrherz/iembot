@@ -2,27 +2,47 @@
 
 from unittest import mock
 
-from twisted.python.failure import Failure
-from twitter import TwitterError
+import pytest_twisted
+import responses
 
 from iembot.twitter import (
     disable_twitter_user,
     safe_twitter_text,
+    tweet,
     tweet_cb,
-    twitter_errback,
-    twittererror_exp_to_code,
 )
+from iembot.types import JabberClient
 
 
-def test_error_conversion():
-    """Test that we can convert errors."""
-    err = TwitterError("BLAH")
-    assert twittererror_exp_to_code(err) is None
-    err = TwitterError(
-        "[{'code': 185, 'message': 'User is over daily status update limit.'}]"
-    )
-    assert twittererror_exp_to_code(err) == 185
-    assert twittererror_exp_to_code(Failure(err)) == 185
+@pytest_twisted.inlineCallbacks
+def test_tweet(bot: JabberClient):
+    """Test that we can sort of tweet."""
+    with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        rsps.add(
+            responses.POST,
+            url="https://api.x.com/2/media/upload",
+            json={"media_id": "1234567890"},
+        )
+        rsps.add(
+            responses.POST,
+            url="https://api.x.com/2/tweets",
+            json={"data": {"id": "1234567890"}},
+        )
+        bot.tw_users = {
+            "123": {
+                "access_token": "",
+                "access_token_secret": "",
+                "iem_owned": True,
+                "screen_name": "testuser",
+            }
+        }
+        result = yield tweet(
+            bot,
+            "123",
+            "This is a test",
+            twitter_media="https://mesonet.agron.iastate.edu/data/mesonet.gif",
+        )
+        assert result is not None
 
 
 def test_disable_twitter_user_unknown():
@@ -104,17 +124,6 @@ def test_tweet_cb_no_user():
         {"data": {"id": "123"}}, bot, "text", "room", "jid", "999"
     )
     assert result == {"data": {"id": "123"}}
-
-
-def test_twitter_errback_disable_code():
-    """Test twitter_errback with disable code."""
-    bot = mock.Mock()
-    bot.tw_users = {"123": {"screen_name": "test", "iem_owned": False}}
-    bot.dbpool.runOperation.return_value = mock.Mock()
-    err = TwitterError("[{'code': 89, 'message': 'Expired token'}]")
-    twitter_errback(err, bot, "123", "test tweet")
-    # User should be disabled
-    assert "123" not in bot.tw_users
 
 
 def test_twittertext():

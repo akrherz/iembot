@@ -7,6 +7,8 @@ All notable changes to this library are documented in this file.
 
 ### API Changes
 
+- Replace `python-twitter` dep with stdlib python code.
+
 ### New Features
 
 ### Bug Fixes
