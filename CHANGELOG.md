@@ -11,6 +11,7 @@ All notable changes to this library are documented in this file.
 
 ### Bug Fixes
 
+- Implement ATmosphere/bluesky media upload again (#144).
 - Removed unnecessary `pwd` (UNIX only) module usage (#142).
 
 ## **0.3.1** (4 Feb 2026)
