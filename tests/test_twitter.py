@@ -2,16 +2,24 @@
 
 from unittest import mock
 
+import pytest
 import pytest_twisted
 import responses
 
 from iembot.twitter import (
     disable_twitter_user,
+    load_twitter_from_db,
     safe_twitter_text,
     tweet,
     tweet_cb,
 )
 from iembot.types import JabberClient
+
+
+@pytest.mark.parametrize("database", ["iembot"])
+def test_load_twitter_from_db(dbcursor, bot: JabberClient):
+    """Test loading config."""
+    load_twitter_from_db(dbcursor, bot)
 
 
 @pytest_twisted.inlineCallbacks
