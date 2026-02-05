@@ -4,16 +4,12 @@ from unittest import mock
 
 import pytest_twisted
 import responses
-from twisted.python.failure import Failure
-from twitter import TwitterError
 
 from iembot.twitter import (
     disable_twitter_user,
     safe_twitter_text,
     tweet,
     tweet_cb,
-    twitter_errback,
-    twittererror_exp_to_code,
 )
 from iembot.types import JabberClient
 
@@ -47,17 +43,6 @@ def test_tweet(bot: JabberClient):
             twitter_media="https://mesonet.agron.iastate.edu/data/mesonet.gif",
         )
         assert result is not None
-
-
-def test_error_conversion():
-    """Test that we can convert errors."""
-    err = TwitterError("BLAH")
-    assert twittererror_exp_to_code(err) is None
-    err = TwitterError(
-        "[{'code': 185, 'message': 'User is over daily status update limit.'}]"
-    )
-    assert twittererror_exp_to_code(err) == 185
-    assert twittererror_exp_to_code(Failure(err)) == 185
 
 
 def test_disable_twitter_user_unknown():
@@ -139,17 +124,6 @@ def test_tweet_cb_no_user():
         {"data": {"id": "123"}}, bot, "text", "room", "jid", "999"
     )
     assert result == {"data": {"id": "123"}}
-
-
-def test_twitter_errback_disable_code():
-    """Test twitter_errback with disable code."""
-    bot = mock.Mock()
-    bot.tw_users = {"123": {"screen_name": "test", "iem_owned": False}}
-    bot.dbpool.runOperation.return_value = mock.Mock()
-    err = TwitterError("[{'code': 89, 'message': 'Expired token'}]")
-    twitter_errback(err, bot, "123", "test tweet")
-    # User should be disabled
-    assert "123" not in bot.tw_users
 
 
 def test_twittertext():

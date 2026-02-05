@@ -353,7 +353,7 @@ def tweet(bot: JabberClient, user_id, twttxt, **kwargs) -> Deferred | None:
     return df
 
 
-def route(bot: JabberClient, channels: list, elem: Element):
+def route(bot: JabberClient, channels: list, elem: Element) -> None:
     """Do the twitter work."""
     # Require the x.twitter attribute to be set to prevent
     # confusion with some ingestors still sending tweets themself
@@ -379,7 +379,7 @@ def route(bot: JabberClient, channels: list, elem: Element):
                 continue
             if bot.tw_users[user_id]["access_token"] is None:
                 log.msg(f"No twitter access token for {user_id}")
-                return None
+                continue
             tweet(
                 bot,
                 user_id,
