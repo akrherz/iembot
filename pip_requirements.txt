@@ -1,4 +1,0 @@
-# generates RSS
-feedgen
-# memcached client
-pymemcache

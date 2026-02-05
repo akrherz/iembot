@@ -2,16 +2,51 @@
 
 from unittest import mock
 
+import pytest_twisted
+import responses
 from twisted.python.failure import Failure
 from twitter import TwitterError
 
 from iembot.twitter import (
     disable_twitter_user,
     safe_twitter_text,
+    tweet,
     tweet_cb,
     twitter_errback,
     twittererror_exp_to_code,
 )
+from iembot.types import JabberClient
+
+
+@pytest_twisted.inlineCallbacks
+def test_tweet(bot: JabberClient):
+    """Test that we can sort of tweet."""
+    with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        rsps.add(
+            responses.POST,
+            url="https://api.x.com/2/media/upload",
+            json={"media_id": "1234567890"},
+        )
+        rsps.add(
+            responses.POST,
+            url="https://api.x.com/2/tweets",
+            json={"data": {"id": "1234567890"}},
+        )
+        bot.tw_users = {
+            "123": {
+                "access_token": "",
+                "access_token_secret": "",
+                "iem_owned": True,
+                "screen_name": "testuser",
+            }
+        }
+        result = yield tweet(
+            bot,
+            "123",
+            "This is a test",
+            twitter_media="https://mesonet.agron.iastate.edu/data/mesonet.gif",
+        )
+        assert result is not None
 
 
 def test_error_conversion():

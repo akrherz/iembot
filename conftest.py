@@ -1,13 +1,17 @@
 """Centralized Testing Stuff."""
 
 import random
+import sys
 from collections import defaultdict
 from unittest import mock
 
 import pytest
 from pyiem.database import get_dbconnc
+from twisted.python import log
 
 from iembot.bot import JabberClient
+
+log.startLogging(sys.stdout)
 
 
 @pytest.fixture

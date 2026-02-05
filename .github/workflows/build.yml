@@ -52,7 +52,6 @@ jobs:
       run: |
         set -e
         # pip install from requirements.txt
-        python -m pip install -r pip_requirements.txt
         python -m pip install . --upgrade --no-deps
         python -m pytest --cov=iembot
         python -m coverage xml
@@ -62,5 +61,4 @@ jobs:
       if: ${{ matrix.PYTHON_VERSION == '3.14' }}
       uses: codecov/codecov-action@v5
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
         files: coverage.xml
