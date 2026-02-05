@@ -2,8 +2,22 @@
 
 from unittest import mock
 
-from iembot.atmosphere import ATManager, at_send_message, route
+import pytest
+from twisted.words.xish.domish import Element
+
+from iembot.atmosphere import (
+    ATManager,
+    at_send_message,
+    load_atmosphere_from_db,
+    route,
+)
 from iembot.types import JabberClient
+
+
+@pytest.mark.parametrize("database", ["iembot"])
+def test_load_atmosphere_from_db(dbcursor, bot: JabberClient):
+    """Test the method."""
+    load_atmosphere_from_db(dbcursor, bot)
 
 
 def test_at_send_message_unknown_user(bot: JabberClient):
@@ -15,8 +29,19 @@ def test_at_send_message_unknown_user(bot: JabberClient):
 def test_at_send_message_no_handle(bot: JabberClient):
     """Test at_send_message with user that has no at_handle."""
     bot.at_users = {"123": {"at_handle": None}}
-    # Should not raise an error
-    route(bot, "123", "test message")
+    bot.at_routingtable = {
+        "XXX": [
+            "123",
+        ]
+    }
+    msg = Element(("jabber:client", "message"))
+    msg.x = Element(("", "x"))
+    msg.x["twitter"] = "Test message"
+    msg.x["twitter_media"] = (
+        "https://mesonet.agron.iastate.edu/data/mesonet.gif"
+    )
+    msg["body"] = "Test Message"
+    route(bot, ["XXX"], msg)
 
 
 def test_at_send_message_with_handle(bot: JabberClient):

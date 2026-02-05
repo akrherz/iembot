@@ -149,7 +149,25 @@ def route(bot: JabberClient, channels: list, elem: Element):
     for channel in channels:
         for iembot_account_id in bot.at_routingtable.get(channel, []):
             if iembot_account_id in alerted:
-                log.msg(f"{iembot_account_id} already alerted...")
                 continue
             alerted.append(iembot_account_id)
-            at_send_message(bot, iembot_account_id, elem.x["twitter"])
+            # Require the x.twitter attribute to be set to prevent
+            # confusion with some ingestors still sending tweets themself
+            if not elem.x.hasAttribute("twitter"):
+                continue
+            lat = long = None
+            if (
+                elem.x
+                and elem.x.hasAttribute("lat")
+                and elem.x.hasAttribute("long")
+            ):
+                lat = elem.x["lat"]
+                long = elem.x["long"]
+            at_send_message(
+                bot,
+                iembot_account_id,
+                elem.x["twitter"],
+                twitter_media=elem.x.getAttribute("twitter_media"),
+                latitude=lat,
+                longitude=long,
+            )
