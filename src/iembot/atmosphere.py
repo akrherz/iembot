@@ -110,7 +110,6 @@ class ATManager:
 
 def load_atmosphere_from_db(txn, bot: JabberClient):
     """Query database for our config."""
-
     bot.at_routingtable = build_channel_subs(
         txn,
         "iembot_atmosphere_accounts",
@@ -147,12 +146,12 @@ def route(bot: JabberClient, channels: list, elem: Element):
     """Do the message routing."""
     # Require the x.twitter attribute to be set to prevent
     # confusion with some ingestors still sending tweets themself
-    if not elem.x.hasAttribute("twitter"):
+    if not elem.x or not elem.x.hasAttribute("twitter"):
         return
-    lat = long = None
-    if elem.x.hasAttribute("lat") and elem.x.hasAttribute("long"):
-        lat = elem.x["lat"]
-        long = elem.x["long"]
+
+    lat = elem.x.getAttribute("lat")
+    long = elem.x.getAttribute("long")
+    twitter_media = elem.x.getAttribute("twitter_media")
 
     alerted = []
     for channel in channels:
@@ -164,7 +163,7 @@ def route(bot: JabberClient, channels: list, elem: Element):
                 bot,
                 iembot_account_id,
                 elem.x["twitter"],
-                twitter_media=elem.x.getAttribute("twitter_media"),
+                twitter_media=twitter_media,
                 latitude=lat,
                 longitude=long,
             )

@@ -20,6 +20,13 @@ def test_load_atmosphere_from_db(dbcursor, bot: JabberClient):
     load_atmosphere_from_db(dbcursor, bot)
 
 
+def test_route_no_x_in_message(bot: JabberClient):
+    """Test what happens with a message without X."""
+    msg = Element(("jabber:client", "message"))
+    msg["body"] = "Test Message"
+    route(bot, "unknown_user", msg)
+
+
 def test_at_send_message_unknown_user(bot: JabberClient):
     """Test at_send_message with unknown user."""
     # Should not raise an error
