@@ -139,9 +139,8 @@ def process_groupchat(bot: JabberClient, elem: Element) -> None:
         writelog()
         return
 
-    def got_data(res, trip):
+    def got_data(data: bytes | None, trip: int):
         """got a response!"""
-        (_flag, data) = res
         if data is None:
             if trip < 5:
                 reactor.callLater(10, memcache_fetch, trip)
@@ -157,13 +156,13 @@ def process_groupchat(bot: JabberClient, elem: Element) -> None:
         log.err(mixed)
         writelog()
 
-    def memcache_fetch(trip):
+    def memcache_fetch(trip: int):
         """fetch please"""
-        trip += 1
-        if trip > 1:
+        next_trip = trip + 1
+        if next_trip > 0:
             log.msg(f"memcache_fetch(trip={trip}, product_id={product_id}")
         defer = bot.memcache_client.get(product_id.encode("utf-8"))
-        defer.addCallback(got_data, trip)
+        defer.addCallback(got_data, next_trip)
         defer.addErrback(no_data)
 
     memcache_fetch(0)
