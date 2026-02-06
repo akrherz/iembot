@@ -43,10 +43,6 @@ def _build_dbpool(config: dict) -> adbapi.ConnectionPool:
     )
 
 
-def _build_memcache_client(memcache: str):
-    return build_memcache_client(memcache)
-
-
 def _start_logging(logfile: str | None) -> None:
     if logfile in (None, "", "-"):
         log.startLogging(sys.stdout)
@@ -199,7 +195,7 @@ def run(
 
     settings = _load_config(config)
     dbpool = _build_dbpool(settings)
-    memcache_client = _build_memcache_client(memcache)
+    memcache_client = build_memcache_client(memcache)
 
     jabber = JabberClient("iembot", dbpool, settings, memcache_client)
 
