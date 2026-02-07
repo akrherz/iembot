@@ -43,45 +43,47 @@ def load_mastodon_from_db(txn, bot: JabberClient):
     log.msg(f"load_mastodon_from_db(): {txn.rowcount} access tokens found")
 
 
-def disable_mastodon_user(bot: JabberClient, user_id, errcode=0):
+def disable_mastodon_user(
+    bot: JabberClient, iembot_account_id: int, errcode: int = 0
+):
     """Disable the Mastodon subs for this user_id
 
     Args:
-        user_id (big_id): The Mastodon user to disable
+        iembot_account_id (big_id): The Mastodon user to disable
         errcode (int): The HTTP-like errorcode
     """
-    mduser = bot.md_users.get(user_id)
+    mduser = bot.md_users.get(iembot_account_id)
     if mduser is None:
-        log.msg(f"Failed to disable unknown Mastodon user_id {user_id}")
+        log.msg(f"Fail disable unknown Mastodon user_id {iembot_account_id}")
         return False
     screen_name = mduser["screen_name"]
     if mduser["iem_owned"]:
         log.msg(
-            f"Skipping disabling of Mastodon for {user_id} ({screen_name})"
+            f"Skip disable Mastodon for {iembot_account_id} ({screen_name})"
         )
         return False
-    bot.md_users.pop(user_id, None)
+    bot.md_users.pop(iembot_account_id)
     log.msg(
-        f"Removing Mastodon access token for user: {user_id} ({screen_name}) "
-        f"errcode: {errcode}"
+        f"Removing Mastodon access token for user: {iembot_account_id} "
+        f"({screen_name}) errcode: {errcode}"
     )
     df = bot.dbpool.runOperation(
         "UPDATE iembot_mastodon_oauth SET updated = now(), "
         "access_token = null, api_base_url = null "
-        "WHERE user_id = %s",
-        (user_id,),
+        "WHERE iembot_account_id = %s",
+        (iembot_account_id,),
     )
     df.addErrback(log.err)
     return True
 
 
-def toot_cb(response, bot: JabberClient, twttxt, user_id):
+def toot_cb(response, bot: JabberClient, twttxt, iembot_account_id):
     """
     Called after success going to Mastodon
     """
     if response is None:
         return None
-    mduser = bot.md_users.get(user_id)
+    mduser = bot.md_users.get(iembot_account_id)
     if mduser is None:
         return response
     if "content" not in response:
@@ -98,68 +100,68 @@ def toot_cb(response, bot: JabberClient, twttxt, user_id):
         "INSERT into iembot_social_log(medium, source, resource_uri, "
         "message, response, response_code, iembot_account_id) "
         "values (%s,%s,%s,%s,%s,%s,%s)",
-        ("mastodon", "", url, twttxt, repr(response), 200, user_id),
+        ("mastodon", "", url, twttxt, repr(response), 200, iembot_account_id),
     )
     df.addErrback(log.err)
     return response
 
 
-def mastodon_errback(err, bot: JabberClient, user_id, tweettext):
+def mastodon_errback(err, bot: JabberClient, iembot_account_id, tweettext):
     """Error callback when simple Mastodon workflow fails."""
     # Always log it
     log.err(err)
     errcode = None
     if isinstance(err, Mastodon.errors.MastodonNotFoundError):
         errcode = 404
-        disable_mastodon_user(bot, user_id, errcode)
+        disable_mastodon_user(bot, iembot_account_id, errcode)
     elif isinstance(err, Mastodon.errors.MastodonUnauthorizedError):
         errcode = 401
-        disable_mastodon_user(bot, user_id, errcode)
+        disable_mastodon_user(bot, iembot_account_id, errcode)
     else:
-        sn = bot.md_users.get(user_id, {}).get("screen_name", "")
-        msg = f"User: {user_id} ({sn})\nFailed to toot: {tweettext}"
+        sn = bot.md_users.get(iembot_account_id, {}).get("screen_name", "")
+        msg = f"User: {iembot_account_id} ({sn})\nFailed to toot: {tweettext}"
         email_error(err, bot, msg)
 
 
-def toot(self, user_id, twttxt, **kwargs):
+def toot(self, iembot_account_id, twttxt, **kwargs):
     """
     Send a message to Mastodon
     """
-    twttxt = safe_twitter_text(twttxt)
     df = threads.deferToThread(
         really_toot,
         self,
-        user_id,
+        iembot_account_id,
         twttxt,
         **kwargs,
     )
-    df.addCallback(toot_cb, self, twttxt, user_id)
+    df.addCallback(toot_cb, self, twttxt, iembot_account_id)
     df.addErrback(
         mastodon_errback,
         self,
-        user_id,
+        iembot_account_id,
         twttxt,
     )
     df.addErrback(
         email_error,
         self,
-        f"User: {user_id}, Text: {twttxt} Hit double exception",
+        f"User: {iembot_account_id}, Text: {twttxt} Hit double exception",
     )
     return df
 
 
-def really_toot(bot: JabberClient, user_id, twttxt, **kwargs):
+def really_toot(bot: JabberClient, iembot_account_id, twttxt, **kwargs):
     """Blocking Mastodon toot method."""
-    if user_id not in bot.md_users:
-        log.msg(f"toot() called with unknown Mastodon user_id: {user_id}")
+    meta = bot.md_users.get(iembot_account_id)
+    if meta is None:
+        log.msg(f"toot() called with unknown user: {iembot_account_id}")
         return None
     api = Mastodon.Mastodon(
-        access_token=bot.md_users[user_id]["access_token"],
-        api_base_url=bot.md_users[user_id]["api_base_url"],
+        access_token=meta["access_token"],
+        api_base_url=meta["api_base_url"],
     )
     log.msg(
         "Sending to Mastodon "
-        f"{bot.md_users[user_id]['screen_name']}({user_id}) "
+        f"{meta['screen_name']}({iembot_account_id}) "
         f"'{twttxt}' media:{kwargs.get('twitter_media')}"
     )
     media = kwargs.get("twitter_media")
@@ -180,7 +182,7 @@ def really_toot(bot: JabberClient, user_id, twttxt, **kwargs):
         res = api.status_post(**params)
     except MastodonUnauthorizedError:
         # Access token is no longer valid
-        disable_mastodon_user(bot, user_id)
+        disable_mastodon_user(bot, iembot_account_id)
         return None
     except Mastodon.errors.MastodonRatelimitError as exp:
         # Submitted too quickly
@@ -210,35 +212,33 @@ def really_toot(bot: JabberClient, user_id, twttxt, **kwargs):
 
 def route(bot: JabberClient, channels: list, elem: Element):
     """Do Maston stuff."""
-    alertedPages = []
+    # Require the x.twitter attribute to be set to prevent
+    # confusion with some ingestors still sending tweets themselfs
+    if not elem.x or not elem.x.hasAttribute("twitter"):
+        return
+
+    txt = safe_twitter_text(elem.x["twitter"])
+    lat = elem.x.getAttribute("lat")
+    long = elem.x.getAttribute("long")
+    twitter_media = elem.x.getAttribute("twitter_media")
+
+    alerted = []
     for channel in channels:
-        for user_id in bot.md_routingtable.get(channel, []):
-            if user_id not in bot.md_users:
+        for iembot_account_id in bot.md_routingtable.get(channel, []):
+            if iembot_account_id not in bot.md_users:
                 log.msg(
                     "Failed to send to Mastodon due to no "
-                    f"access_tokens {user_id}"
+                    f"access_tokens {iembot_account_id}"
                 )
                 continue
-            # Require the x.twitter attribute to be set to prevent
-            # confusion with some ingestors still sending tweets themselfs
-            if not elem.x.hasAttribute("twitter"):
+            if iembot_account_id in alerted:
                 continue
-            if user_id in alertedPages:
-                continue
-            alertedPages.append(user_id)
-            lat = long = None
-            if (
-                elem.x
-                and elem.x.hasAttribute("lat")
-                and elem.x.hasAttribute("long")
-            ):
-                lat = elem.x["lat"]
-                long = elem.x["long"]
-            really_toot(
+            alerted.append(iembot_account_id)
+            toot(
                 bot,
-                user_id,
-                elem.x["twitter"],
-                twitter_media=elem.x.getAttribute("twitter_media"),
+                iembot_account_id,
+                txt,
+                twitter_media=twitter_media,
                 latitude=lat,  # TODO: unused
                 longitude=long,  # TODO: unused
             )
