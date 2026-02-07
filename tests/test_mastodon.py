@@ -4,15 +4,48 @@ from unittest import mock
 
 import mastodon
 import pytest
+from twisted.words.xish.domish import Element
 
 from iembot.bot import JabberClient
 from iembot.mastodon import (
     disable_mastodon_user,
     load_mastodon_from_db,
     mastodon_errback,
+    route,
     toot,
     toot_cb,
 )
+
+
+def test_gh150_route(bot: JabberClient):
+    """Can we route a message?"""
+    bot.md_routingtable = {
+        "XXX": [123],
+    }
+    bot.md_users = {
+        123: {
+            "screen_name": "testuser",
+            "access_token": "123",
+            "api_base_url": "https://localhost",
+            "iem_owned": False,
+        }
+    }
+    msgtxt = (
+        "BOX continues Cold Weather Advisory valid at Feb 7, 6:00 PM EST for "
+        "Barnstable, Central Middlesex County, Dukes, Eastern Essex, Eastern "
+        "Norfolk, Eastern Plymouth, Northern Bristol, Northwest Middlesex "
+        "County, Southeast Middlesex, Southern Bristol, Southern Plymouth, "
+        "Suffolk, Western Essex, Western Norfolk, Western Plymouth [MA] and "
+        "Block Island, Bristol, Eastern Kent, Newport, Northwest Providence, "
+        "Southeast Providence, Washington, Western Kent [RI] till "
+        "Feb 8, 1:00 PM EST "
+        "https://iem.local/vtec/f/2026-O-CON-KBOX-CW-Y-0005_2026-02-07T23:00Z"
+    )
+    elem = Element(("jabber:client", "message"))
+    elem.x = Element(("", "x"))
+    elem.x["twitter"] = msgtxt
+    elem["body"] = msgtxt
+    route(bot, ["XXX"], elem)
 
 
 def test_toot_cb_no_response():
