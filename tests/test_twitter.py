@@ -5,10 +5,12 @@ from unittest import mock
 import pytest
 import pytest_twisted
 import responses
+from twisted.words.xish.domish import Element
 
 from iembot.twitter import (
     disable_twitter_user,
     load_twitter_from_db,
+    route,
     safe_twitter_text,
     tweet,
     tweet_cb,
@@ -20,6 +22,50 @@ from iembot.types import JabberClient
 def test_load_twitter_from_db(dbcursor, bot: JabberClient):
     """Test loading config."""
     load_twitter_from_db(dbcursor, bot)
+
+
+@pytest_twisted.inlineCallbacks
+def test_tweet_gh154_twitter_401(bot: JabberClient):
+    """Test the handling of a 401 response from twitter."""
+    bot.tw_users = {
+        123: {
+            "access_token": "",
+            "access_token_secret": "",
+            "iem_owned": False,
+            "screen_name": "testuser",
+        }
+    }
+    bot.tw_routingtable = {
+        "XXX": [
+            123,
+        ]
+    }
+    elem = Element(("jabber:client", "message"))
+    elem.x = Element(("", "x"))
+    elem.x["twitter"] = "This is a test"
+    elem["body"] = "This is a test"
+
+    with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        rsps.add(
+            responses.POST,
+            url="https://api.x.com/2/tweets",
+            json={
+                "title": "Unauthorized",
+                "type": "about:blank",
+                "status": 401,
+                "detail": "Unauthorized",
+            },
+            status=401,
+        )
+        route(
+            bot,
+            [
+                "XXX",
+            ],
+            elem,
+        )
+        yield tweet(bot, 123, "This is a test")
+        assert 123 not in bot.tw_users
 
 
 @pytest_twisted.inlineCallbacks

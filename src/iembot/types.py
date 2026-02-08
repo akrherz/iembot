@@ -25,8 +25,11 @@ class JabberClient(Protocol):
     at_manager: Any
     at_users: dict[str, dict[str, Any]]
     at_routingtable: dict[str, list[str]]
-    tw_users: dict[str, dict[str, Any]]
-    tw_routingtable: dict[str, list[str]]
+
+    # Twitter/X
+    tw_users: dict[int, dict[str, Any]]
+    tw_routingtable: dict[str, list[int]]
+
     md_users: dict[str, dict[str, Any]]
     md_routingtable: dict[str, list[str]]
     slack_teams: dict[str, str]

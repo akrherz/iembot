@@ -22,7 +22,8 @@ TWEET_API = "https://api.x.com/2/tweets"
 # 226: Twitter thinks this tweeting user is spammy, le sigh
 # 326: User is temporarily locked out
 # 64: User is suspended
-DISABLE_TWITTER_CODES = [89, 185, 226, 326, 64]
+# 401: Unauthorized token
+DISABLE_TWITTER_CODES = [89, 185, 226, 326, 64, 401]
 
 
 class TwitterRequestError(Exception):
@@ -106,31 +107,34 @@ def load_twitter_from_db(txn, bot: JabberClient):
     log.msg(f"load_twitter_from_db(): {txn.rowcount} oauth tokens found")
 
 
-def disable_twitter_user(bot: JabberClient, user_id, errcode=0):
-    """Disable the twitter subs for this user_id
+def disable_twitter_user(bot: JabberClient, iembot_account_id: int, errcode=0):
+    """Disable the twitter subs for this iembot_account_id
 
     Args:
-        user_id (big_id): The twitter user to disable
+        iembot_account_id (big_id): The twitter user to disable
         errcode (int): The twitter errorcode
     """
-    twuser = bot.tw_users.get(user_id)
+    twuser = bot.tw_users.get(iembot_account_id)
     if twuser is None:
-        log.msg(f"Failed to disable unknown twitter user_id {user_id}")
+        log.msg(f"Failed to disable unknown twitter {iembot_account_id}")
         return False
     screen_name = twuser["screen_name"]
     if twuser["iem_owned"]:
-        log.msg(f"Skipping disabling of twitter for {user_id} ({screen_name})")
+        log.msg(
+            f"Skipping disabling of twitter {iembot_account_id} "
+            f"({screen_name})"
+        )
         return False
-    bot.tw_users.pop(user_id, None)
+    bot.tw_users.pop(iembot_account_id, None)
     log.msg(
-        f"Removing twitter access token for user: {user_id} ({screen_name}) "
-        f"errcode: {errcode}"
+        f"Removing twitter access token for user: {iembot_account_id} "
+        f"({screen_name}) errcode: {errcode}"
     )
     df = bot.dbpool.runOperation(
         "UPDATE iembot_twitter_oauth SET updated = now(), "
         "access_token = null, access_token_secret = null "
-        "WHERE user_id = %s",
-        (user_id,),
+        "WHERE iembot_account_id = %s",
+        (iembot_account_id,),
     )
     df.addErrback(log.err)
     return True
@@ -353,7 +357,7 @@ def tweet(bot: JabberClient, user_id, twttxt, **kwargs) -> Deferred | None:
     return df
 
 
-def route(bot: JabberClient, channels: list, elem: Element) -> None:
+def route(bot: JabberClient, channels: list, elem: Element):
     """Do the twitter work."""
     # Require the x.twitter attribute to be set to prevent
     # confusion with some ingestors still sending tweets themself
@@ -369,20 +373,20 @@ def route(bot: JabberClient, channels: list, elem: Element) -> None:
 
     alerted = []
     for channel in channels:
-        for user_id in bot.tw_routingtable.get(channel, []):
-            if user_id in alerted:
+        for iembot_account_id in bot.tw_routingtable.get(channel, []):
+            if iembot_account_id in alerted:
                 continue
-            alerted.append(user_id)
+            alerted.append(iembot_account_id)
             # Ensure we have creds needed for this...
-            if user_id not in bot.tw_users:
-                log.msg(f"Failed to tweet due to no access_tokens {user_id}")
+            if iembot_account_id not in bot.tw_users:
+                log.msg(f"Tweet fail no access_tokens {iembot_account_id}")
                 continue
-            if bot.tw_users[user_id]["access_token"] is None:
-                log.msg(f"No twitter access token for {user_id}")
+            if bot.tw_users[iembot_account_id]["access_token"] is None:
+                log.msg(f"No twitter access token for {iembot_account_id}")
                 continue
             tweet(
                 bot,
-                user_id,
+                iembot_account_id,
                 msgtxt,
                 twitter_media=elem.x.getAttribute("twitter_media"),
                 latitude=lat,

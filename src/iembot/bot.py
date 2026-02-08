@@ -119,9 +119,8 @@ class JabberClient(JabberClientType):
         self.at_routingtable = {}
         self.tw_users = {}
         self.tw_routingtable = {}
-        # Storage by user_id => {access_token: ..., api_base_url: ...}
         self.md_users = {}
-        self.md_routingtable = {}  # Storage by channel => [user_id, ]
+        self.md_routingtable = {}
         # Slack integration
         self.slack_teams = {}
         self.slack_routingtable = {}
