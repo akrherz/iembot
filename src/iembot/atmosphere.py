@@ -15,6 +15,7 @@ from atproto_client.utils import TextBuilder
 from twisted.python import log
 from twisted.words.xish.domish import Element
 
+from iembot.twitter import safe_twitter_text
 from iembot.types import JabberClient
 from iembot.util import build_channel_subs
 
@@ -152,6 +153,7 @@ def route(bot: JabberClient, channels: list, elem: Element):
     lat = elem.x.getAttribute("lat")
     long = elem.x.getAttribute("long")
     twitter_media = elem.x.getAttribute("twitter_media")
+    txt = safe_twitter_text(elem.x["twitter"])
 
     alerted = []
     for channel in channels:
@@ -162,7 +164,7 @@ def route(bot: JabberClient, channels: list, elem: Element):
             at_send_message(
                 bot,
                 iembot_account_id,
-                elem.x["twitter"],
+                txt,
                 twitter_media=twitter_media,
                 latitude=lat,
                 longitude=long,
