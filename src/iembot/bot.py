@@ -144,7 +144,7 @@ class JabberClient(JabberClientType):
         lc2 = LoopingCall(purge_logs, self)
         lc2.start(60 * 60 * 24)
         lc3 = LoopingCall(reactor.callInThread, self.save_chatlog)
-        lc3.start(600)  # Every 10 minutes
+        lc3.start(600, now=False)  # Every 10 minutes
 
     def save_chatlog(self):
         """called from a thread"""
