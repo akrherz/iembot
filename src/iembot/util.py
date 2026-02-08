@@ -26,7 +26,7 @@ def build_channel_subs(txn, auth_table: str) -> dict[int : list[str]]:
     """Build the subscriptions based on the given auth table."""
     # Sometimes we need to do a bit more for checking.
     xtra_sql = {
-        "iembot_oauth_twitter": (
+        "iembot_twitter_oauth": (
             "and o.access_token is not null and not disabled"
         )
     }
