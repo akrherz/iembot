@@ -1,6 +1,5 @@
 [build-system]
 build-backend = "setuptools.build_meta"
-
 requires = [ "setuptools>=64", "setuptools-scm>=8" ]
 
 [project]
@@ -33,7 +32,6 @@ dependencies = [
   "service-identity",
   "twisted>=18.4",
 ]
-
 optional-dependencies.dev = [
   "cartopy",
   "codecov",
@@ -49,16 +47,13 @@ scripts.iembot = "iembot.main:main"
 [tool.setuptools]
 package-dir = { "" = "src" }
 include-package-data = true
-
-[tool.setuptools.package-data]
-"iembot" = [ "data/startrek" ]
+package-data."iembot" = [ "data/startrek" ]
 
 [tool.setuptools_scm]
 version_scheme = "post-release"
 
 [tool.ruff]
 target-version = "py311"
-
 line-length = 79
 lint.select = [
   "A",     # builtins
@@ -66,52 +61,51 @@ lint.select = [
   "ASYNC", # async
   "B",     # bugbear
   # "BLE",  # blind except
-  "C4", # comprehensions
+  "C4",    # comprehensions
   # "C90",  # mccabe
   # "COM",  # commas
   # "DTZ",  # datetime
-  "E", # pycodestyle
+  "E",     # pycodestyle
   # "EM",  # flake8-errmsg
-  "ERA", # eradicate
-  "EXE", # shebang
-  "F",   # pyflakes
-  "FLY", # fly
+  "ERA",   # eradicate
+  "EXE",   # shebang
+  "F",     # pyflakes
+  "FLY",   # fly
   # "FBT",  # flake8-boolean-trap
   # "FIX",  # has fixme
-  "FURB", # refurb
-  "G",    # logging-format
-  "I",    # isort
-  "ICN",  # implicit-conv
-  "INT",  # flake8-gettext
-  "ISC",  # implicit-str-concat
-  "LOG",  # logging
+  "FURB",  # refurb
+  "G",     # logging-format
+  "I",     # isort
+  "ICN",   # implicit-conv
+  "INT",   # flake8-gettext
+  "ISC",   # implicit-str-concat
+  "LOG",   # logging
   # "N",  # naming
-  "NPY",  # numpy
-  "PERF", # performance
+  "NPY",   # numpy
+  "PERF",  # performance
   # "PD",  # pandas-vet
-  "PIE", # flake8-pie
-  "PLE", # pylint error
+  "PIE",   # flake8-pie
+  "PLE",   # pylint error
   # "PLR",  # pylint refactoring
-  "PLW", # pylint warning
-  "PT",  # pytest style
+  "PLW",   # pylint warning
+  "PT",    # pytest style
   # "PTH",  # pathlib
-  "PYI", # pyi
-  "Q",   # flake8-quotes
+  "PYI",   # pyi
+  "Q",     # flake8-quotes
   # "RET",  # flake8-return
-  "RSE", # raise
-  "RUF", # ruff specific
+  "RSE",   # raise
+  "RUF",   # ruff specific
   # "S",  # bandit
   # "S608",  # SQL injection
   # "SIM",  # simplify
-  "T20", # print
-  "TC",  # type checking
-  "TID", # tidy imports
+  "T20",   # print
+  "TC",    # type checking
+  "TID",   # tidy imports
   # "TRY",  # try-except-raise
-  "UP",  # pyupgrade
-  "W",   # pycodestyle
-  "YTT", # flake8-2020
+  "UP",    # pyupgrade
+  "W",     # pycodestyle
+  "YTT",   # flake8-2020
 ]
-
 lint.per-file-ignores."tests/**/*.py" = [
   "S101", # assert
 ]
