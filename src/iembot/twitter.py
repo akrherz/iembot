@@ -324,15 +324,14 @@ def route(bot: JabberClient, channels: list, elem: Element):
     """Do the twitter work."""
     # Require the x.twitter attribute to be set to prevent
     # confusion with some ingestors still sending tweets themself
-    if not elem.x.hasAttribute("twitter"):
+    if not elem.x or not elem.x.hasAttribute("twitter"):
         log.msg(f"Failing to tweet message without x {elem.toXml()}")
         return
     msgtxt = safe_twitter_text(elem.x["twitter"])
 
-    lat = long = None
-    if elem.x.hasAttribute("lat") and elem.x.hasAttribute("long"):
-        lat = elem.x["lat"]
-        long = elem.x["long"]
+    lat = elem.x.getAttribute("lat")
+    long = elem.x.getAttribute("long")
+    twitter_media = elem.x.getAttribute("twitter_media")
 
     alerted = []
     for channel in channels:
@@ -351,7 +350,7 @@ def route(bot: JabberClient, channels: list, elem: Element):
                 bot,
                 iembot_account_id,
                 msgtxt,
-                twitter_media=elem.x.getAttribute("twitter_media"),
+                twitter_media=twitter_media,
                 latitude=lat,
                 longitude=long,
             )

@@ -20,6 +20,13 @@ from iembot.types import JabberClient
 IEM_MESOPLOT_URL = "https://mesonet.agron.iastate.edu/data/mesonet.gif"
 
 
+def test_route_without_x(bot: JabberClient):
+    """Test route with message missing x element."""
+    elem = Element(("jabber:client", "message"))
+    elem["body"] = "This is a test"
+    assert route(bot, ["XXX"], elem) is None
+
+
 @pytest.mark.parametrize("database", ["iembot"])
 def test_load_twitter_from_db(dbcursor, bot: JabberClient):
     """Test loading config."""
