@@ -1,6 +1,5 @@
 """Twitter/X stuff."""
 
-import json
 import re
 import time
 from html import unescape
@@ -181,18 +180,6 @@ def _upload_media_to_twitter(oauth: OAuth1Session, url: str) -> str | None:
     return str(media_id)
 
 
-def twitter_errback(err, bot: JabberClient, user_id, tweettext):
-    """Error callback when simple twitter workflow fails."""
-    # Always log it
-    errcode = twittererror_exp_to_code(err)
-    if errcode in DISABLE_TWITTER_CODES:
-        disable_twitter_user(bot, user_id, errcode)
-    else:
-        sn = bot.tw_users.get(user_id, {}).get("screen_name", "")
-        msg = f"User: {user_id} ({sn})\nFailed to tweet: {tweettext}"
-        email_error(err, bot, msg)
-
-
 def tweet_cb(response, bot: JabberClient, twttxt, _room, myjid, user_id):
     """
     Called after success going to twitter
@@ -219,31 +206,6 @@ def tweet_cb(response, bot: JabberClient, twttxt, _room, myjid, user_id):
     )
     df.addErrback(log.err)
     return response
-
-
-def twittererror_exp_to_code(exp) -> int:
-    """Convert a Twitter error exception into a code.
-
-    Args:
-      exp (Exception): The exception to convert
-    """
-    if isinstance(exp, TwitterRequestError):
-        return exp.code or 0
-    errcode = None
-    maybe_failure = getattr(exp, "value", None)
-    if isinstance(maybe_failure, TwitterRequestError):
-        return maybe_failure.code or 0
-    errmsg = str(exp)
-    # brittle fallback for older error payloads
-    errmsg = errmsg[errmsg.find("[{") : errmsg.find("}]") + 2].replace(
-        "'", '"'
-    )
-    try:
-        errobj = json.loads(errmsg)
-        errcode = errobj[0].get("code", 0)
-    except Exception as exp2:
-        log.msg(f"Failed to parse code TwitterError: {exp2}")
-    return errcode
 
 
 def _safe_json(resp: requests.Response) -> dict:
@@ -336,28 +298,24 @@ def really_tweet(bot: JabberClient, user_id: int, twttxt: str, **kwargs):
     return res
 
 
-def tweet(bot: JabberClient, user_id, twttxt, **kwargs) -> Deferred | None:
+def tweet(
+    bot: JabberClient, iembot_account_id: int, twttxt: str, **kwargs
+) -> Deferred | None:
     """
     Tweet a message
     """
     df = threads.deferToThread(
         really_tweet,
         bot,
-        user_id,
+        iembot_account_id,
         twttxt,
         **kwargs,
     )
-    df.addCallback(tweet_cb, bot, twttxt, "", "", user_id)
-    df.addErrback(
-        twitter_errback,
-        bot,
-        user_id,
-        twttxt,
-    )
+    df.addCallback(tweet_cb, bot, twttxt, "", "", iembot_account_id)
     df.addErrback(
         email_error,
         bot,
-        f"User: {user_id}, Text: {twttxt} Hit double exception",
+        f"User: {iembot_account_id}, Text: {twttxt} Hit double exception",
     )
     return df
 
@@ -366,15 +324,14 @@ def route(bot: JabberClient, channels: list, elem: Element):
     """Do the twitter work."""
     # Require the x.twitter attribute to be set to prevent
     # confusion with some ingestors still sending tweets themself
-    if not elem.x.hasAttribute("twitter"):
+    if not elem.x or not elem.x.hasAttribute("twitter"):
         log.msg(f"Failing to tweet message without x {elem.toXml()}")
         return
     msgtxt = safe_twitter_text(elem.x["twitter"])
 
-    lat = long = None
-    if elem.x.hasAttribute("lat") and elem.x.hasAttribute("long"):
-        lat = elem.x["lat"]
-        long = elem.x["long"]
+    lat = elem.x.getAttribute("lat")
+    long = elem.x.getAttribute("long")
+    twitter_media = elem.x.getAttribute("twitter_media")
 
     alerted = []
     for channel in channels:
@@ -393,7 +350,7 @@ def route(bot: JabberClient, channels: list, elem: Element):
                 bot,
                 iembot_account_id,
                 msgtxt,
-                twitter_media=elem.x.getAttribute("twitter_media"),
+                twitter_media=twitter_media,
                 latitude=lat,
                 longitude=long,
             )
