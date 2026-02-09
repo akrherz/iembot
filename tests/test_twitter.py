@@ -17,6 +17,8 @@ from iembot.twitter import (
 )
 from iembot.types import JabberClient
 
+IEM_MESOPLOT_URL = "https://mesonet.agron.iastate.edu/data/mesonet.gif"
+
 
 @pytest.mark.parametrize("database", ["iembot"])
 def test_load_twitter_from_db(dbcursor, bot: JabberClient):
@@ -73,32 +75,40 @@ def test_tweet_gh154_twitter(bot: JabberClient, rescode: int):
 @pytest_twisted.inlineCallbacks
 def test_tweet(bot: JabberClient):
     """Test that we can sort of tweet."""
+    bot.tw_users = {
+        123: {
+            "access_token": "",
+            "access_token_secret": "",
+            "iem_owned": True,
+            "screen_name": "testuser",
+        }
+    }
+    bot.tw_routingtable = {"XXX": [123]}
+
     with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        rsps.add(
+            responses.GET,
+            url=IEM_MESOPLOT_URL,
+            body=b"fake image data",
+            status=200,
+        )
         rsps.add(
             responses.POST,
             url="https://api.x.com/2/media/upload",
-            json={"media_id": "1234567890"},
+            json={"data": {"id": "1234567890"}},
         )
         rsps.add(
             responses.POST,
             url="https://api.x.com/2/tweets",
             json={"data": {"id": "1234567890"}},
         )
-        bot.tw_users = {
-            "123": {
-                "access_token": "",
-                "access_token_secret": "",
-                "iem_owned": True,
-                "screen_name": "testuser",
-            }
-        }
         result = yield tweet(
             bot,
-            "123",
+            123,
             "This is a test",
-            twitter_media="https://mesonet.agron.iastate.edu/data/mesonet.gif",
+            twitter_media=IEM_MESOPLOT_URL,
         )
-        assert result is not None
+        assert result["data"]["id"] == "1234567890"
 
 
 def test_disable_twitter_user_unknown():
