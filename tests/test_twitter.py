@@ -24,9 +24,10 @@ def test_load_twitter_from_db(dbcursor, bot: JabberClient):
     load_twitter_from_db(dbcursor, bot)
 
 
+@pytest.mark.parametrize("rescode", [401, 403])
 @pytest_twisted.inlineCallbacks
-def test_tweet_gh154_twitter_401(bot: JabberClient):
-    """Test the handling of a 401 response from twitter."""
+def test_tweet_gh154_twitter(bot: JabberClient, rescode: int):
+    """Test the handling of a 401 or 403 response from twitter."""
     bot.tw_users = {
         123: {
             "access_token": "",
@@ -51,11 +52,12 @@ def test_tweet_gh154_twitter_401(bot: JabberClient):
             url="https://api.x.com/2/tweets",
             json={
                 "title": "Unauthorized",
-                "type": "about:blank",
-                "status": 401,
+                # Goosing here, yuck
+                "type": "about:blank" if rescode == 401 else "Bahl/suspended",
+                "status": rescode,
                 "detail": "Unauthorized",
             },
-            status=401,
+            status=rescode,
         )
         route(
             bot,

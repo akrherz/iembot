@@ -23,7 +23,9 @@ TWEET_API = "https://api.x.com/2/tweets"
 # 326: User is temporarily locked out
 # 64: User is suspended
 # 401: Unauthorized token
-DISABLE_TWITTER_CODES = [89, 185, 226, 326, 64, 401]
+# 403 is ambiguous, so we do some gymnasistics with this.
+SUSPENDED_USER_CODE = -1
+DISABLE_TWITTER_CODES = [89, 185, 226, 326, 64, 401, SUSPENDED_USER_CODE]
 
 
 class TwitterRequestError(Exception):
@@ -182,7 +184,6 @@ def _upload_media_to_twitter(oauth: OAuth1Session, url: str) -> str | None:
 def twitter_errback(err, bot: JabberClient, user_id, tweettext):
     """Error callback when simple twitter workflow fails."""
     # Always log it
-    log.err(err)
     errcode = twittererror_exp_to_code(err)
     if errcode in DISABLE_TWITTER_CODES:
         disable_twitter_user(bot, user_id, errcode)
@@ -259,7 +260,11 @@ def _twitter_error_code_from_payload(payload: dict) -> int:
     if not isinstance(payload, dict):
         log.msg(f"Got non-dict twitter payload? {type(payload)} {payload}")
         return 0
+    # Some status codes are ambiguous, like 403, sigh
     if "status" in payload:
+        status = payload["status"]
+        if status == 403 and payload.get("type", "").find("suspended") > 0:
+            return SUSPENDED_USER_CODE
         return payload["status"]
     errors = payload.get("errors")
     if isinstance(errors, list):
