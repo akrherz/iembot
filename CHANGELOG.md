@@ -11,6 +11,8 @@ All notable changes to this library are documented in this file.
 
 ### New Features
 
+- Better handling of Twitter/X status 403 errors (#156).
+
 ### Bug Fixes
 
 - Correct Mastodon message routing (#150).
