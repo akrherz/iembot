@@ -9,7 +9,8 @@ threadsafety in Python.  So this is on me.
 import threading
 from queue import Queue
 
-import httpx
+# Having troubles with httpx leaking memory on python 3.14
+import requests
 from atproto import Client
 from atproto_client.utils import TextBuilder
 from twisted.python import log
@@ -36,31 +37,30 @@ class ATWorkerThread(threading.Thread):
     def run(self):
         """Listen for messages from the queue."""
         while True:
-            # Grab the message from the queue
             message = self.queue.get()
-            if message is None:
-                break
-            # Process the message
             try:
+                if message is None:
+                    break
                 self.process_message(message)
             except Exception as exp:
                 log.err(exp)
                 self.logged_in = False
-            self.queue.task_done()
+            finally:
+                self.queue.task_done()
 
     def process_message(self, msgdict: dict):
         """Process the message."""
         media = msgdict.get("twitter_media")
-        img = None
+        imgbytes = None
         if media is not None:
             try:
-                resp = httpx.get(media, timeout=30)
+                resp = requests.get(media, timeout=30)
                 resp.raise_for_status()
-                img = resp.content
+                imgbytes = resp.content
                 # AT has a size limit of 976.56KB
-                if len(img) > 1_000_000:
-                    log.msg(f"{media} is too large({len(img)}) for AT")
-                    img = None
+                if len(imgbytes) > 1_000_000:
+                    log.msg(f"{media} is too large({len(imgbytes)}) for AT")
+                    imgbytes = None
             except Exception as exp:
                 log.err(exp)
 
@@ -76,14 +76,18 @@ class ATWorkerThread(threading.Thread):
             parts = msg.split("http")
             msg = TextBuilder().text(parts[0]).link("Link", f"http{parts[1]}")
 
-        if img:
-            res = self.client.send_image(
-                msg, image=img, image_alt="IEMBot Image TBD"
-            )
-        else:
-            res = self.client.send_post(msg)
-        # for now
-        log.msg(repr(res))
+        if imgbytes is not None:
+            try:
+                self.client.send_image(
+                    msg, image=imgbytes, image_alt="IEMBot Image"
+                )
+                return
+            except Exception as exp:
+                log.msg(
+                    f"Uploading message with image failed {exp}, "
+                    "trying without"
+                )
+        self.client.send_post(msg)
 
 
 class ATManager:
