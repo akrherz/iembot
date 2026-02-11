@@ -39,6 +39,7 @@ optional-dependencies.dev = [
   "pytest",
   "pytest-cov",
   "pytest-runner",
+  "pytest-timeout",
   "responses",
 ]
 urls."Homepage" = "https://github.com/akrherz/iembot"

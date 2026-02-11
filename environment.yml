@@ -12,6 +12,7 @@ dependencies:
  - pytest
  - pytest-cov
  - pytest-runner
+ - pytest-timeout
  - pytest-twisted
  # Mocking requests
  - responses

@@ -12,6 +12,7 @@ All notable changes to this library are documented in this file.
 ### New Features
 
 - Better handling of Twitter/X status 403 errors (#156).
+- Improved atmosphere test coverage and added `pytest-timeout` dev dep (#159).
 
 ### Bug Fixes
 

@@ -1,17 +1,71 @@
 """Tests for iembot atmosphere module."""
 
+import queue
 from unittest import mock
 
 import pytest
+import responses
 from twisted.words.xish.domish import Element
 
 from iembot.atmosphere import (
     ATManager,
+    ATWorkerThread,
     at_send_message,
     load_atmosphere_from_db,
     route,
 )
 from iembot.types import JabberClient
+
+
+# Fixed FakeATClient to match real signatures and return values
+class FakeATClient:
+    def __init__(self):
+        self.login_calls = []
+        self.send_post_calls = []
+        self.send_image_calls = []
+
+    def login(self, handle, password):
+        self.login_calls.append((handle, password))
+        return "me"
+
+    def send_post(self, msg):
+        if msg == "RAISE":
+            raise Exception("Test exception")
+        self.send_post_calls.append(msg)
+
+    def send_image(self, msg, image=None, image_alt=None):
+        self.send_image_calls.append((msg, image, image_alt))
+
+
+@pytest.mark.timeout(10)  # Ensure the thread hackery does not cause trouble
+def test_atworkerthread_run_and_process_message():
+    """Test ATWorkerThread run loop and process_message logic."""
+    q = queue.Queue()
+    worker = ATWorkerThread(q, "user", "pw")
+    worker.client = FakeATClient()
+    # Put a message with media and msg
+    q.put({"twitter_media": "http://fake", "msg": "hello http://link"})
+    # Message where the twitter_media request will fail
+    q.put({"twitter_media": "http://r404", "msg": "just text"})
+    # Message where the twitter_media request will generate +1MB image
+    q.put({"twitter_media": "http://toobig", "msg": "just text"})
+    # Message that will raise unaccounted for exception
+    q.put({"msg": "RAISE"})
+    # Signal thread to exit
+    q.put(None)
+
+    with responses.RequestsMock() as rsps:
+        rsps.add(responses.GET, "http://fake", body=b"fakeimage", status=200)
+        rsps.add(responses.GET, "http://r404", body=b"fakeimage", status=404)
+        rsps.add(
+            responses.GET, "http://toobig", body=b"x" * 1_000_001, status=200
+        )
+        worker.start()
+        q.join()  # Wait for all tasks
+        worker.join(timeout=2)
+    # Check that login and send_post/send_image were called
+    assert worker.client.login_calls[0] == ("user", "pw")
+    assert worker.client.send_image_calls or worker.client.send_post_calls
 
 
 @pytest.mark.parametrize("database", ["iembot"])

@@ -53,7 +53,8 @@ jobs:
         set -e
         # pip install from requirements.txt
         python -m pip install . --upgrade --no-deps
-        python -m pytest --cov=iembot
+        # Ensure thread bugs do not hang pytest forever
+        python -m pytest --cov=iembot --timeout=10
         python -m coverage xml
 
 
