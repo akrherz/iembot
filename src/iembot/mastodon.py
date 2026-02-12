@@ -218,8 +218,6 @@ def route(bot: JabberClient, channels: list, elem: Element):
         return
 
     txt = safe_twitter_text(elem.x["twitter"])
-    lat = elem.x.getAttribute("lat")
-    long = elem.x.getAttribute("long")
     twitter_media = elem.x.getAttribute("twitter_media")
 
     alerted = []
@@ -239,6 +237,4 @@ def route(bot: JabberClient, channels: list, elem: Element):
                 iembot_account_id,
                 txt,
                 twitter_media=twitter_media,
-                latitude=lat,  # TODO: unused
-                longitude=long,  # TODO: unused
             )
