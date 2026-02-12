@@ -4,7 +4,12 @@ import time
 
 import mastodon as Mastodon
 import requests
-from mastodon.errors import MastodonUnauthorizedError
+from mastodon.errors import (
+    MastodonError,
+    MastodonNetworkError,
+    MastodonNotFoundError,
+    MastodonUnauthorizedError,
+)
 from twisted.internet import threads
 from twisted.python import log
 from twisted.words.xish.domish import Element
@@ -45,7 +50,7 @@ def load_mastodon_from_db(txn, bot: JabberClient):
 
 def disable_mastodon_user(
     bot: JabberClient, iembot_account_id: int, errcode: int = 0
-):
+) -> bool:
     """Disable the Mastodon subs for this user_id
 
     Args:
@@ -106,24 +111,24 @@ def toot_cb(response, bot: JabberClient, twttxt, iembot_account_id):
     return response
 
 
-def mastodon_errback(err, bot: JabberClient, iembot_account_id, tweettext):
+def mastodon_errback(err, bot: JabberClient, iembot_account_id: int, msg: str):
     """Error callback when simple Mastodon workflow fails."""
     # Always log it
     log.err(err)
     errcode = None
-    if isinstance(err, Mastodon.errors.MastodonNotFoundError):
+    if isinstance(err, MastodonNotFoundError):
         errcode = 404
         disable_mastodon_user(bot, iembot_account_id, errcode)
-    elif isinstance(err, Mastodon.errors.MastodonUnauthorizedError):
+    elif isinstance(err, MastodonUnauthorizedError):
         errcode = 401
         disable_mastodon_user(bot, iembot_account_id, errcode)
     else:
         sn = bot.md_users.get(iembot_account_id, {}).get("screen_name", "")
-        msg = f"User: {iembot_account_id} ({sn})\nFailed to toot: {tweettext}"
+        msg = f"User: {iembot_account_id} ({sn})\nFailed to toot: {msg}"
         email_error(err, bot, msg)
 
 
-def toot(self, iembot_account_id, twttxt, **kwargs):
+def toot(self, iembot_account_id: int, twttxt: str, **kwargs):
     """
     Send a message to Mastodon
     """
@@ -149,8 +154,10 @@ def toot(self, iembot_account_id, twttxt, **kwargs):
     return df
 
 
-def really_toot(bot: JabberClient, iembot_account_id, twttxt, **kwargs):
-    """Blocking Mastodon toot method."""
+def really_toot(
+    bot: JabberClient, iembot_account_id: int, twttxt: str, **kwargs
+) -> dict | None:
+    """Called from a thread, so we can block here."""
     meta = bot.md_users.get(iembot_account_id)
     if meta is None:
         log.msg(f"toot() called with unknown user: {iembot_account_id}")
@@ -180,28 +187,18 @@ def really_toot(bot: JabberClient, iembot_account_id, twttxt, **kwargs):
             media_id = api.media_post(resp.raw, mime_type="image/png")
             params["media_ids"] = [media_id]
         res = api.status_post(**params)
+    except MastodonNetworkError as exp:
+        # Any exception in ``requests`` will result in this Exception :/
+        log.msg(
+            f"Network error posting to Mastodon {meta['api_base_url']}, "
+            f"{exp} skipping"
+        )
     except MastodonUnauthorizedError:
         # Access token is no longer valid
         disable_mastodon_user(bot, iembot_account_id)
         return None
-    except Mastodon.errors.MastodonRatelimitError as exp:
-        # Submitted too quickly
-        log.err(exp)
-        # Since this called from a thread, sleeping should not jam us up
-        time.sleep(kwargs.get("sleep", 10))
-        res = api.status_post(**params)
-    except Mastodon.errors.MastodonError as exp:
+    except MastodonError as exp:
         # Something else bad happened when submitting this to the Mastodon
-        log.err(exp)
-        params.pop("media_ids", None)  # Try again without media
-        # Since this called from a thread, sleeping should not jam us up
-        time.sleep(kwargs.get("sleep", 10))
-        try:
-            res = api.status_post(**params)
-        except Mastodon.errors.MastodonError as exp2:
-            log.err(exp2)
-    except Exception as exp:
-        # Something beyond Mastodon went wrong
         log.err(exp)
         params.pop("media_ids", None)  # Try again without media
         # Since this called from a thread, sleeping should not jam us up
