@@ -30,8 +30,10 @@ class JabberClient(Protocol):
     tw_users: dict[int, dict[str, Any]]
     tw_routingtable: dict[str, list[int]]
 
-    md_users: dict[str, dict[str, Any]]
-    md_routingtable: dict[str, list[str]]
+    # Mastodon
+    md_users: dict[int, dict[str, Any]]
+    md_routingtable: dict[str, list[int]]
+
     slack_teams: dict[str, str]
     slack_routingtable: dict[str, list[str]]
     webhooks_routingtable: dict[str, list[str]]
