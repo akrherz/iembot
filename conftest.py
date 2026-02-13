@@ -31,6 +31,21 @@ def bot():
         }
     }
 
+    # Twitter/X stuff
+    iembot.tw_users = {
+        123: {
+            "access_token": "",
+            "access_token_secret": "",
+            "iem_owned": False,
+            "screen_name": "testuser",
+        }
+    }
+    iembot.tw_routingtable = {
+        "XXX": [
+            123,
+        ]
+    }
+
     iembot.config = defaultdict(str)
     iembot.xmlstream = mock.Mock()
     return iembot

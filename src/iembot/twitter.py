@@ -180,16 +180,17 @@ def _upload_media_to_twitter(oauth: OAuth1Session, url: str) -> str | None:
     return str(media_id)
 
 
-def tweet_cb(response, bot: JabberClient, twttxt, _room, myjid, user_id):
+def tweet_cb(
+    response, bot: JabberClient, twttxt, _room, myjid, iembot_account_id: int
+):
     """
     Called after success going to twitter
     """
-    log.msg(f"Got {response}")
     if response is None:
         return None
-    twuser = bot.tw_users.get(user_id)
+    twuser = bot.tw_users.get(iembot_account_id)
     if twuser is None:
-        log.msg(f"twuser is None for {user_id}")
+        log.msg(f"twuser is None for {iembot_account_id}")
         return response
     if "data" not in response:
         log.msg(f"Got response without data {response}")
@@ -202,7 +203,15 @@ def tweet_cb(response, bot: JabberClient, twttxt, _room, myjid, user_id):
         "INSERT into iembot_social_log(medium, source, resource_uri, "
         "message, response, response_code, iembot_account_id) "
         "values (%s,%s,%s,%s,%s,%s,%s)",
-        ("twitter", myjid, url, twttxt, repr(response), 200, user_id),
+        (
+            "twitter",
+            myjid,
+            url,
+            twttxt,
+            repr(response),
+            200,
+            iembot_account_id,
+        ),
     )
     df.addErrback(log.err)
     return response
@@ -241,16 +250,19 @@ def _twitter_error_code_from_payload(payload: dict) -> int:
     return 0
 
 
-def really_tweet(bot: JabberClient, user_id: int, twttxt: str, **kwargs):
+def really_tweet(
+    bot: JabberClient, iembot_account_id: int, twttxt: str, **kwargs
+):
     """Blocking tweet method."""
+    meta = bot.tw_users[iembot_account_id]
     oauth = OAuth1Session(
         bot.config["bot.twitter.consumerkey"],
         bot.config["bot.twitter.consumersecret"],
-        bot.tw_users[user_id]["access_token"],
-        bot.tw_users[user_id]["access_token_secret"],
+        meta["access_token"],
+        meta["access_token_secret"],
     )
     log.msg(
-        f"Tweeting {bot.tw_users[user_id]['screen_name']}({user_id}) "
+        f"Tweeting {meta['screen_name']}({iembot_account_id}) "
         f"'{twttxt}' media:{kwargs.get('twitter_media')}"
     )
     media = kwargs.get("twitter_media")
@@ -275,7 +287,6 @@ def really_tweet(bot: JabberClient, user_id: int, twttxt: str, **kwargs):
             res = _helper(oauth, params)
             break
         except TwitterRequestError as exp:
-            log.err(exp)
             errcode = exp.code
             if errcode in [185, 187, 403]:
                 # 185: Over quota
@@ -283,18 +294,19 @@ def really_tweet(bot: JabberClient, user_id: int, twttxt: str, **kwargs):
                 # 403: Forbidden (duplicate)
                 return None
             if errcode in DISABLE_TWITTER_CODES:
-                disable_twitter_user(bot, user_id, errcode)
+                disable_twitter_user(bot, iembot_account_id, errcode)
                 return None
+            # We really should add code to account for these.
+            log.msg(
+                f"Unhandled X error posting tweet, errcode: {errcode}, "
+                f"payload: {exp.payload}, exception follows as:"
+            )
+            log.err(exp)
 
-            # Something bad happened with submitting this to twitter
-            if str(exp).startswith("media type unrecognized"):
-                # The media content hit some error, just send it without it
-                log.msg(f"Sending '{kwargs.get('twitter_media')}' fail, strip")
-                params.pop("media", None)
-            else:
-                log.err(exp)
-                # Since this called from a thread, sleeping should not jam us
-                time.sleep(10)
+            # Evasive manuevers, just remove the media and try again
+            params.pop("media", None)
+            # We are in a thread, so this is OK
+            time.sleep(kwargs.get("sleep", 10))
     return res
 
 

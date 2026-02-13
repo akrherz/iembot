@@ -21,6 +21,7 @@ All notable changes to this library are documented in this file.
 - Fix thread-safely of embedded `pymemcache` client (#148).
 - Implement ATmosphere/bluesky media upload again (#144).
 - Improve mastodon coverage and error handling (#161).
+- Improve Twitter/X error 403 duplicate content error handling (#163).
 - Removed unnecessary `pwd` (UNIX only) module usage (#142).
 
 ## **0.3.1** (4 Feb 2026)
