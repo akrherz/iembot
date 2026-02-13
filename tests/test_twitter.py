@@ -209,7 +209,7 @@ def test_tweet_cb_no_data():
     """Test tweet_cb with response missing data."""
     bot = mock.Mock()
     bot.tw_users = {"123": {"screen_name": "test"}}
-    result = tweet_cb({"error": "bad"}, bot, "text", "room", "jid", "123")
+    result = tweet_cb({"error": "bad"}, bot, "text", "jid", "123")
     assert result is None
 
 
@@ -219,7 +219,7 @@ def test_tweet_cb_success():
     bot.tw_users = {"123": {"screen_name": "testuser"}}
     bot.dbpool.runOperation.return_value = mock.Mock()
     response = {"data": {"id": "tweet123"}}
-    result = tweet_cb(response, bot, "text", "room", "jid", "123")
+    result = tweet_cb(response, bot, "text", "jid", "123")
     assert result == response
     bot.dbpool.runOperation.assert_called_once()
 
@@ -227,7 +227,7 @@ def test_tweet_cb_success():
 def test_tweet_cb_no_response():
     """Test tweet_cb with None response."""
     bot = mock.Mock()
-    result = tweet_cb(None, bot, "text", "room", "jid", "123")
+    result = tweet_cb(None, bot, "text", "jid", "123")
     assert result is None
 
 
@@ -235,9 +235,7 @@ def test_tweet_cb_no_user():
     """Test tweet_cb with unknown user."""
     bot = mock.Mock()
     bot.tw_users = {}
-    result = tweet_cb(
-        {"data": {"id": "123"}}, bot, "text", "room", "jid", "999"
-    )
+    result = tweet_cb({"data": {"id": "123"}}, bot, "text", "jid", "999")
     assert result == {"data": {"id": "123"}}
 
 

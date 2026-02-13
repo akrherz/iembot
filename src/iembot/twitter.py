@@ -181,7 +181,7 @@ def _upload_media_to_twitter(oauth: OAuth1Session, url: str) -> str | None:
 
 
 def tweet_cb(
-    response, bot: JabberClient, twttxt, _room, myjid, iembot_account_id: int
+    response, bot: JabberClient, twttxt, myjid, iembot_account_id: int
 ):
     """
     Called after success going to twitter
@@ -323,7 +323,7 @@ def tweet(
         twttxt,
         **kwargs,
     )
-    df.addCallback(tweet_cb, bot, twttxt, "", "", iembot_account_id)
+    df.addCallback(tweet_cb, bot, twttxt, "", iembot_account_id)
     df.addErrback(
         email_error,
         bot,

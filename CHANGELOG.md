@@ -8,6 +8,7 @@ All notable changes to this library are documented in this file.
 ### API Changes
 
 - Replace `python-twitter` dep with stdlib python code.
+- Update `twitter.tweet_cb` signature to remove unused ``room`` argument.
 
 ### New Features
 
