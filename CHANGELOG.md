@@ -8,6 +8,7 @@ All notable changes to this library are documented in this file.
 ### API Changes
 
 - Replace `python-twitter` dep with stdlib python code.
+- Update `twitter.tweet_cb` signature to remove unused ``room`` argument.
 
 ### New Features
 
@@ -21,6 +22,7 @@ All notable changes to this library are documented in this file.
 - Fix thread-safely of embedded `pymemcache` client (#148).
 - Implement ATmosphere/bluesky media upload again (#144).
 - Improve mastodon coverage and error handling (#161).
+- Improve Twitter/X error 403 duplicate content error handling (#163).
 - Removed unnecessary `pwd` (UNIX only) module usage (#142).
 
 ## **0.3.1** (4 Feb 2026)

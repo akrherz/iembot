@@ -10,6 +10,7 @@ from twisted.words.xish.domish import Element
 from iembot.twitter import (
     disable_twitter_user,
     load_twitter_from_db,
+    really_tweet,
     route,
     safe_twitter_text,
     tweet,
@@ -18,6 +19,70 @@ from iembot.twitter import (
 from iembot.types import JabberClient
 
 IEM_MESOPLOT_URL = "https://mesonet.agron.iastate.edu/data/mesonet.gif"
+
+
+def test_media_upload_failure(bot: JabberClient):
+    """Test that we gracefully handle a twitter media upload failure."""
+    xtra = {
+        "twitter_media": "http://localhost/bah.gif",
+        "sleep": 0,
+    }
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.GET,
+            url="http://localhost/bah.gif",
+            body=b"fake image data",
+            status=200,
+        )
+        rsps.add(
+            responses.POST,
+            url="https://api.x.com/2/media/upload",
+            json={"error": "media type unrecognized"},
+            status=400,
+        )
+        rsps.add(
+            responses.POST,
+            url="https://api.x.com/2/tweets",
+            json={
+                "status": 999,
+            },
+            status=502,
+        )
+        assert really_tweet(bot, 123, "This is a test", **xtra) is None
+
+
+def test_gh163_unhandled_twitter_error(bot: JabberClient):
+    """Test that we reach a code path for unhandled errors."""
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            url="https://api.x.com/2/tweets",
+            json={
+                "status": 999,
+            },
+            status=502,
+        )
+        assert really_tweet(bot, 123, "This is a test", sleep=0) is None
+
+
+def test_gh163_duplicate_content_403(bot: JabberClient):
+    """Test the handling of a 403 status."""
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            url="https://api.x.com/2/tweets",
+            json={
+                "detail": (
+                    "You are not allowed to create a Tweet "
+                    "with duplicate content."
+                ),
+                "type": "about:blank",
+                "title": "Forbidden",
+                "status": 403,
+            },
+            status=403,
+        )
+        assert really_tweet(bot, 123, "This is a test") is None
 
 
 def test_route_without_x(bot: JabberClient):
@@ -37,19 +102,6 @@ def test_load_twitter_from_db(dbcursor, bot: JabberClient):
 @pytest_twisted.inlineCallbacks
 def test_tweet_gh154_twitter(bot: JabberClient, rescode: int):
     """Test the handling of a 401 or 403 response from twitter."""
-    bot.tw_users = {
-        123: {
-            "access_token": "",
-            "access_token_secret": "",
-            "iem_owned": False,
-            "screen_name": "testuser",
-        }
-    }
-    bot.tw_routingtable = {
-        "XXX": [
-            123,
-        ]
-    }
     elem = Element(("jabber:client", "message"))
     elem.x = Element(("", "x"))
     elem.x["twitter"] = "This is a test"
@@ -82,16 +134,6 @@ def test_tweet_gh154_twitter(bot: JabberClient, rescode: int):
 @pytest_twisted.inlineCallbacks
 def test_tweet(bot: JabberClient):
     """Test that we can sort of tweet."""
-    bot.tw_users = {
-        123: {
-            "access_token": "",
-            "access_token_secret": "",
-            "iem_owned": True,
-            "screen_name": "testuser",
-        }
-    }
-    bot.tw_routingtable = {"XXX": [123]}
-
     with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         rsps.add(
             responses.GET,
@@ -167,7 +209,7 @@ def test_tweet_cb_no_data():
     """Test tweet_cb with response missing data."""
     bot = mock.Mock()
     bot.tw_users = {"123": {"screen_name": "test"}}
-    result = tweet_cb({"error": "bad"}, bot, "text", "room", "jid", "123")
+    result = tweet_cb({"error": "bad"}, bot, "text", "jid", "123")
     assert result is None
 
 
@@ -177,7 +219,7 @@ def test_tweet_cb_success():
     bot.tw_users = {"123": {"screen_name": "testuser"}}
     bot.dbpool.runOperation.return_value = mock.Mock()
     response = {"data": {"id": "tweet123"}}
-    result = tweet_cb(response, bot, "text", "room", "jid", "123")
+    result = tweet_cb(response, bot, "text", "jid", "123")
     assert result == response
     bot.dbpool.runOperation.assert_called_once()
 
@@ -185,7 +227,7 @@ def test_tweet_cb_success():
 def test_tweet_cb_no_response():
     """Test tweet_cb with None response."""
     bot = mock.Mock()
-    result = tweet_cb(None, bot, "text", "room", "jid", "123")
+    result = tweet_cb(None, bot, "text", "jid", "123")
     assert result is None
 
 
@@ -193,9 +235,7 @@ def test_tweet_cb_no_user():
     """Test tweet_cb with unknown user."""
     bot = mock.Mock()
     bot.tw_users = {}
-    result = tweet_cb(
-        {"data": {"id": "123"}}, bot, "text", "room", "jid", "999"
-    )
+    result = tweet_cb({"data": {"id": "123"}}, bot, "text", "jid", "999")
     assert result == {"data": {"id": "123"}}
 
 
