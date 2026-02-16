@@ -8,10 +8,12 @@ threadsafety in Python.  So this is on me.
 
 import threading
 from queue import Queue
+from time import sleep
 
 # Having troubles with httpx leaking memory on python 3.14
 import requests
 from atproto import Client
+from atproto_client.exceptions import InvokeTimeoutError
 from atproto_client.utils import TextBuilder
 from twisted.python import log
 from twisted.words.xish.domish import Element
@@ -24,12 +26,21 @@ from iembot.util import build_channel_subs
 class ATWorkerThread(threading.Thread):
     """The Worker."""
 
-    def __init__(self, queue: Queue, at_handle: str, at_password: str):
+    def __init__(
+        self,
+        queue: Queue,
+        at_handle: str,
+        at_password: str,
+        retry_sleep_seconds: int = 30,
+        sleeper=sleep,
+    ):
         """Constructor."""
         threading.Thread.__init__(self)
         self.queue = queue
         self.at_handle = at_handle
         self.at_password = at_password
+        self.retry_sleep_seconds = retry_sleep_seconds
+        self.sleeper = sleeper
         self.logged_in = False
         self.client = Client()
         self.daemon = True  # Don't block on shutdown
@@ -41,10 +52,33 @@ class ATWorkerThread(threading.Thread):
             try:
                 if message is None:
                     break
-                self.process_message(message)
-            except Exception as exp:
-                log.err(exp)
-                self.logged_in = False
+
+                error_counter = 0
+                while True:
+                    try:
+                        self.process_message(message)
+                        break
+                    except InvokeTimeoutError:
+                        error_counter += 1
+                        log.msg(
+                            f"AT request timed out for {self.at_handle}, "
+                            "sleeping "
+                            f"{self.retry_sleep_seconds} and try again, "
+                            f"error count {error_counter}"
+                        )
+                        if error_counter > 5:
+                            log.msg(
+                                f"Too many timeouts for {self.at_handle}, "
+                                f"aborting message {message}"
+                            )
+                            break
+                        self.sleeper(self.retry_sleep_seconds)
+                    # If something happens, best just to trigger a login
+                    # again?
+                    except Exception as exp:
+                        log.err(exp)
+                        self.logged_in = False
+                        break
             finally:
                 self.queue.task_done()
 
@@ -79,7 +113,9 @@ class ATWorkerThread(threading.Thread):
         if imgbytes is not None:
             try:
                 self.client.send_image(
-                    msg, image=imgbytes, image_alt="IEMBot Image"
+                    msg,
+                    image=imgbytes,
+                    image_alt="IEMBot Image",
                 )
                 return
             except Exception as exp:
