@@ -181,6 +181,7 @@ def run(
         (not disable_twitter, "iembot.twitter", "route"),
         (not disable_atmosphere, "iembot.atmosphere", "route"),
         (not disable_mastodon, "iembot.mastodon", "route"),
+        (True, "iembot.webhooks", "route"),
         (True, "iembot.xmpp", "route"),  # Required at the moment
     ]
     for enabled, module, attr in handlers:
