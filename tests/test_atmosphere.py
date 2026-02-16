@@ -5,6 +5,7 @@ from unittest import mock
 
 import pytest
 import responses
+from atproto_client.exceptions import InvokeTimeoutError
 from twisted.words.xish.domish import Element
 
 from iembot.atmosphere import (
@@ -35,6 +36,28 @@ class FakeATClient:
 
     def send_image(self, msg, image=None, image_alt=None):
         self.send_image_calls.append((msg, image, image_alt))
+
+
+@pytest.mark.timeout(10)  # Ensure the thread hackery does not cause trouble
+def test_gh168_invocation_timeout():
+    """Test the handling of a timeout."""
+    q = queue.Queue()
+    worker = ATWorkerThread(q, "user", "pw", sleeper=lambda _s: None)
+    worker.client = FakeATClient()
+
+    def _fakey(_user, _pass):
+        raise InvokeTimeoutError("Simulated timeout")
+
+    worker.client.login = _fakey
+    # Put a message with media and msg
+    q.put({"msg": "hello http://link"})
+    # Sentinel to stop the thread cleanly after message handling
+    q.put(None)
+
+    worker.start()
+    q.join()  # Wait for all tasks
+    worker.join(timeout=2)
+    assert not worker.is_alive()
 
 
 @pytest.mark.timeout(10)  # Ensure the thread hackery does not cause trouble

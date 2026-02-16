@@ -43,7 +43,6 @@ from iembot.util import (
     load_chatlog,
     load_chatrooms_from_db,
     load_webhooks_from_db,
-    purge_logs,
 )
 
 # http://stackoverflow.com/questions/7016602
@@ -140,8 +139,6 @@ class JabberClient(JabberClientType):
             self.fortunes = fp.read().split("\n%\n")
         load_chatlog(self)
 
-        lc2 = LoopingCall(purge_logs, self)
-        lc2.start(60 * 60 * 24)
         lc3 = LoopingCall(reactor.callInThread, self.save_chatlog)
         lc3.start(600, now=False)  # Every 10 minutes
 

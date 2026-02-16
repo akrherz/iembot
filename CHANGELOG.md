@@ -7,6 +7,8 @@ All notable changes to this library are documented in this file.
 
 ### API Changes
 
+- Remove `purge_logs` functionality as it is better left to end users to
+  implement with tooling like `tmpwatch` or log archival (#167).
 - Replace `python-twitter` dep with stdlib python code.
 - Update `twitter.tweet_cb` signature to remove unused ``room`` argument.
 
@@ -14,10 +16,12 @@ All notable changes to this library are documented in this file.
 
 - Better handling of Twitter/X status 403 errors (#156).
 - Improved atmosphere test coverage and added `pytest-timeout` dev dep (#159).
+- Improved ATmosphere handling of a common `InvokeTimeoutError` (#168).
 
 ### Bug Fixes
 
 - Correct Mastodon message routing (#150).
+- Correct Mastodon oauth authorization reset (#169).
 - Correct handling of Twitter 401s Unauthorized (#154).
 - Fix thread-safely of embedded `pymemcache` client (#148).
 - Implement ATmosphere/bluesky media upload again (#144).

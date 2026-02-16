@@ -74,8 +74,7 @@ def disable_mastodon_user(
     )
     df = bot.dbpool.runOperation(
         "UPDATE iembot_mastodon_oauth SET updated = now(), "
-        "access_token = null, api_base_url = null "
-        "WHERE iembot_account_id = %s",
+        "access_token = null WHERE iembot_account_id = %s",
         (iembot_account_id,),
     )
     df.addErrback(log.err)

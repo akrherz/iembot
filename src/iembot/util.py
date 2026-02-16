@@ -1,7 +1,6 @@
 """Utility functions for IEMBot"""
 
 import copy
-import glob
 import os
 import pickle
 import re
@@ -10,7 +9,6 @@ import traceback
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from io import BytesIO
-from zoneinfo import ZoneInfo
 
 from pyiem.util import utc
 from twisted.internet import reactor
@@ -181,20 +179,6 @@ def channels_room_del(txn, bot: JabberClient, room: str, channel: str):
         )
         bot.send_groupchat(room, f"Unsubscribed {room} to channel '{ch}'")
     channels_room_list(bot, room)
-
-
-def purge_logs(bot: JabberClient):
-    """Remove chat logs on a 24 HR basis"""
-    log.msg("purge_logs() called...")
-    basets = utc() - timedelta(
-        days=int(bot.config.get("bot.purge_xmllog_days", 7))
-    )
-    for fn in glob.glob("logs/xmllog.*"):
-        ts = datetime.strptime(fn, "logs/xmllog.%Y_%m_%d")
-        ts = ts.replace(tzinfo=ZoneInfo("UTC"))
-        if ts < basets:
-            log.msg(f"Purging logfile {fn}")
-            os.remove(fn)
 
 
 def email_error(exp, bot: JabberClient, message=""):
