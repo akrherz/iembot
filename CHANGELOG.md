@@ -18,6 +18,7 @@ All notable changes to this library are documented in this file.
 ### Bug Fixes
 
 - Correct Mastodon message routing (#150).
+- Correct Mastodon oauth authorization reset (#169).
 - Correct handling of Twitter 401s Unauthorized (#154).
 - Fix thread-safely of embedded `pymemcache` client (#148).
 - Implement ATmosphere/bluesky media upload again (#144).
