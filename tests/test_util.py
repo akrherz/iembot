@@ -1,6 +1,5 @@
 """Tests, gasp"""
 
-import os
 from unittest import mock
 
 import pytest
@@ -19,31 +18,6 @@ def test_remove_control_characters():
     assert botutil.remove_control_characters("clean text") == "clean text"
     # Tab and newline should be preserved (not in the removed range)
     assert botutil.remove_control_characters("tab\there") == "tab\there"
-
-
-def test_purge_logs(tmp_path):
-    """Test purge_logs function."""
-    bot = mock.Mock()
-    bot.config = {"bot.purge_xmllog_days": "1"}
-    # Create a temporary log directory
-    log_dir = tmp_path / "logs"
-    log_dir.mkdir()
-    # Create an old log file that should be deleted
-    old_log = log_dir / "xmllog.2020_01_01"
-    old_log.touch()
-    # Create a recent log file that should be kept
-    recent_log = log_dir / "xmllog.2099_01_01"
-    recent_log.touch()
-
-    # Change to temp directory so glob works
-    orig_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        botutil.purge_logs(bot)
-        assert not old_log.exists()
-        assert recent_log.exists()
-    finally:
-        os.chdir(orig_cwd)
 
 
 def test_channels_room_list():

@@ -7,6 +7,8 @@ All notable changes to this library are documented in this file.
 
 ### API Changes
 
+- Remove `purge_logs` functionality as it is better left to end users to
+  implement with tooling like `tmpwatch` or log archival (#167).
 - Replace `python-twitter` dep with stdlib python code.
 - Update `twitter.tweet_cb` signature to remove unused ``room`` argument.
 

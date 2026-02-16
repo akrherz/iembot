@@ -14,7 +14,8 @@ Place the `src` folder within your `PYTHONPATH` and then `python -m iembot.main 
 
 ## Run iembot in production
 
-Well, don't.  If you do, then the CLI is available `iembot run ...`
+Well, don't.  If you do, then the CLI is available `iembot run ...`.  You should
+implement some `tmpwatch` style purging of log content found in `logs`.
 
 ## Command line options
 
