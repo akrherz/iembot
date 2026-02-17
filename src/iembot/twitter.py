@@ -296,17 +296,19 @@ def really_tweet(
             if errcode in DISABLE_TWITTER_CODES:
                 disable_twitter_user(bot, iembot_account_id, errcode)
                 return None
-            # We really should add code to account for these.
-            log.msg(
-                f"Unhandled X error posting tweet, errcode: {errcode}, "
-                f"payload: {exp.payload}, exception follows as:"
-            )
-            log.err(exp)
+            if errcode < 500:
+                # Anything 500 is likely transient server side?
+                # We really should add code to account for these.
+                log.msg(
+                    f"Unhandled X error posting tweet, errcode: {errcode}, "
+                    f"payload: {exp.payload}, exception follows as:"
+                )
+                log.err(exp)
 
             # Evasive manuevers, just remove the media and try again
             params.pop("media", None)
             # We are in a thread, so this is OK
-            time.sleep(kwargs.get("sleep", 10))
+            time.sleep(kwargs.get("sleep", 30))
     return res
 
 
