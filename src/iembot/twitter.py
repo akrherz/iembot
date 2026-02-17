@@ -1,11 +1,8 @@
 """Twitter/X stuff."""
 
-import re
 import time
-from html import unescape
 
 import requests
-from pyiem.reference import TWEET_CHARS
 from requests_oauthlib import OAuth1Session
 from twisted.internet import threads
 from twisted.internet.defer import Deferred
@@ -13,7 +10,7 @@ from twisted.python import log
 from twisted.words.xish.domish import Element
 
 from iembot.types import JabberClient
-from iembot.util import build_channel_subs, email_error
+from iembot.util import build_channel_subs, email_error, safe_twitter_text
 
 TWEET_API = "https://api.x.com/2/tweets"
 # 89: Expired token, so we shall revoke for now
@@ -35,48 +32,6 @@ class TwitterRequestError(Exception):
         self.code = code
         self.payload = payload
         self.status_code = status_code
-
-
-def safe_twitter_text(text: str) -> str:
-    """Attempt to rip apart a message that is too long!
-    To be safe, the URL is counted as 24 chars
-    """
-    # XMPP payload will have entities, unescape those before tweeting
-    text = unescape(text)
-    # Convert two or more spaces into one
-    text = " ".join(text.split())
-    # If we are already below TWEET_CHARS, we don't have any more work to do...
-    if len(text) < TWEET_CHARS and text.find("http") == -1:
-        return text
-    chars = 0
-    words = text.split()
-    # URLs only count as 25 chars, so implement better accounting
-    for word in words:
-        if word.startswith("http"):
-            chars += 25
-        else:
-            chars += len(word) + 1
-    if chars < TWEET_CHARS:
-        return text
-    urls = re.findall(r"https?://[^\s]+", text)
-    if len(urls) == 1:
-        text2 = text.replace(urls[0], "")
-        sections = re.findall("(.*) for (.*)( till [0-9A-Z].*)", text2)
-        if len(sections) == 1:
-            text = f"{sections[0][0]}{sections[0][2]}{urls[0]}"
-            if len(text) > TWEET_CHARS:
-                sz = TWEET_CHARS - 26 - len(sections[0][2])
-                text = f"{sections[0][0][:sz]}{sections[0][2]}{urls[0]}"
-            return text
-        if len(text) > TWEET_CHARS:
-            # 25 for URL, three dots and space for 29
-            return f"{text2[: (TWEET_CHARS - 29)]}... {urls[0]}"
-    if chars > TWEET_CHARS and words[-1].startswith("http"):
-        i = -2
-        while len(" ".join(words[:i])) > (TWEET_CHARS - 3 - 25):
-            i -= 1
-        return f"{' '.join(words[:i])}... {words[-1]}"
-    return text[:TWEET_CHARS]
 
 
 def load_twitter_from_db(txn, bot: JabberClient):

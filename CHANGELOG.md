@@ -7,6 +7,7 @@ All notable changes to this library are documented in this file.
 
 ### API Changes
 
+- Move `safe_twitter_text` to a more appropriate location in `iembot.util`.
 - Remove `purge_logs` functionality as it is better left to end users to
   implement with tooling like `tmpwatch` or log archival (#167).
 - Replace `python-twitter` dep with stdlib python code.

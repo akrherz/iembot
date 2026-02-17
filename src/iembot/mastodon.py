@@ -14,9 +14,8 @@ from twisted.internet import threads
 from twisted.python import log
 from twisted.words.xish.domish import Element
 
-from iembot.twitter import safe_twitter_text
 from iembot.types import JabberClient
-from iembot.util import build_channel_subs, email_error
+from iembot.util import build_channel_subs, email_error, safe_twitter_text
 
 
 def load_mastodon_from_db(txn, bot: JabberClient):
