@@ -18,9 +18,8 @@ from atproto_client.utils import TextBuilder
 from twisted.python import log
 from twisted.words.xish.domish import Element
 
-from iembot.twitter import safe_twitter_text
 from iembot.types import JabberClient
-from iembot.util import build_channel_subs
+from iembot.util import build_channel_subs, safe_twitter_text
 
 
 class ATWorkerThread(threading.Thread):

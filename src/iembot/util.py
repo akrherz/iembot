@@ -8,8 +8,10 @@ import socket
 import traceback
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
+from html import unescape
 from io import BytesIO
 
+from pyiem.reference import TWEET_CHARS
 from pyiem.util import utc
 from twisted.internet import reactor
 from twisted.mail import smtp
@@ -18,6 +20,56 @@ from twisted.words.xish import domish
 
 import iembot
 from iembot.types import JabberClient
+
+
+def safe_twitter_text(text: str, max_size: int = TWEET_CHARS) -> str:
+    """Apply some logic to trim down the text size to social media allowed sz.
+
+    Args:
+        text(str): The inbound string to fix
+        max_size(int): the maximum size of the output string, default is 280
+
+    Returns:
+        str: the fixed string, hopefully under the max_size limit
+    """
+    # XMPP payload will have entities, unescape those before tweeting
+    text = unescape(text)
+    # Convert two or more spaces into one
+    text = " ".join(text.split())
+    # If we are already below max_size, we don't have any more work to do...
+    if len(text) < max_size and text.find("http") == -1:
+        return text
+    chars = 0
+    words = text.split()
+    # URLs only count as 25 chars, so implement better accounting
+    for word in words:
+        if word.startswith("http"):
+            chars += 25
+        else:
+            chars += len(word) + 1
+    if chars < max_size:
+        return text
+    urls = re.findall(r"https?://[^\s]+", text)
+    if len(urls) == 1:
+        text2 = text.replace(urls[0], "")
+        sections = re.findall("(.*) for (.*)( till [0-9A-Z].*)", text2)
+        if len(sections) == 1:
+            text = f"{sections[0][0]}{sections[0][2]}{urls[0]}"
+            if len(text) > max_size:
+                sz = max_size - 26 - len(sections[0][2])
+                text = f"{sections[0][0][:sz]}{sections[0][2]}{urls[0]}"
+            return text
+        if len(text) > max_size:
+            # 25 for URL, three dots and space for 29
+            return f"{text2[: (max_size - 29)]}... {urls[0]}"
+    if chars > max_size and words[-1].startswith("http"):
+        i = -2
+        # Careful about this not infinite looping...
+        while len(" ".join(words[:i])) > (max_size - 3 - 25) and i >= 0:
+            i -= 1
+        part = " ".join(words[:i])[: max_size - 25]
+        return f"{part}... {words[-1]}"
+    return text[:max_size]
 
 
 def build_channel_subs(txn, auth_table: str) -> dict[int : list[str]]:
