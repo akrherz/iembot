@@ -31,6 +31,7 @@ All notable changes to this library are documented in this file.
 - Improve mastodon coverage and error handling (#161).
 - Improve Twitter/X error 403 duplicate content error handling (#163).
 - Removed unnecessary `pwd` (UNIX only) module usage (#142).
+- Trim logs generated when Twitter/X API results in HTML response (#173).
 
 ## **0.3.1** (4 Feb 2026)
 

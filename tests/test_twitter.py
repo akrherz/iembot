@@ -20,6 +20,21 @@ from iembot.types import JabberClient
 IEM_MESOPLOT_URL = "https://mesonet.agron.iastate.edu/data/mesonet.gif"
 
 
+def test_gh173_non_json_response(bot: JabberClient):
+    """Test when we get HTTP status 520 and HTML stuff, instead of JSON."""
+    xtra = {
+        "sleep": 0,
+    }
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            url="https://api.x.com/2/tweets",
+            body=b"<html><body>Some HTML response</body></html>",
+            status=520,
+        )
+        assert really_tweet(bot, 123, "This is a test", **xtra) is None
+
+
 def test_media_upload_failure(bot: JabberClient):
     """Test that we gracefully handle a twitter media upload failure."""
     xtra = {
