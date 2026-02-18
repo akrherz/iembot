@@ -3,6 +3,7 @@
 import time
 
 import requests
+from requests.exceptions import JSONDecodeError
 from requests_oauthlib import OAuth1Session
 from twisted.internet import threads
 from twisted.internet.defer import Deferred
@@ -99,11 +100,6 @@ def disable_twitter_user(bot: JabberClient, iembot_account_id: int, errcode=0):
 def _helper(oauth: OAuth1Session, params):
     """Wrap common stuff"""
     resp = oauth.post(TWEET_API, json=params, timeout=60)
-    hh = "x-app-limit-24hour-remaining"
-    log.msg(
-        f"x-rate-limit-limit {resp.headers.get('x-rate-limit-limit')} + "
-        f"{hh} {resp.headers.get(hh)} #{resp.status_code} {resp.text}"
-    )
     if resp.status_code >= 300:
         payload = _safe_json(resp)
         errcode = _twitter_error_code_from_payload(payload)
@@ -124,7 +120,9 @@ def _upload_media_to_twitter(oauth: OAuth1Session, url: str) -> str | None:
         files={"media": (url, payload, "image/png")},
     )
     if resp.status_code != 200:
-        log.msg(f"X API got status_code: {resp.status_code} {resp.content}")
+        log.msg(
+            f"X API got status_code: {resp.status_code} {resp.content[:100]}"
+        )
         return None
     # string required
     jresponse = resp.json()
@@ -172,13 +170,17 @@ def tweet_cb(
     return response
 
 
-def _safe_json(resp: requests.Response) -> dict:
+def _safe_json(resp: requests.Response) -> dict | None:
     """Return parsed JSON or a raw text wrapper."""
     try:
         return resp.json()
-    except Exception as err:
-        log.err(err)
-        return {"_raw": resp.text}
+    except JSONDecodeError as exp:
+        # Likely HTML that we don't want to flood logs with GH173
+        log.msg(f"Parse response[:100] as JSON failed, `{resp.text[:100]}`")
+        # Reuse the HTTP status code for the error?
+        raise TwitterRequestError(
+            resp.status_code, resp.text[:100], resp.status_code
+        ) from exp
 
 
 def _twitter_error_code_from_payload(payload: dict) -> int:
@@ -251,7 +253,7 @@ def really_tweet(
             if errcode in DISABLE_TWITTER_CODES:
                 disable_twitter_user(bot, iembot_account_id, errcode)
                 return None
-            if errcode < 500:
+            if 0 < errcode < 500:
                 # Anything 500 is likely transient server side?
                 # We really should add code to account for these.
                 log.msg(
