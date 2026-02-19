@@ -4,12 +4,7 @@ import time
 
 import mastodon as Mastodon
 import requests
-from mastodon.errors import (
-    MastodonError,
-    MastodonNetworkError,
-    MastodonNotFoundError,
-    MastodonUnauthorizedError,
-)
+from mastodon.errors import MastodonError
 from twisted.internet import threads
 from twisted.python import log
 from twisted.words.xish.domish import Element
@@ -20,7 +15,6 @@ from iembot.util import build_channel_subs, email_error, safe_twitter_text
 
 def load_mastodon_from_db(txn, bot: JabberClient):
     """Load Mastodon config from database"""
-
     bot.md_routingtable = build_channel_subs(
         txn,
         "iembot_mastodon_oauth",
@@ -47,29 +41,37 @@ def load_mastodon_from_db(txn, bot: JabberClient):
     log.msg(f"load_mastodon_from_db(): {txn.rowcount} access tokens found")
 
 
-def disable_mastodon_user(
-    bot: JabberClient, iembot_account_id: int, errcode: int = 0
+def disable_user_by_mastodon_exp(
+    bot: JabberClient, iembot_account_id: int, exp: MastodonError
 ) -> bool:
-    """Disable the Mastodon subs for this user_id
+    """Review the exception to see what we want to do with it.
 
-    Args:
-        iembot_account_id (big_id): The Mastodon user to disable
-        errcode (int): The HTTP-like errorcode
+    Returns ``True`` if the user got disabled due to the exp
     """
     mduser = bot.md_users.get(iembot_account_id)
+    # Test 1. Can't disable an unknown user.
     if mduser is None:
         log.msg(f"Fail disable unknown Mastodon user_id {iembot_account_id}")
-        return False
+        return True
+    # Test 2. Don't disable iem owned accounts
     screen_name = mduser["screen_name"]
     if mduser["iem_owned"]:
         log.msg(
             f"Skip disable Mastodon for {iembot_account_id} ({screen_name})"
         )
         return False
+    status_code = exp.args[1]
+    if status_code >= 500 or status_code == 404:
+        log.msg(
+            f"Not disabling user: {iembot_account_id} ({screen_name}) "
+            f"due to Mastodon server error: {exp.args}"
+        )
+        return False
+
     bot.md_users.pop(iembot_account_id)
     log.msg(
         f"Removing Mastodon access token for user: {iembot_account_id} "
-        f"({screen_name}) errcode: {errcode}"
+        f"({screen_name}) due to {exp.args}"
     )
     df = bot.dbpool.runOperation(
         "UPDATE iembot_mastodon_oauth SET updated = now(), "
@@ -87,25 +89,29 @@ def toot_cb(response, bot: JabberClient, twttxt, iembot_account_id):
     if response is None:
         return None
     mduser = bot.md_users.get(iembot_account_id)
-    if mduser is None:
-        return response
-    if "content" not in response:
-        log.msg(f"Got response without content {response}")
-        return None
-    url = response["url"]
+    if mduser is not None:
+        url = response["url"]
 
-    response.pop(
-        "account", None
-    )  # Remove extra junk, there's still a lot more though...
+        response.pop(
+            "account", None
+        )  # Remove extra junk, there's still a lot more though...
 
-    # Log
-    df = bot.dbpool.runOperation(
-        "INSERT into iembot_social_log(medium, source, resource_uri, "
-        "message, response, response_code, iembot_account_id) "
-        "values (%s,%s,%s,%s,%s,%s,%s)",
-        ("mastodon", "", url, twttxt, repr(response), 200, iembot_account_id),
-    )
-    df.addErrback(log.err)
+        # Log
+        df = bot.dbpool.runOperation(
+            "INSERT into iembot_social_log(medium, source, resource_uri, "
+            "message, response, response_code, iembot_account_id) "
+            "values (%s,%s,%s,%s,%s,%s,%s)",
+            (
+                "mastodon",
+                "",
+                url,
+                twttxt,
+                repr(response),
+                200,
+                iembot_account_id,
+            ),
+        )
+        df.addErrback(log.err)
     return response
 
 
@@ -113,13 +119,8 @@ def mastodon_errback(err, bot: JabberClient, iembot_account_id: int, msg: str):
     """Error callback when simple Mastodon workflow fails."""
     # Always log it
     log.err(err)
-    errcode = None
-    if isinstance(err, MastodonNotFoundError):
-        errcode = 404
-        disable_mastodon_user(bot, iembot_account_id, errcode)
-    elif isinstance(err, MastodonUnauthorizedError):
-        errcode = 401
-        disable_mastodon_user(bot, iembot_account_id, errcode)
+    if isinstance(err, MastodonError):
+        disable_user_by_mastodon_exp(bot, iembot_account_id, err)
     else:
         sn = bot.md_users.get(iembot_account_id, {}).get("screen_name", "")
         msg = f"User: {iembot_account_id} ({sn})\nFailed to toot: {msg}"
@@ -185,17 +186,9 @@ def really_toot(
             media_id = api.media_post(resp.raw, mime_type="image/png")
             params["media_ids"] = [media_id]
         res = api.status_post(**params)
-    except MastodonNetworkError as exp:
-        # Any exception in ``requests`` will result in this Exception :/
-        log.msg(
-            f"Network error posting to Mastodon {meta['api_base_url']}, "
-            f"{exp} skipping"
-        )
-    except MastodonUnauthorizedError:
-        # Access token is no longer valid
-        disable_mastodon_user(bot, iembot_account_id)
-        return None
-    except MastodonError as exp:
+    except MastodonError as exp:  # This is the base Exception in mastodon.py
+        if disable_user_by_mastodon_exp(bot, iembot_account_id, exp):
+            return None
         # Something else bad happened when submitting this to the Mastodon
         log.err(exp)
         params.pop("media_ids", None)  # Try again without media
