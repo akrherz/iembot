@@ -14,6 +14,46 @@ from iembot.mastodon import (
 )
 
 
+def test_route_unknown_user(bot: JabberClient):
+    """Test we handle when we have an unknown user."""
+    elem = Element(("jabber:client", "message"))
+    elem.x = Element(("", "x"))
+    elem.x["twitter"] = "test message"
+    bot.md_routingtable["YYY"] = [
+        4321,
+    ]
+    route(bot, ["YYY"], elem)
+
+
+@pytest_twisted.inlineCallbacks
+def test_trigger_mastodon_errback(bot: JabberClient):
+    """Test that mastodon_errback gets hit, somehow."""
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            "https://localhost/api/v1/statuses",
+            body="Attempting to provoke MastodonNotFoundError",
+            status=404,
+        )
+        yield toot(bot, 123, "test message", sleep=0)
+    assert 123 in bot.md_users
+
+
+@pytest_twisted.inlineCallbacks
+def test_dont_disable_iemowned(bot: JabberClient):
+    """Test that oauth tokens are removed in this scenario."""
+    bot.md_users[123]["iem_owned"] = True
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            "https://localhost/api/v1/statuses",
+            body="Your login is currently disabled",
+            status=403,
+        )
+        yield toot(bot, 123, "test message", sleep=0)
+    assert 123 in bot.md_users
+
+
 @pytest_twisted.inlineCallbacks
 def test_gh175_disable_mastodon(bot: JabberClient):
     """Test that oauth tokens are removed in this scenario."""
