@@ -15,6 +15,20 @@ from iembot.mastodon import (
 
 
 @pytest_twisted.inlineCallbacks
+def test_gh175_disable_mastodon(bot: JabberClient):
+    """Test that oauth tokens are removed in this scenario."""
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            "https://localhost/api/v1/statuses",
+            body="Your login is currently disabled",
+            status=403,
+        )
+        yield toot(bot, 123, "test message")
+    assert 123 not in bot.md_users
+
+
+@pytest_twisted.inlineCallbacks
 def test_media_upload(bot: JabberClient):
     """Can we route a message?"""
     extra = {"twitter_media": "http://localhost/bah.png"}

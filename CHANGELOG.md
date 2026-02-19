@@ -25,6 +25,7 @@ All notable changes to this library are documented in this file.
 - Correct Mastodon oauth authorization reset (#169).
 - Correct handling of Twitter 401s Unauthorized (#154).
 - Fix thread-safely of embedded `pymemcache` client (#148).
+- Handle Mastodon API Errors more gracefully (#175).
 - Handle Twitter HTTP 500+ errors more gracefully (#171).
 - Implement ATmosphere/bluesky media upload again (#144).
 - Implement webhooks route registration (#165).

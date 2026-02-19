@@ -5,6 +5,7 @@ import time
 import mastodon as Mastodon
 import requests
 from mastodon.errors import (
+    MastodonAPIError,
     MastodonError,
     MastodonNetworkError,
     MastodonNotFoundError,
@@ -17,10 +18,15 @@ from twisted.words.xish.domish import Element
 from iembot.types import JabberClient
 from iembot.util import build_channel_subs, email_error, safe_twitter_text
 
+AUTH_ERRORS = (
+    MastodonAPIError,
+    MastodonNotFoundError,
+    MastodonUnauthorizedError,
+)
+
 
 def load_mastodon_from_db(txn, bot: JabberClient):
     """Load Mastodon config from database"""
-
     bot.md_routingtable = build_channel_subs(
         txn,
         "iembot_mastodon_oauth",
@@ -47,9 +53,7 @@ def load_mastodon_from_db(txn, bot: JabberClient):
     log.msg(f"load_mastodon_from_db(): {txn.rowcount} access tokens found")
 
 
-def disable_mastodon_user(
-    bot: JabberClient, iembot_account_id: int, errcode: int = 0
-) -> bool:
+def disable_mastodon_user(bot: JabberClient, iembot_account_id: int) -> bool:
     """Disable the Mastodon subs for this user_id
 
     Args:
@@ -69,7 +73,7 @@ def disable_mastodon_user(
     bot.md_users.pop(iembot_account_id)
     log.msg(
         f"Removing Mastodon access token for user: {iembot_account_id} "
-        f"({screen_name}) errcode: {errcode}"
+        f"({screen_name})"
     )
     df = bot.dbpool.runOperation(
         "UPDATE iembot_mastodon_oauth SET updated = now(), "
@@ -113,13 +117,8 @@ def mastodon_errback(err, bot: JabberClient, iembot_account_id: int, msg: str):
     """Error callback when simple Mastodon workflow fails."""
     # Always log it
     log.err(err)
-    errcode = None
-    if isinstance(err, MastodonNotFoundError):
-        errcode = 404
-        disable_mastodon_user(bot, iembot_account_id, errcode)
-    elif isinstance(err, MastodonUnauthorizedError):
-        errcode = 401
-        disable_mastodon_user(bot, iembot_account_id, errcode)
+    if isinstance(err, AUTH_ERRORS):
+        disable_mastodon_user(bot, iembot_account_id)
     else:
         sn = bot.md_users.get(iembot_account_id, {}).get("screen_name", "")
         msg = f"User: {iembot_account_id} ({sn})\nFailed to toot: {msg}"
@@ -191,7 +190,7 @@ def really_toot(
             f"Network error posting to Mastodon {meta['api_base_url']}, "
             f"{exp} skipping"
         )
-    except MastodonUnauthorizedError:
+    except AUTH_ERRORS:
         # Access token is no longer valid
         disable_mastodon_user(bot, iembot_account_id)
         return None
