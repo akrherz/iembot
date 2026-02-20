@@ -9,9 +9,15 @@ from twisted.words.xish.domish import Element
 from iembot.bot import JabberClient
 from iembot.mastodon import (
     load_mastodon_from_db,
+    really_toot,
     route,
     toot,
 )
+
+
+def test_really_toot_without_known_user(bot: JabberClient):
+    """Test a theoretical error."""
+    assert really_toot(bot, 0, "Test") is None
 
 
 def test_route_unknown_user(bot: JabberClient):
@@ -64,14 +70,14 @@ def test_gh175_disable_mastodon(bot: JabberClient):
             body="Your login is currently disabled",
             status=403,
         )
-        yield toot(bot, 123, "test message")
+        yield toot(bot, 123, "test message", sleep=0)
     assert 123 not in bot.md_users
 
 
 @pytest_twisted.inlineCallbacks
 def test_media_upload(bot: JabberClient):
     """Can we route a message?"""
-    extra = {"twitter_media": "http://localhost/bah.png"}
+    extra = {"twitter_media": "http://localhost/bah.png", "sleep": 0}
     with responses.RequestsMock() as rsps:
         rsps.add(
             responses.GET,
@@ -162,6 +168,7 @@ def test_gh150_route(bot: JabberClient):
     elem.x["twitter"] = msgtxt
     elem["body"] = msgtxt
     # Duplicated to check the dedup
+    del bot.md_users[123]  # Remove user to prevent actual call to Mastodon
     route(bot, ["XXX", "XXX"], elem)
 
 
