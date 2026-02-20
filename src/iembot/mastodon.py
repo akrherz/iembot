@@ -49,7 +49,7 @@ def disable_user_by_mastodon_exp(
     Returns ``True`` if the user got disabled due to the exp
     """
     mduser = bot.md_users.get(iembot_account_id)
-    # Test 1. Can't disable an unknown user.
+    # Test 1. Can't disable an unknown user (likely disabled before)
     if mduser is None:
         log.msg(f"Fail disable unknown Mastodon user_id {iembot_account_id}")
         return True
@@ -58,6 +58,12 @@ def disable_user_by_mastodon_exp(
     if mduser["iem_owned"]:
         log.msg(
             f"Skip disable Mastodon for {iembot_account_id} ({screen_name})"
+        )
+        return False
+    if len(exp.args) < 2:
+        log.msg(
+            f"Unexpected MastodonError format for user: {iembot_account_id} "
+            f"({screen_name}) exp: {exp} exp.args: {exp.args}"
         )
         return False
     status_code = exp.args[1]
@@ -115,18 +121,6 @@ def toot_cb(response, bot: JabberClient, twttxt, iembot_account_id):
     return response
 
 
-def mastodon_errback(err, bot: JabberClient, iembot_account_id: int, msg: str):
-    """Error callback when simple Mastodon workflow fails."""
-    # Always log it
-    log.err(err)
-    if isinstance(err, MastodonError):
-        disable_user_by_mastodon_exp(bot, iembot_account_id, err)
-    else:
-        sn = bot.md_users.get(iembot_account_id, {}).get("screen_name", "")
-        msg = f"User: {iembot_account_id} ({sn})\nFailed to toot: {msg}"
-        email_error(err, bot, msg)
-
-
 def toot(self, iembot_account_id: int, twttxt: str, **kwargs):
     """
     Send a message to Mastodon
@@ -140,15 +134,9 @@ def toot(self, iembot_account_id: int, twttxt: str, **kwargs):
     )
     df.addCallback(toot_cb, self, twttxt, iembot_account_id)
     df.addErrback(
-        mastodon_errback,
-        self,
-        iembot_account_id,
-        twttxt,
-    )
-    df.addErrback(
         email_error,
         self,
-        f"User: {iembot_account_id}, Text: {twttxt} Hit double exception",
+        f"Mastodon User: {iembot_account_id}, Text: {twttxt} Hit exception",
     )
     return df
 
@@ -165,37 +153,40 @@ def really_toot(
         access_token=meta["access_token"],
         api_base_url=meta["api_base_url"],
     )
-    log.msg(
-        "Sending to Mastodon "
-        f"{meta['screen_name']}({iembot_account_id}) "
-        f"'{twttxt}' media:{kwargs.get('twitter_media')}"
-    )
     media = kwargs.get("twitter_media")
     media_id = None
 
-    res = None
-    try:
-        params = {
-            "status": twttxt,
-        }
-        # If we have media, we have some work to do!
-        if media is not None:
-            resp = requests.get(media, timeout=30, stream=True)
-            resp.raise_for_status()
-            # TODO: Is this always image/png?
-            media_id = api.media_post(resp.raw, mime_type="image/png")
-            params["media_ids"] = [media_id]
-        res = api.status_post(**params)
-    except MastodonError as exp:  # This is the base Exception in mastodon.py
-        if disable_user_by_mastodon_exp(bot, iembot_account_id, exp):
-            return None
-        # Something else bad happened when submitting this to the Mastodon
-        log.err(exp)
-        params.pop("media_ids", None)  # Try again without media
-        # Since this called from a thread, sleeping should not jam us up
-        time.sleep(kwargs.get("sleep", 10))
-        res = api.status_post(**params)
-    return res
+    params = {
+        "status": twttxt,
+    }
+    for attempt in range(2):
+        try:
+            # If we have media, we have some work to do!
+            if media is not None:
+                resp = requests.get(media, timeout=30, stream=True)
+                media = None  # One shot
+                resp.raise_for_status()
+                # TODO: Is this always image/png?
+                media_id = api.media_post(resp.raw, mime_type="image/png")
+                params["media_ids"] = [media_id]
+            return api.status_post(**params)
+        except Exception as exp:  # This is the base Exception in mastodon
+            log.msg(
+                "Error sending to Mastodon "
+                f"{meta['screen_name']}({iembot_account_id}) "
+                f"'{twttxt}' media:{media}"
+            )
+            if isinstance(exp, MastodonError) and disable_user_by_mastodon_exp(
+                bot, iembot_account_id, exp
+            ):
+                return None
+            # Something else bad happened when submitting this to the Mastodon
+            log.err(exp)
+            params.pop("media_ids", None)  # Try again without media
+            if attempt == 0:
+                # Since this called from a thread, sleeping should not jam
+                time.sleep(kwargs.get("sleep", 10))
+    return None
 
 
 def route(bot: JabberClient, channels: list, elem: Element):
@@ -211,12 +202,6 @@ def route(bot: JabberClient, channels: list, elem: Element):
     alerted = []
     for channel in channels:
         for iembot_account_id in bot.md_routingtable.get(channel, []):
-            if iembot_account_id not in bot.md_users:
-                log.msg(
-                    "Failed to send to Mastodon due to no "
-                    f"access_tokens {iembot_account_id}"
-                )
-                continue
             if iembot_account_id in alerted:
                 continue
             alerted.append(iembot_account_id)
