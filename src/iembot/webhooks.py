@@ -11,6 +11,28 @@ from twisted.web.http_headers import Headers
 from iembot.types import JabberClient
 
 
+def load_webhooks_from_db(txn, bot: JabberClient):
+    """Load twitter config from database"""
+    txn.execute(
+        """
+    select c.channel_name, w.url from iembot_webhooks w,
+    iembot_subscriptions s, iembot_channels c
+    where w.iembot_account_id = s.iembot_account_id and s.channel_id = c.id
+    order by channel_name asc
+        """
+    )
+    table = {}
+    for row in txn.fetchall():
+        url = row["url"]
+        channel = row["channel_name"]
+        # Unsure how this could happen, but just in case
+        if url != "" and channel != "":
+            res = table.setdefault(channel, [])
+            res.append(url)
+    bot.webhooks_routingtable = table
+    log.msg(f"load_webhooks_from_db(): {txn.rowcount} subs found")
+
+
 def route(bot: JabberClient, channels, elem):
     """Route messages found in provided elem.
 

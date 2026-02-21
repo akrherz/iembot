@@ -10,6 +10,7 @@ All notable changes to this library are documented in this file.
 - Move `safe_twitter_text` to a more appropriate location in `iembot.util`.
 - Remove `purge_logs` functionality as it is better left to end users to
   implement with tooling like `tmpwatch` or log archival (#167).
+- Refactored webhooks database schema and loading.
 - Replace `python-twitter` dep with stdlib python code.
 - Update `twitter.tweet_cb` signature to remove unused ``room`` argument.
 
