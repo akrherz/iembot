@@ -369,24 +369,6 @@ def load_chatrooms_from_db(txn, bot: JabberClient, always_join: bool = False):
     bot.routingtable = rt
 
 
-def load_webhooks_from_db(txn, bot: JabberClient):
-    """Load twitter config from database"""
-    txn.execute(
-        "SELECT channel, url from iembot_webhooks "
-        "WHERE channel is not null and url is not null"
-    )
-    table = {}
-    for row in txn.fetchall():
-        url = row["url"]
-        channel = row["channel"]
-        if url == "" or channel == "":
-            continue
-        res = table.setdefault(channel, [])
-        res.append(url)
-    bot.webhooks_routingtable = table
-    log.msg(f"load_webhooks_from_db(): {txn.rowcount} subs found")
-
-
 def load_chatlog(bot: JabberClient):
     """load up our pickled chatlog"""
     if not os.path.isfile(bot.picklefile):

@@ -42,8 +42,8 @@ from iembot.util import (
     email_error,
     load_chatlog,
     load_chatrooms_from_db,
-    load_webhooks_from_db,
 )
+from iembot.webhooks import load_webhooks_from_db
 
 # http://stackoverflow.com/questions/7016602
 SMTPSenderFactory.noisy = False
