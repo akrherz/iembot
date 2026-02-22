@@ -8,11 +8,34 @@ from twisted.words.xish.domish import Element
 
 from iembot.bot import JabberClient
 from iembot.mastodon import (
+    disable_user_by_mastodon_exp,
     load_mastodon_from_db,
     really_toot,
     route,
     toot,
 )
+
+
+def test_disable_unknown_user(bot: JabberClient):
+    """Test that we can't disable an unknown user."""
+    assert (
+        disable_user_by_mastodon_exp(
+            bot, 9999, MastodonNetworkError("Unknown user")
+        )
+        is True
+    )
+
+
+def test_gh180_mastodon_503(bot: JabberClient):
+    """Test that we retry on a 503."""
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            "https://localhost/api/v1/statuses",
+            body="Service Unavailable",
+            status=503,
+        )
+        assert really_toot(bot, 123, "test message", sleep=0) is None
 
 
 def test_really_toot_without_known_user(bot: JabberClient):
