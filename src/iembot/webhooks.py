@@ -1,12 +1,11 @@
 """Send content to various webhooks."""
 
 import json
-from io import BytesIO
+import time
 
-from twisted.internet import reactor
+import requests
+from twisted.internet.threads import deferToThread
 from twisted.python import log
-from twisted.web.client import Agent, FileBodyProducer, readBody
-from twisted.web.http_headers import Headers
 
 from iembot.types import JabberClient
 
@@ -33,7 +32,22 @@ def load_webhooks_from_db(txn, bot: JabberClient):
     log.msg(f"load_webhooks_from_db(): {txn.rowcount} subs found")
 
 
-def route(bot: JabberClient, channels, elem):
+def really_hook(url: str, postdata: bytes, **kwargs: dict):
+    """Process the webook within a thread, so sleeping is OK..."""
+    try:
+        resp = requests.post(url, data=postdata, timeout=5)
+        resp.raise_for_status()
+        if resp.status_code == 200:
+            return
+    except Exception as e:
+        log.err(f"Webhook error {url}: {e}")
+        time.sleep(kwargs.get("sleep", 30))
+    # One more time
+    resp = requests.post(url, data=postdata, timeout=5)
+    resp.raise_for_status()
+
+
+def route(bot: JabberClient, channels, elem, **kwargs):
     """Route messages found in provided elem.
 
     Args:
@@ -56,28 +70,5 @@ def route(bot: JabberClient, channels, elem):
             if hook in used:
                 continue
             used.append(hook)
-            bp = FileBodyProducer(BytesIO(postdata))
-            defer = Agent(reactor).request(
-                method=b"POST",
-                uri=hook.encode("ascii"),
-                headers=Headers({"Content-type": ["application/json"]}),
-                bodyProducer=bp,
-            )
-            defer.addCallback(_cb)
-            defer.addErrback(_eb)
-
-
-def _eb(*args):
-    """errback."""
-    log.msg(str(args))
-
-
-def _cb(*args):
-    d = readBody(args[0])
-    d.addCallback(_cbBody)
-    return d
-
-
-def _cbBody(body):
-    """deferred deferred."""
-    log.msg(body)
+            df = deferToThread(really_hook, hook, postdata, **kwargs)
+            df.addErrback(log.err)

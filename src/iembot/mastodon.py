@@ -170,22 +170,25 @@ def really_toot(
                 media_id = api.media_post(resp.raw, mime_type="image/png")
                 params["media_ids"] = [media_id]
             return api.status_post(**params)
-        except Exception as exp:  # This is the base Exception in mastodon
+        except Exception as exp:
+            params.pop("media_ids", None)  # Try again without media
+            if isinstance(exp, MastodonError):
+                if len(exp.args) > 1 and exp.args[1] >= 500:  # temp fail
+                    # Since this called from a thread, sleeping should not jam
+                    time.sleep(kwargs.get("sleep", 30))
+                    continue
+                if disable_user_by_mastodon_exp(bot, iembot_account_id, exp):
+                    return None
             log.msg(
                 "Error sending to Mastodon "
                 f"{meta['screen_name']}({iembot_account_id}) "
                 f"'{twttxt}' media:{media}"
             )
-            if isinstance(exp, MastodonError) and disable_user_by_mastodon_exp(
-                bot, iembot_account_id, exp
-            ):
-                return None
             # Something else bad happened when submitting this to the Mastodon
             log.err(exp)
-            params.pop("media_ids", None)  # Try again without media
             if attempt == 0:
                 # Since this called from a thread, sleeping should not jam
-                time.sleep(kwargs.get("sleep", 10))
+                time.sleep(kwargs.get("sleep", 30))
     return None
 
 
