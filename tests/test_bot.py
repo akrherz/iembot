@@ -1,8 +1,18 @@
 """Test bot API."""
 
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
+
+import pytest_twisted
 
 from iembot.bot import JabberClient
+
+
+@pytest_twisted.inlineCallbacks
+def test_gh185_no_str_response(bot: JabberClient):
+    """Test that we can persist things."""
+    with patch("iembot.bot.log.err") as mock_err:
+        yield bot.log_iembot_social_log(123, {"not": "a string"})
+    mock_err.assert_not_called()
 
 
 def test_bot_apis(bot: JabberClient):
