@@ -18,6 +18,16 @@ log.startLogging(sys.stdout)
 def bot():
     """A bot."""
     iembot = JabberClient(f"iembot_{random.randint(0, 1000000)}", mock.Mock())
+    # Slack
+    iembot.slack_routingtable = {
+        "XXX": [123],
+    }
+    iembot.slack_teams = {
+        123: {
+            "access_token": "123",
+            "channel_id": "C67890",
+        }
+    }
     # Mastodon Stuff
     iembot.md_routingtable = {
         "XXX": [123],

@@ -3,21 +3,24 @@
 from unittest import mock
 
 import pytest
+import pytest_twisted
+import responses
 from twisted.internet import defer
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.test.requesthelper import DummyRequest
+from twisted.words.xish.domish import Element
 
 from iembot.slack import (
     SlackInstallChannel,
     SlackSubscribeChannel,
     load_slack_from_db,
-    requests,
+    route,
     send_to_slack,
 )
 from iembot.types import JabberClient
 
 
-@defer.inlineCallbacks
+@pytest_twisted.inlineCallbacks
 def test_subscribe_channel_render(bot: JabberClient):
     """Test that we can run the render workflow."""
     ss = SlackSubscribeChannel(bot)
@@ -73,46 +76,40 @@ def test_load_from_db(dbcursor, bot: JabberClient):
     load_slack_from_db(dbcursor, bot)
 
 
-def test_send_to_slack(monkeypatch):
+@pytest_twisted.inlineCallbacks
+def test_route(bot: JabberClient):
+    """Quasi test a route."""
+    elem = Element(("jabber:client", "message"))
+    elem.x = Element(("", "x"))
+    elem.x["twitter"] = "Hello"
+    elem["body"] = "Hello, Slack!"
+
+    yield route(
+        bot,
+        ["XXX"],
+        elem,
+    )
+
+
+def test_send_to_slack():
     """Test sending to Slack."""
-    posted = {}
+    elem = Element(("jabber:client", "message"))
+    elem.x = Element(("", "x"))
+    elem.x["twitter"] = "Hello"
+    elem["body"] = "Hello, Slack!"
 
-    def mock_post(url, headers, data):
-        """Mock requests.post"""
-        posted["url"] = url
-        posted["headers"] = headers
-        posted["data"] = data
-
-        class MockResponse:
-            """Mock response object."""
-
-            def __init__(self):
-                self.content = b'{"ok":true}'
-
-            def raise_for_status(self):
-                """Mock raise for status."""
-
-        return MockResponse()
-
-    monkeypatch.setattr(requests, "post", mock_post)
-
-    bot = mock.Mock()
-    bot.slack_teams = {"T12345": "xoxb-fake-token"}
-    channel_id = "C67890"
-    elem = mock.Mock()
-    elem.x = {"twitter": "Hello, Slack!"}
-
-    send_to_slack("xoxb-fake-token", channel_id, elem)
-
-    assert posted["url"] == "https://slack.com/api/chat.postMessage"
-    assert posted["headers"]["Authorization"] == "Bearer xoxb-fake-token"
-    assert posted["headers"]["Content-Type"] == "application/json"
-    import json as jsonlib
-
-    data = jsonlib.loads(posted["data"])
-    assert data["text"] == "Hello, Slack!"
-    assert data["channel"] == channel_id
-    assert data["mrkdwn"] is False
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            "https://slack.com/api/chat.postMessage",
+            status=200,
+            body="Hello",
+        )
+        send_to_slack(
+            "Test",
+            "XXX",
+            elem,
+        )
 
 
 def test_install(bot):

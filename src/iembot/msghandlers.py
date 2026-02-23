@@ -159,7 +159,7 @@ def process_groupchat(bot: JabberClient, elem: Element) -> None:
     def memcache_fetch(trip: int):
         """fetch please"""
         next_trip = trip + 1
-        if next_trip > 0:
+        if trip > 0:
             log.msg(f"memcache_fetch(trip={trip}, product_id={product_id}")
         defer = bot.memcache_client.get(product_id.encode("utf-8"))
         defer.addCallback(got_data, next_trip)

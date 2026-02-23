@@ -198,29 +198,25 @@ def test_disable_twitter_user_success():
     assert "123" not in bot.tw_users
 
 
-def test_tweet_cb_no_data():
+@pytest_twisted.inlineCallbacks
+def test_tweet_cb_no_data(bot: JabberClient):
     """Test tweet_cb with response missing data."""
-    bot = mock.Mock()
-    bot.tw_users = {"123": {"screen_name": "test"}}
-    result = tweet_cb({"error": "bad"}, bot, "text", "jid", "123")
+    result = yield tweet_cb({"error": "bad"}, bot, 123)
     assert result is None
 
 
-def test_tweet_cb_success():
+@pytest_twisted.inlineCallbacks
+def test_tweet_cb_success(bot: JabberClient):
     """Test tweet_cb with successful response."""
-    bot = mock.Mock()
-    bot.tw_users = {"123": {"screen_name": "testuser"}}
-    bot.dbpool.runOperation.return_value = mock.Mock()
     response = {"data": {"id": "tweet123"}}
-    result = tweet_cb(response, bot, "text", "jid", "123")
+    result = yield tweet_cb(response, bot, 123)
     assert result == response
-    bot.dbpool.runOperation.assert_called_once()
 
 
 def test_tweet_cb_no_response():
     """Test tweet_cb with None response."""
     bot = mock.Mock()
-    result = tweet_cb(None, bot, "text", "jid", "123")
+    result = tweet_cb(None, bot, 123)
     assert result is None
 
 
@@ -228,5 +224,5 @@ def test_tweet_cb_no_user():
     """Test tweet_cb with unknown user."""
     bot = mock.Mock()
     bot.tw_users = {}
-    result = tweet_cb({"data": {"id": "123"}}, bot, "text", "jid", "999")
+    result = tweet_cb({"data": {"id": "123"}}, bot, 999)
     assert result == {"data": {"id": "123"}}

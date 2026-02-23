@@ -7,19 +7,42 @@ threadsafety in Python.  So this is on me.
 """
 
 import threading
+from functools import partial
 from queue import Queue
 from time import sleep
 
 # Having troubles with httpx leaking memory on python 3.14
 import requests
 from atproto import Client
-from atproto_client.exceptions import InvokeTimeoutError
+from atproto_client.exceptions import InvokeTimeoutError, RequestException
 from atproto_client.utils import TextBuilder
 from twisted.python import log
 from twisted.words.xish.domish import Element
 
 from iembot.types import JabberClient
 from iembot.util import build_channel_subs, safe_twitter_text
+
+
+def _at_helper(
+    func: callable,
+    *args,
+    retry_sleep_seconds: int = 30,
+    sleeper=sleep,
+    **kwargs,
+):
+    """Help with the client call."""
+    for attempt in range(2):
+        try:
+            return func(*args, **kwargs)
+        except RequestException as exp:
+            if (
+                exp.response is not None
+                and exp.response.status_code >= 500
+                and attempt == 0
+            ):
+                sleeper(retry_sleep_seconds)
+                continue
+            raise
 
 
 class ATWorkerThread(threading.Thread):
@@ -30,6 +53,7 @@ class ATWorkerThread(threading.Thread):
         queue: Queue,
         at_handle: str,
         at_password: str,
+        message_callback: callable,
         retry_sleep_seconds: int = 30,
         sleeper=sleep,
     ):
@@ -40,6 +64,7 @@ class ATWorkerThread(threading.Thread):
         self.at_password = at_password
         self.retry_sleep_seconds = retry_sleep_seconds
         self.sleeper = sleeper
+        self.message_callback = message_callback
         self.logged_in = False
         self.client = Client()
         self.daemon = True  # Don't block on shutdown
@@ -81,7 +106,7 @@ class ATWorkerThread(threading.Thread):
             finally:
                 self.queue.task_done()
 
-    def process_message(self, msgdict: dict):
+    def process_message(self, msgdict: dict, **kwargs):
         """Process the message."""
         media = msgdict.get("twitter_media")
         imgbytes = None
@@ -100,7 +125,14 @@ class ATWorkerThread(threading.Thread):
         # Do we need to login?
         if not self.logged_in:
             log.msg(f"Logging in as {self.at_handle}...")
-            me = self.client.login(self.at_handle, self.at_password)
+            me = _at_helper(
+                self.client.login,
+                self.at_handle,
+                self.at_password,
+                retry_sleep_seconds=self.retry_sleep_seconds,
+                sleeper=self.sleeper,
+                **kwargs,
+            )
             log.msg(repr(me))
             self.logged_in = True
 
@@ -111,10 +143,14 @@ class ATWorkerThread(threading.Thread):
 
         if imgbytes is not None:
             try:
-                self.client.send_image(
+                _at_helper(
+                    self.client.send_image,
                     msg,
                     image=imgbytes,
                     image_alt="IEMBot Image",
+                    retry_sleep_seconds=self.retry_sleep_seconds,
+                    sleeper=self.sleeper,
+                    **kwargs,
                 )
                 return
             except Exception as exp:
@@ -122,24 +158,44 @@ class ATWorkerThread(threading.Thread):
                     f"Uploading message with image failed {exp}, "
                     "trying without"
                 )
-        self.client.send_post(msg)
+        resp = _at_helper(
+            self.client.send_post,
+            msg,
+            retry_sleep_seconds=self.retry_sleep_seconds,
+            sleeper=self.sleeper,
+            **kwargs,
+        )
+        self.message_callback(resp)
 
 
 class ATManager:
     """Ensure the creation of clients and submission of tasks is threadsafe."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        retry_sleep_seconds: int = 30,
+        sleeper=sleep,
+    ):
         """Constructor."""
         self.at_clients = {}
         self.lock = threading.Lock()
+        self.retry_sleep_seconds = retry_sleep_seconds
+        self.sleeper = sleeper
 
-    def add_client(self, at_handle: str, at_password: str):
+    def add_client(
+        self, at_handle: str, at_password: str, message_callback: callable
+    ):
         """Add a new client, if necessary."""
         if at_handle in self.at_clients:
             return
         with self.lock:
             self.at_clients[at_handle] = ATWorkerThread(
-                Queue(), at_handle, at_password
+                Queue(),
+                at_handle,
+                at_password,
+                message_callback,
+                retry_sleep_seconds=self.retry_sleep_seconds,
+                sleeper=self.sleeper,
             )
             self.at_clients[at_handle].start()
 
@@ -167,7 +223,8 @@ def load_atmosphere_from_db(txn, bot: JabberClient):
         users[user_id] = {
             "at_handle": row["handle"],
         }
-        bot.at_manager.add_client(row["handle"], row["app_pass"])
+        msgcb = partial(bot.log_iembot_social_log, row["iembot_account_id"])
+        bot.at_manager.add_client(row["handle"], row["app_pass"], msgcb)
     bot.at_users = users
     log.msg(f"load_atmosphere_from_db(): {txn.rowcount} accounts found")
 

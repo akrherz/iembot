@@ -13,6 +13,7 @@ from xml.etree import ElementTree as ET
 from pyiem.util import utc
 from twisted.application import internet
 from twisted.internet import reactor
+from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.mail.smtp import SMTPSenderFactory
 from twisted.python import log
@@ -141,6 +142,22 @@ class JabberClient(JabberClientType):
 
         lc3 = LoopingCall(reactor.callInThread, self.save_chatlog)
         lc3.start(600, now=False)  # Every 10 minutes
+
+    def log_iembot_social_log(
+        self,
+        iembot_account_id: int,
+        response: str,
+    ) -> Deferred:
+        """Persist a log message of a social media response."""
+        df = self.dbpool.runOperation(
+            """
+    insert into iembot_social_log (iembot_account_id, response)
+    values (%s, %s)
+            """,
+            (iembot_account_id, response),
+        )
+        df.addErrback(log.err)
+        return df
 
     def save_chatlog(self):
         """called from a thread"""

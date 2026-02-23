@@ -21,7 +21,10 @@ def test_load_webhooks_from_db(dbcursor, bot: JabberClient):
 
 def test_route(bot: JabberClient):
     """Can we route a message?"""
-    bot.webhooks_routingtable["XXX"] = ["http://localhost", "http://localhost"]
+    bot.webhooks_routingtable["XXX"] = [
+        {"url": "http://localhost", "iembot_account_id": 123},
+        {"url": "http://localhost2", "iembot_account_id": 456},
+    ]
     elem = Element(("jabber:client", "message"))
     elem["body"] = "Test Message"
     route(
