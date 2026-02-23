@@ -154,7 +154,7 @@ class JabberClient(JabberClientType):
     insert into iembot_social_log (iembot_account_id, response)
     values (%s, %s)
             """,
-            (iembot_account_id, response),
+            (iembot_account_id, str(response)),
         )
         df.addErrback(log.err)
         return df
