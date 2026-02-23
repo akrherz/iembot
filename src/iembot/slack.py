@@ -2,6 +2,7 @@
 
 import json
 import urllib
+from functools import partial
 
 import requests
 from twisted.internet import threads
@@ -14,7 +15,7 @@ from iembot.types import JabberClient
 from iembot.util import build_channel_subs
 
 
-def send_to_slack(access_token: str, channel_id: str, elem: Element):
+def send_to_slack(access_token: str, channel_id: str, elem: Element) -> str:
     """Send a message to Slack, called from thread."""
     payload = {
         "text": elem.x["twitter"],
@@ -35,6 +36,7 @@ def send_to_slack(access_token: str, channel_id: str, elem: Element):
     )
     log.msg(f"Got response {resp} {resp.content}")
     resp.raise_for_status()
+    return resp.text
 
 
 def load_slack_from_db(txn, bot: JabberClient):
@@ -67,6 +69,9 @@ def load_slack_from_db(txn, bot: JabberClient):
 def route(bot: JabberClient, channels: list, elem: Element):
     """Do Slack message routing."""
     alerted = []
+    if not elem.x or elem.x.getAttribute("twitter") is None:
+        log.msg("No twitter content found, skipping slack route")
+        return
     for channel in channels:
         for iembot_account_id in bot.slack_routingtable.get(channel, []):
             if iembot_account_id in alerted:
@@ -74,10 +79,13 @@ def route(bot: JabberClient, channels: list, elem: Element):
             alerted.append(iembot_account_id)
             log.msg("Attempting slack send...")
             meta = bot.slack_teams[iembot_account_id]
-            d = threads.deferToThread(
+            df = threads.deferToThread(
                 send_to_slack, meta["access_token"], meta["channel_id"], elem
             )
-            d.addErrback(log.msg)
+            df.addCallback(
+                partial(bot.log_iembot_social_log, iembot_account_id)
+            )
+            df.addErrback(log.err)
 
 
 class SlackSubscribeChannel(resource.Resource):

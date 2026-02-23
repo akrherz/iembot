@@ -3,7 +3,7 @@
 
 All notable changes to this library are documented in this file.
 
-## Unreleased Version
+## Unreleased Version, will be 0.4.0
 
 ### API Changes
 
@@ -12,6 +12,8 @@ All notable changes to this library are documented in this file.
   implement with tooling like `tmpwatch` or log archival (#167).
 - Refactored webhooks database schema and loading.
 - Replace `python-twitter` dep with stdlib python code.
+- Substancial refactor to support `iembot_social_log` persistence of
+  responses to messages IEMBot sends to various services (#182).
 - Update `twitter.tweet_cb` signature to remove unused ``room`` argument.
 
 ### New Features

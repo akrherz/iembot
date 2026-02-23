@@ -1,6 +1,7 @@
 """Tests for iembot atmosphere module."""
 
 import queue
+from functools import partial
 from unittest import mock
 
 import pytest
@@ -42,7 +43,7 @@ class FakeATClient:
 def test_gh168_invocation_timeout():
     """Test the handling of a timeout."""
     q = queue.Queue()
-    worker = ATWorkerThread(q, "user", "pw", sleeper=lambda _s: None)
+    worker = ATWorkerThread(q, 123, "user", "pw", sleeper=lambda _s: None)
     worker.client = FakeATClient()
 
     def _fakey(_user, _pass):
@@ -61,10 +62,11 @@ def test_gh168_invocation_timeout():
 
 
 @pytest.mark.timeout(10)  # Ensure the thread hackery does not cause trouble
-def test_atworkerthread_run_and_process_message():
+def test_atworkerthread_run_and_process_message(bot: JabberClient):
     """Test ATWorkerThread run loop and process_message logic."""
     q = queue.Queue()
-    worker = ATWorkerThread(q, "user", "pw")
+    cb = partial(bot.log_iembot_social_log, 123)
+    worker = ATWorkerThread(q, "user", "pw", cb)
     worker.client = FakeATClient()
     # Put a message with media and msg
     q.put({"twitter_media": "http://fake", "msg": "hello http://link"})
@@ -144,24 +146,26 @@ def test_at_send_message_with_handle(bot: JabberClient):
     )
 
 
-def test_atmanager_add_client():
+def test_atmanager_add_client(bot: JabberClient):
     """Test ATManager add_client."""
     manager = ATManager()
+    cb = partial(bot.log_iembot_social_log, 123)
     with mock.patch("iembot.atmosphere.ATWorkerThread") as mock_thread:
         mock_instance = mock.Mock()
         mock_thread.return_value = mock_instance
-        manager.add_client("test.bsky.social", "password123")
+        manager.add_client("test.bsky.social", "password123", cb)
         mock_thread.assert_called_once()
         mock_instance.start.assert_called_once()
         assert "test.bsky.social" in manager.at_clients
 
 
-def test_atmanager_add_client_duplicate():
+def test_atmanager_add_client_duplicate(bot: JabberClient):
     """Test ATManager doesn't add duplicate clients."""
     manager = ATManager()
     manager.at_clients["test.bsky.social"] = mock.Mock()
+    cb = partial(bot.log_iembot_social_log, 123)
     with mock.patch("iembot.atmosphere.ATWorkerThread") as mock_thread:
-        manager.add_client("test.bsky.social", "password123")
+        manager.add_client("test.bsky.social", "password123", cb)
         mock_thread.assert_not_called()
 
 

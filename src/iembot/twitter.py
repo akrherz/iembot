@@ -133,9 +133,7 @@ def _upload_media_to_twitter(oauth: OAuth1Session, url: str) -> str | None:
     return str(media_id)
 
 
-def tweet_cb(
-    response, bot: JabberClient, twttxt, myjid, iembot_account_id: int
-):
+def tweet_cb(response, bot: JabberClient, iembot_account_id: int):
     """
     Called after success going to twitter
     """
@@ -148,25 +146,11 @@ def tweet_cb(
     if "data" not in response:
         log.msg(f"Got response without data {response}")
         return None
-    screen_name = twuser["screen_name"]
-    url = f"https://x.com/{screen_name}/status/{response['data']['id']}"
 
-    # Log
-    df = bot.dbpool.runOperation(
-        "INSERT into iembot_social_log(medium, source, resource_uri, "
-        "message, response, response_code, iembot_account_id) "
-        "values (%s,%s,%s,%s,%s,%s,%s)",
-        (
-            "twitter",
-            myjid,
-            url,
-            twttxt,
-            repr(response),
-            200,
-            iembot_account_id,
-        ),
+    bot.log_iembot_social_log(
+        iembot_account_id,
+        response,
     )
-    df.addErrback(log.err)
     return response
 
 
@@ -282,7 +266,7 @@ def tweet(
         twttxt,
         **kwargs,
     )
-    df.addCallback(tweet_cb, bot, twttxt, "", iembot_account_id)
+    df.addCallback(tweet_cb, bot, iembot_account_id)
     df.addErrback(
         email_error,
         bot,

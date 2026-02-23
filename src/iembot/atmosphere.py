@@ -7,6 +7,7 @@ threadsafety in Python.  So this is on me.
 """
 
 import threading
+from functools import partial
 from queue import Queue
 from time import sleep
 
@@ -30,6 +31,7 @@ class ATWorkerThread(threading.Thread):
         queue: Queue,
         at_handle: str,
         at_password: str,
+        message_callback: callable,
         retry_sleep_seconds: int = 30,
         sleeper=sleep,
     ):
@@ -40,6 +42,7 @@ class ATWorkerThread(threading.Thread):
         self.at_password = at_password
         self.retry_sleep_seconds = retry_sleep_seconds
         self.sleeper = sleeper
+        self.message_callback = message_callback
         self.logged_in = False
         self.client = Client()
         self.daemon = True  # Don't block on shutdown
@@ -122,7 +125,8 @@ class ATWorkerThread(threading.Thread):
                     f"Uploading message with image failed {exp}, "
                     "trying without"
                 )
-        self.client.send_post(msg)
+        resp = self.client.send_post(msg)
+        self.message_callback(resp)
 
 
 class ATManager:
@@ -133,13 +137,15 @@ class ATManager:
         self.at_clients = {}
         self.lock = threading.Lock()
 
-    def add_client(self, at_handle: str, at_password: str):
+    def add_client(
+        self, at_handle: str, at_password: str, message_callback: callable
+    ):
         """Add a new client, if necessary."""
         if at_handle in self.at_clients:
             return
         with self.lock:
             self.at_clients[at_handle] = ATWorkerThread(
-                Queue(), at_handle, at_password
+                Queue(), at_handle, at_password, message_callback
             )
             self.at_clients[at_handle].start()
 
@@ -167,7 +173,8 @@ def load_atmosphere_from_db(txn, bot: JabberClient):
         users[user_id] = {
             "at_handle": row["handle"],
         }
-        bot.at_manager.add_client(row["handle"], row["app_pass"])
+        msgcb = partial(bot.log_iembot_social_log, row["iembot_account_id"])
+        bot.at_manager.add_client(row["handle"], row["app_pass"], msgcb)
     bot.at_users = users
     log.msg(f"load_atmosphere_from_db(): {txn.rowcount} accounts found")
 

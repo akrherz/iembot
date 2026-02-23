@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from twisted.internet.defer import Deferred
+
 
 class JabberClient(Protocol):
     """Structural type for JabberClient to avoid import cycles."""
@@ -18,10 +20,14 @@ class JabberClient(Protocol):
     memcache_client: Any | None
     config: dict[str, Any]
     outstanding_pings: list
-    rooms: dict[str, dict[str, Any]]
     chatlog: dict[str, Any]
     seqnum: int
+    # XMPP
+    rooms: dict[str, dict[str, Any]]
+    # channel -> [room, room, ...]
     routingtable: dict[str, list[str]]
+
+    # Atmosphere
     at_manager: Any
     at_users: dict[str, dict[str, Any]]
     at_routingtable: dict[str, list[str]]
@@ -34,9 +40,13 @@ class JabberClient(Protocol):
     md_users: dict[int, dict[str, Any]]
     md_routingtable: dict[str, list[int]]
 
-    slack_teams: dict[str, str]
+    # Slack
+    slack_teams: dict[str, dict[str, str]]
     slack_routingtable: dict[str, list[str]]
-    webhooks_routingtable: dict[str, list[str]]
+
+    # Webhooks
+    webhooks_routingtable: dict[str, list[dict[str, Any]]]
+
     xmlstream: Any | None
     firstlogin: bool
     xmllog: Any
@@ -49,3 +59,10 @@ class JabberClient(Protocol):
 
     def fire_client(self, xs: Any, service_collection: Any) -> None:
         """Fire up the client."""
+
+    def log_iembot_social_log(
+        self,
+        iembot_account_id: int,
+        response: str,
+    ) -> Deferred:
+        """Persist social response."""

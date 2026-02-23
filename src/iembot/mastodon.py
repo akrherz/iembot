@@ -88,36 +88,18 @@ def disable_user_by_mastodon_exp(
     return True
 
 
-def toot_cb(response, bot: JabberClient, twttxt, iembot_account_id):
+def toot_cb(response, bot: JabberClient, iembot_account_id: int):
     """
     Called after success going to Mastodon
     """
     if response is None:
         return None
-    mduser = bot.md_users.get(iembot_account_id)
-    if mduser is not None:
-        url = response["url"]
 
-        response.pop(
-            "account", None
-        )  # Remove extra junk, there's still a lot more though...
+    response.pop(
+        "account", None
+    )  # Remove extra junk, there's still a lot more though...
+    bot.log_iembot_social_log(iembot_account_id, response)
 
-        # Log
-        df = bot.dbpool.runOperation(
-            "INSERT into iembot_social_log(medium, source, resource_uri, "
-            "message, response, response_code, iembot_account_id) "
-            "values (%s,%s,%s,%s,%s,%s,%s)",
-            (
-                "mastodon",
-                "",
-                url,
-                twttxt,
-                repr(response),
-                200,
-                iembot_account_id,
-            ),
-        )
-        df.addErrback(log.err)
     return response
 
 
@@ -132,7 +114,7 @@ def toot(self, iembot_account_id: int, twttxt: str, **kwargs):
         twttxt,
         **kwargs,
     )
-    df.addCallback(toot_cb, self, twttxt, iembot_account_id)
+    df.addCallback(toot_cb, self, iembot_account_id)
     df.addErrback(
         email_error,
         self,

@@ -332,6 +332,7 @@ def load_chatrooms_from_db(txn, bot: JabberClient, always_join: bool = False):
         # Setup Room Config Dictionary
         if rm not in bot.rooms:
             bot.rooms[rm] = {
+                "iembot_account_id": row["iembot_account_id"],
                 "occupants": {},
                 "joined": False,
             }
