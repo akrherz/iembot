@@ -3,7 +3,7 @@
 
 All notable changes to this library are documented in this file.
 
-## Unreleased Version, will be 0.4.0
+## **0.4.0** (23 Feb 2026)
 
 ### API Changes
 
