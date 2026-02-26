@@ -3,6 +3,16 @@
 
 All notable changes to this library are documented in this file.
 
+## Unreleased Version
+
+### API Changes
+
+### New Features
+
+- Account for general Mastodon network errors more gracefully (#187).
+
+### Bug Fixes
+
 ## **0.4.0** (23 Feb 2026)
 
 ### API Changes
