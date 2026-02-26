@@ -4,7 +4,7 @@ import time
 
 import mastodon as Mastodon
 import requests
-from mastodon.errors import MastodonError
+from mastodon.errors import MastodonError, MastodonIOError
 from twisted.internet import threads
 from twisted.python import log
 from twisted.words.xish.domish import Element
@@ -154,6 +154,14 @@ def really_toot(
             return api.status_post(**params)
         except Exception as exp:
             params.pop("media_ids", None)  # Try again without media
+            # These are hopefully a class of non-user fault errors to retry
+            if isinstance(exp, MastodonIOError):
+                log.msg(
+                    f"MastodonIOError for user: {iembot_account_id} "
+                    f"({meta['screen_name']}), {exp.args}"
+                )
+                time.sleep(kwargs.get("sleep", 30))
+                continue
             if isinstance(exp, MastodonError):
                 if len(exp.args) > 1 and exp.args[1] >= 500:  # temp fail
                     # Since this called from a thread, sleeping should not jam
