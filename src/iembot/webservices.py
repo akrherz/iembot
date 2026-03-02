@@ -138,13 +138,6 @@ class RoomChannel(resource.Resource):
         resource.Resource.__init__(self)
         self.iembot = iembot
 
-    def wrap(self, request: Request, j: str) -> bytes:
-        """Support specification of a JSONP callback"""
-        if "callback" in request.args:
-            request.setHeader("Content-type", "application/javascript")
-            return (f"{request.args['callback'][0]}({j});").encode()
-        return j.encode("utf-8")
-
     def render(self, request: Request):
         """Process the request that we got, it should look something like:
         /room/dmxchat?seqnum=1
@@ -153,13 +146,13 @@ class RoomChannel(resource.Resource):
         tokens = re.findall("/room/([a-z_0-9]+)", uri.lower())
         if not tokens:
             log.msg(f"Bad URI: {uri} len(tokens) is 0")
-            return self.wrap(request, json.dumps("ERROR"))
+            return json.dumps("ERROR").encode("utf-8")
 
         room = tokens[0]
         seqnum = request.args.get(b"seqnum")
         if seqnum is None or len(seqnum) != 1 or seqnum[0] == b"":
             log.msg(f"Bad URI: {request.uri} seqnum problem {request.args}")
-            return self.wrap(request, json.dumps("ERROR"))
+            return json.dumps("ERROR").encode("utf-8")
         seqnum = int(seqnum[0])
 
         r = {"messages": []}
@@ -177,7 +170,7 @@ class RoomChannel(resource.Resource):
                 }
             )
 
-        return self.wrap(request, json.dumps(r))
+        return json.dumps(r).encode("utf-8")
 
 
 class ReloadChannel(resource.Resource):

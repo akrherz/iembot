@@ -7,6 +7,8 @@ All notable changes to this library are documented in this file.
 
 ### API Changes
 
+- Drop unused (hopefully) callback parameter support in room service.
+
 ### New Features
 
 - Account for general Mastodon network errors more gracefully (#187).
