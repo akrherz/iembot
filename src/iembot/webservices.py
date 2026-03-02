@@ -9,6 +9,7 @@ from pyiem.util import utc
 from twisted.internet import reactor
 from twisted.python import log
 from twisted.web import resource
+from twisted.web.http import Request
 
 import iembot.util as botutil
 from iembot.slack import (
@@ -66,7 +67,7 @@ class RSSService(resource.Resource):
         resource.Resource.__init__(self)
         self.iembot = iembot
 
-    def render(self, request):
+    def render(self, request: Request):
         if request.method == b"HEAD":
             return b""
         uri = request.uri.decode("utf-8")
@@ -137,14 +138,14 @@ class RoomChannel(resource.Resource):
         resource.Resource.__init__(self)
         self.iembot = iembot
 
-    def wrap(self, request, j):
+    def wrap(self, request: Request, j: str) -> bytes:
         """Support specification of a JSONP callback"""
         if "callback" in request.args:
             request.setHeader("Content-type", "application/javascript")
             return (f"{request.args['callback'][0]}({j});").encode()
         return j.encode("utf-8")
 
-    def render(self, request):
+    def render(self, request: Request):
         """Process the request that we got, it should look something like:
         /room/dmxchat?seqnum=1
         """
@@ -156,8 +157,8 @@ class RoomChannel(resource.Resource):
 
         room = tokens[0]
         seqnum = request.args.get(b"seqnum")
-        if seqnum is None or len(seqnum) != 1:
-            log.msg(f"Bad URI: {request.uri} seqnum problem")
+        if seqnum is None or len(seqnum) != 1 or seqnum[0] == b"":
+            log.msg(f"Bad URI: {request.uri} seqnum problem {request.args}")
             return self.wrap(request, json.dumps("ERROR"))
         seqnum = int(seqnum[0])
 

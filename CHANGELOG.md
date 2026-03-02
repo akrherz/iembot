@@ -13,6 +13,8 @@ All notable changes to this library are documented in this file.
 
 ### Bug Fixes
 
+- Prevent traceback from empty `seqnum` parameter in room service (#189).
+
 ## **0.4.0** (23 Feb 2026)
 
 ### API Changes
