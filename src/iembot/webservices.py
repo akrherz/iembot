@@ -9,6 +9,7 @@ from pyiem.util import utc
 from twisted.internet import reactor
 from twisted.python import log
 from twisted.web import resource
+from twisted.web.http import Request
 
 import iembot.util as botutil
 from iembot.slack import (
@@ -66,7 +67,7 @@ class RSSService(resource.Resource):
         resource.Resource.__init__(self)
         self.iembot = iembot
 
-    def render(self, request):
+    def render(self, request: Request):
         if request.method == b"HEAD":
             return b""
         uri = request.uri.decode("utf-8")
@@ -137,14 +138,7 @@ class RoomChannel(resource.Resource):
         resource.Resource.__init__(self)
         self.iembot = iembot
 
-    def wrap(self, request, j):
-        """Support specification of a JSONP callback"""
-        if "callback" in request.args:
-            request.setHeader("Content-type", "application/javascript")
-            return (f"{request.args['callback'][0]}({j});").encode()
-        return j.encode("utf-8")
-
-    def render(self, request):
+    def render(self, request: Request):
         """Process the request that we got, it should look something like:
         /room/dmxchat?seqnum=1
         """
@@ -152,13 +146,13 @@ class RoomChannel(resource.Resource):
         tokens = re.findall("/room/([a-z_0-9]+)", uri.lower())
         if not tokens:
             log.msg(f"Bad URI: {uri} len(tokens) is 0")
-            return self.wrap(request, json.dumps("ERROR"))
+            return json.dumps("ERROR").encode("utf-8")
 
         room = tokens[0]
         seqnum = request.args.get(b"seqnum")
-        if seqnum is None or len(seqnum) != 1:
-            log.msg(f"Bad URI: {request.uri} seqnum problem")
-            return self.wrap(request, json.dumps("ERROR"))
+        if seqnum is None or len(seqnum) != 1 or seqnum[0] == b"":
+            log.msg(f"Bad URI: {request.uri} seqnum problem {request.args}")
+            return json.dumps("ERROR").encode("utf-8")
         seqnum = int(seqnum[0])
 
         r = {"messages": []}
@@ -176,7 +170,7 @@ class RoomChannel(resource.Resource):
                 }
             )
 
-        return self.wrap(request, json.dumps(r))
+        return json.dumps(r).encode("utf-8")
 
 
 class ReloadChannel(resource.Resource):

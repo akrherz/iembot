@@ -7,11 +7,15 @@ All notable changes to this library are documented in this file.
 
 ### API Changes
 
+- Drop unused (hopefully) callback parameter support in room service.
+
 ### New Features
 
 - Account for general Mastodon network errors more gracefully (#187).
 
 ### Bug Fixes
+
+- Prevent traceback from empty `seqnum` parameter in room service (#189).
 
 ## **0.4.0** (23 Feb 2026)
 
