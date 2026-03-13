@@ -50,7 +50,7 @@ def load_slack_from_db(txn, bot: JabberClient):
         """
     select iembot_account_id, c.channel_id, t.access_token from
     iembot_slack_teams t JOIN iembot_slack_team_channels c on
-    (t.team_id = c.team_id)
+    (t.team_id = c.team_id) WHERE not t.disabled
         """
     )
     teams = {}
