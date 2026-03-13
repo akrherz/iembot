@@ -6,7 +6,7 @@ requires = [ "setuptools>=64", "setuptools-scm>=8" ]
 name = "iembot"
 description = "A poorly written XMPP bot that does other things"
 readme = "README.md"
-license = { "text" = "Apache" }
+license = { text = "Apache" }
 authors = [
   { name = "daryl herzmann", email = "akrherz@gmail.com" },
 ]
@@ -42,13 +42,13 @@ optional-dependencies.dev = [
   "pytest-timeout",
   "responses",
 ]
-urls."Homepage" = "https://github.com/akrherz/iembot"
+urls.Homepage = "https://github.com/akrherz/iembot"
 scripts.iembot = "iembot.main:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
 include-package-data = true
-package-data."iembot" = [ "data/startrek" ]
+package-data.iembot = [ "data/startrek" ]
 
 [tool.setuptools_scm]
 version_scheme = "post-release"
