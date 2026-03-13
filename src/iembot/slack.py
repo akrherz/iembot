@@ -50,17 +50,15 @@ def load_slack_from_db(txn, bot: JabberClient):
         """
     select iembot_account_id, c.channel_id, t.access_token from
     iembot_slack_teams t JOIN iembot_slack_team_channels c on
-    (t.team_id = c.team_id)
+    (t.team_id = c.team_id) WHERE not t.disabled
         """
     )
     teams = {}
-    xref = {}
     for row in txn.fetchall():
         teams[row["iembot_account_id"]] = {
             "access_token": row["access_token"],
             "channel_id": row["channel_id"],
         }
-        xref[row["iembot_account_id"]] = row["channel_id"]
 
     bot.slack_teams = teams
     log.msg(f"Loaded {len(teams)} Slack teams")
@@ -74,10 +72,12 @@ def route(bot: JabberClient, channels: list, elem: Element):
         return
     for channel in channels:
         for iembot_account_id in bot.slack_routingtable.get(channel, []):
-            if iembot_account_id in alerted:
+            if (
+                iembot_account_id in alerted
+                or iembot_account_id not in bot.slack_teams
+            ):
                 continue
             alerted.append(iembot_account_id)
-            log.msg("Attempting slack send...")
             meta = bot.slack_teams[iembot_account_id]
             df = threads.deferToThread(
                 send_to_slack, meta["access_token"], meta["channel_id"], elem
