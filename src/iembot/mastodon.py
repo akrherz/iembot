@@ -164,8 +164,8 @@ def really_toot(
                 if len(exp.args) > 1:
                     if not isinstance(exp.args[1], int):
                         log.msg(f"Unhandled MastodonError {emsg}, {exp.args}")
-                        return 1
-                    elif exp.args[1] >= 500:  # temp fail
+                        return None
+                    if exp.args[1] >= 500:  # temp fail
                         # Since this called from a thread, sleeping won't jam
                         time.sleep(kwargs.get("sleep", 30))
                         continue
