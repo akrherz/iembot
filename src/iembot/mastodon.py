@@ -153,26 +153,26 @@ def really_toot(
                 params["media_ids"] = [media_id]
             return api.status_post(**params)
         except Exception as exp:
+            emsg = f"User: {iembot_account_id} ({meta['screen_name']})"
             params.pop("media_ids", None)  # Try again without media
             # These are hopefully a class of non-user fault errors to retry
             if isinstance(exp, MastodonIOError):
-                log.msg(
-                    f"MastodonIOError for user: {iembot_account_id} "
-                    f"({meta['screen_name']}), {exp.args}"
-                )
+                log.msg(f"MastodonIOError for {emsg}, {exp.args}")
                 time.sleep(kwargs.get("sleep", 30))
                 continue
             if isinstance(exp, MastodonError):
-                if len(exp.args) > 1 and exp.args[1] >= 500:  # temp fail
-                    # Since this called from a thread, sleeping should not jam
-                    time.sleep(kwargs.get("sleep", 30))
-                    continue
+                if len(exp.args) > 1:
+                    if not isinstance(exp.args[1], int):
+                        log.msg(f"Unhandled MastodonError {emsg}, {exp.args}")
+                        return None
+                    if exp.args[1] >= 500:  # temp fail
+                        # Since this called from a thread, sleeping won't jam
+                        time.sleep(kwargs.get("sleep", 30))
+                        continue
                 if disable_user_by_mastodon_exp(bot, iembot_account_id, exp):
                     return None
             log.msg(
-                "Error sending to Mastodon "
-                f"{meta['screen_name']}({iembot_account_id}) "
-                f"'{twttxt}' media:{media}"
+                f"Error sending to Mastodon {emsg}, {twttxt}' media:{media}"
             )
             # Something else bad happened when submitting this to the Mastodon
             log.err(exp)

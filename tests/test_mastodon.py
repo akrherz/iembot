@@ -26,6 +26,17 @@ def test_disable_unknown_user(bot: JabberClient):
     )
 
 
+def test_gh195_mastodon_error_str_status(bot: JabberClient):
+    """Test an invalid JSON response handling."""
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            "https://localhost/api/v1/statuses",
+            body="{'error': 'Unknown error'",  # invalid JSON
+        )
+        assert really_toot(bot, 123, "test message", sleep=0) is None
+
+
 def test_gh180_mastodon_503(bot: JabberClient):
     """Test that we retry on a 503."""
     with responses.RequestsMock() as rsps:
