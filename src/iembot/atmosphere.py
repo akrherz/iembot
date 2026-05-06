@@ -11,7 +11,6 @@ from functools import partial
 from queue import Queue
 from time import sleep
 
-# Having troubles with httpx leaking memory on python 3.14
 import requests
 from atproto import Client
 from atproto_client.exceptions import InvokeTimeoutError, RequestException

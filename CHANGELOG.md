@@ -12,6 +12,7 @@ All notable changes to this library are documented in this file.
 ### New Features
 
 - Account for general Mastodon network errors more gracefully (#187).
+- Remove unused `httpx` dependency.
 - Use `disabled` attribute on `iembot_slack_teams` to disable accounts.
 
 ### Bug Fixes
