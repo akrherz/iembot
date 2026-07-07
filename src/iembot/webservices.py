@@ -14,6 +14,7 @@ from twisted.web.http import Request
 import iembot.util as botutil
 from iembot.slack import (
     SlackInstallChannel,
+    SlackListChannel,
     SlackOauthChannel,
     SlackSubscribeChannel,
     SlackUnsubscribeChannel,
@@ -224,3 +225,4 @@ class JSONRootResource(resource.Resource):
         self.putChild(b"unsubscribe", SlackUnsubscribeChannel(iembot))
         self.putChild(b"install", SlackInstallChannel(iembot))
         self.putChild(b"oauth_callback", SlackOauthChannel(iembot))
+        self.putChild(b"list", SlackListChannel(iembot))
