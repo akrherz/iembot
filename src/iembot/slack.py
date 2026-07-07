@@ -212,8 +212,7 @@ class SlackListChannel(resource.Resource):
                 f"Current channel subscriptions {subs}".encode("ascii")
             )
         )
-        defer.addCallback(lambda _: request.finish())
-
+        defer.addBoth(lambda _: request.finish())
         return NOT_DONE_YET
 
 
@@ -260,7 +259,7 @@ class SlackUnsubscribeChannel(resource.Resource):
                 f"Unsubscribed from {subkey}".encode("ascii")
             )
         )
-        defer.addCallback(lambda _: request.finish())
+        defer.addBoth(lambda _: request.finish())
         defer.addCallback(lambda _: self.iembot.load_slack())
 
         return NOT_DONE_YET
