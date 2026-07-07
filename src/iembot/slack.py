@@ -169,6 +169,53 @@ class SlackSubscribeChannel(resource.Resource):
         return NOT_DONE_YET
 
 
+class SlackListChannel(resource.Resource):
+    """respond to /list requests"""
+
+    def __init__(self, iembot: JabberClient):
+        """Constructor"""
+        resource.Resource.__init__(self)
+        self.iembot = iembot
+
+    def list_slack_subscriptions(
+        self,
+        txn,
+        team_id,
+        channel_id,
+    ) -> str:
+        """write to database."""
+        txn.execute(
+            """
+            select channel_name from
+            iembot_subscriptions s JOIN iembot_channels c
+                ON (s.channel_id = c.id)
+            WHERE iembot_account_id = (
+            select iembot_account_id from iembot_slack_team_channels where
+            team_id = %s and channel_id = %s)
+            """,
+            (team_id, channel_id),
+        )
+        res = ", ".join([row["channel_name"] for row in txn.fetchall()])
+        return res
+
+    def render(self, request):
+        """Answer the call."""
+        team_id = request.args.get(b"team_id", [b""])[0].decode("ascii")
+        channel_id = request.args.get(b"channel_id", [b""])[0].decode("ascii")
+        defer = self.iembot.dbpool.runInteraction(
+            self.list_slack_subscriptions,
+            team_id,
+            channel_id,
+        )
+        defer.addCallback(
+            lambda subs: request.write(
+                f"Current channel subscriptions {subs}".encode("ascii")
+            )
+        )
+        defer.addBoth(lambda _: request.finish())
+        return NOT_DONE_YET
+
+
 class SlackUnsubscribeChannel(resource.Resource):
     """respond to /unsubscribe requests"""
 
@@ -212,7 +259,7 @@ class SlackUnsubscribeChannel(resource.Resource):
                 f"Unsubscribed from {subkey}".encode("ascii")
             )
         )
-        defer.addCallback(lambda _: request.finish())
+        defer.addBoth(lambda _: request.finish())
         defer.addCallback(lambda _: self.iembot.load_slack())
 
         return NOT_DONE_YET

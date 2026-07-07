@@ -12,12 +12,31 @@ from twisted.words.xish.domish import Element
 
 from iembot.slack import (
     SlackInstallChannel,
+    SlackListChannel,
     SlackSubscribeChannel,
     load_slack_from_db,
     route,
     send_to_slack,
 )
 from iembot.types import JabberClient
+
+
+@pytest_twisted.inlineCallbacks
+def test_list_channel_render(bot: JabberClient):
+    """Test that we can run the render workflow."""
+    ss = SlackListChannel(bot)
+    request = DummyRequest([])
+    request.args = {
+        b"team_id": [b"T12345"],
+        b"channel_id": [b"C67890"],
+    }
+    bot.dbpool.runInteraction = mock.Mock(
+        return_value=defer.succeed(["AFDDMX", "AFDDFG"])
+    )
+    result = ss.render(request)
+    assert result == NOT_DONE_YET
+    yield defer.succeed(None)
+    assert b"Current channel subscriptions" in b"".join(request.written)
 
 
 @pytest_twisted.inlineCallbacks
