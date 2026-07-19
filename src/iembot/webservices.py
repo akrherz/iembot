@@ -147,6 +147,7 @@ class RoomChannel(resource.Resource):
         tokens = re.findall("/room/([a-z_0-9]+)", uri.lower())
         if not tokens:
             log.msg(f"Bad URI: {uri} len(tokens) is 0")
+            request.setHeader("Content-Type", "application/json")
             return json.dumps("ERROR").encode("utf-8")
 
         room = tokens[0]
@@ -171,6 +172,7 @@ class RoomChannel(resource.Resource):
                 }
             )
 
+        request.setHeader("Content-Type", "application/json")
         return json.dumps(r).encode("utf-8")
 
 
