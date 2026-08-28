@@ -11,6 +11,7 @@ from email.mime.text import MIMEText
 from html import unescape
 from io import BytesIO
 
+from feedgen.feed import FeedGenerator
 from pyiem.reference import TWEET_CHARS
 from pyiem.util import utc
 from twisted.internet import reactor
@@ -421,14 +422,14 @@ def remove_control_characters(html):
     return html
 
 
-def add_entry_to_rss(entry, rss):
+def add_entry_to_rss(entry: iembot.ROOM_LOG_ENTRY, rss: FeedGenerator):
     """Convert a txt Jabber room message to a RSS feed entry
 
     Args:
       entry(CHAT_LOG_ENTRY): entry
 
     Returns:
-      PyRSSGen.RSSItem
+      feedgen.entry.FeedEntry
     """
     ts = datetime.strptime(entry.timestamp, "%Y%m%d%H%M%S")
     txt = entry.txtlog

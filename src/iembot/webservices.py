@@ -25,7 +25,7 @@ XML_CACHE = {}
 XML_CACHE_EXPIRES = {}
 
 
-def wfo_rss(iembot: JabberClient, rm):
+def wfo_rss(iembot: JabberClient, rm: str) -> str:
     """build a RSS for the given room"""
     if len(rm) == 4 and rm[0] == "k":
         rm = f"{rm[-3:]}chat"
