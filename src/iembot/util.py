@@ -422,14 +422,12 @@ def remove_control_characters(html):
     return html
 
 
-def add_entry_to_rss(entry: iembot.ROOM_LOG_ENTRY, rss: FeedGenerator):
-    """Convert a txt Jabber room message to a RSS feed entry
+def add_entry_to_rss(entry: iembot.ROOM_LOG_ENTRY, rss: FeedGenerator) -> None:
+    """Add given entry into the rss feed generator
 
     Args:
-      entry(CHAT_LOG_ENTRY): entry
-
-    Returns:
-      feedgen.entry.FeedEntry
+      entry(iembot.ROOM_LOG_ENTRY): entry within the chatlog
+      rss(FeedGenerator): the feed generator to add to
     """
     ts = datetime.strptime(entry.timestamp, "%Y%m%d%H%M%S")
     txt = entry.txtlog
