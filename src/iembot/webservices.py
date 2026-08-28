@@ -25,16 +25,16 @@ XML_CACHE = {}
 XML_CACHE_EXPIRES = {}
 
 
-def wfo_rss(iembot: JabberClient, rm):
+def wfo_rss(iembot: JabberClient, rm: str) -> bytes:
     """build a RSS for the given room"""
     if len(rm) == 4 and rm[0] == "k":
         rm = f"{rm[-3:]}chat"
     elif len(rm) == 3:
         rm = f"k{rm}chat"
     if rm not in iembot.chatlog:
-        return ""
+        return b""
     if rm not in XML_CACHE:
-        XML_CACHE[rm] = ""
+        XML_CACHE[rm] = b""
         XML_CACHE_EXPIRES[rm] = -2
     # should not be empty given the caller
     lastID = iembot.chatlog[rm][0].seqnum
