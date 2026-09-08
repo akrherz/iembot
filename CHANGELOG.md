@@ -3,6 +3,14 @@
 
 All notable changes to this library are documented in this file.
 
+## Unreleased Version
+
+### API Changes
+
+### New Features
+
+### Bug Fixes
+
 ## **0.4.1** (8 Sep 2026)
 
 ### API Changes
