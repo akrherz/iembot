@@ -16,5 +16,9 @@
     "bot.purge_xmllog_days": 7,
     "bot.email_errors_from": "iembot@localhost",
     "bot.email_errors_to": "root@localhost",
-    "bot.smtp_server": "localhost"
+    "bot.smtp_server": "localhost",
+    "twitter": true,
+    "slack": true,
+    "atmosphere": true,
+    "mastodon": true
 }
