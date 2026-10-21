@@ -176,11 +176,29 @@ def run(
     _start_logging(logfile)
     _write_pidfile(pidfile)
 
+    settings = _load_config(config)
+
     handlers = [
-        (not disable_slack, "iembot.slack", "route"),
-        (not disable_twitter, "iembot.twitter", "route"),
-        (not disable_atmosphere, "iembot.atmosphere", "route"),
-        (not disable_mastodon, "iembot.mastodon", "route"),
+        (
+            not disable_slack and settings.get("slack", True),
+            "iembot.slack",
+            "route",
+        ),
+        (
+            not disable_twitter and settings.get("twitter", True),
+            "iembot.twitter",
+            "route",
+        ),
+        (
+            not disable_atmosphere and settings.get("atmosphere", True),
+            "iembot.atmosphere",
+            "route",
+        ),
+        (
+            not disable_mastodon and settings.get("mastodon", True),
+            "iembot.mastodon",
+            "route",
+        ),
         (True, "iembot.webhooks", "route"),
         (True, "iembot.xmpp", "route"),  # Required at the moment
     ]
@@ -194,7 +212,6 @@ def run(
     application = service.Application("Public IEMBOT")
     service_collection = service.IServiceCollection(application)
 
-    settings = _load_config(config)
     dbpool = _build_dbpool(settings)
     memcache_client = build_memcache_client(memcache)
 

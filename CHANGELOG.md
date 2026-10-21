@@ -9,6 +9,9 @@ All notable changes to this library are documented in this file.
 
 ### New Features
 
+- Allow enabling/disabling of Twitter,Mastodon,Slack,Atmosphere from the
+  settings file.
+
 ### Bug Fixes
 
 ## **0.4.1** (8 Sep 2026)
